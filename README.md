@@ -1,26 +1,30 @@
 # Capstone Ticket System
 
-An independent, small multi-user ticket management application for the CISY 8503 Open Source Database Lab.
+An independent, small multi-user ticket management web application for the CISY 8503 Applied Database Management Open Source Database Lab.
+
+**Status:** Planning baseline v0.4. No runnable application has been implemented. Requirements and database design are still proposals subject to Professor Enke's feedback.
 
 ## Proposed stack
-- Desktop client: Kotlin + Compose Multiplatform (Linux and Windows first)
-- Backend: Kotlin + Ktor, exposing a JSON HTTP API
-- Database: PostgreSQL
-- Build: Gradle Kotlin DSL
-- Migrations: versioned SQL files (tooling to be selected)
+- SvelteKit, Svelte 5, strict TypeScript
+- Tailwind CSS 4, shadcn-svelte (Bits UI), Lucide
+- PostgreSQL, Drizzle ORM, Drizzle Kit migrations
+- Zod validation; Vitest, Playwright and PostgreSQL integration tests
+- Local Node.js server; optional online-only PWA support later
 
-## Status
-**Planning / baseline v0.1.** The initial requirements and schema are proposals, not professor-approved final specifications. No application code has been implemented yet.
+SvelteKit handles browser UI and server-side business logic. There is no Ktor backend, Compose desktop client or Electron shell. This project is entirely independent of TicketTinker.
 
-## Documents
+## Initial scope
+Requester, agent and administrator roles; authentication; tickets; category, status, assignment, comments, filtering and event history. The interface is desktop-first and uses a compact split-view ticket workspace, with a restrained Material 3 influence. The application is a small course exercise, not a long-term product.
+
+## Documentation
+- [Needs assessment](docs/needs-assessment.md)
 - [Requirements](docs/requirements.md)
 - [Architecture](docs/architecture.md)
 - [Database design](docs/database-design.md)
 - [Development plan](docs/development-plan.md)
 - [Change log](docs/change-log.md)
 
-## First demonstration target
-A desktop client can log in, list tickets, create a ticket, and open a ticket's details. A Ktor server mediates database access; PostgreSQL holds all persistent ticket data. Include a database diagram, initial migration, sample seed data, and at least a few tested queries.
+## First demonstration
+A fictional user signs in, creates a ticket, and sees it persisted and retrieved through PostgreSQL. Show authorization controls, an ER diagram, a tested migration, example queries and test evidence. Use only fictional demonstration data.
 
-## Security principles
-The desktop client never receives database credentials. Database access stays on the server. Server endpoints enforce permissions and validate inputs. Passwords will only be stored using an established password-hashing implementation (algorithm/library chosen during implementation), never plaintext.
+Documentation should explain the project at a high level and give more detail where technical choices are uncertain or consequential. The lab's exact deliverables remain subject to instructor clarification.
