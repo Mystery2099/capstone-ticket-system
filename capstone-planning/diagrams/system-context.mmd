@@ -1,0 +1,9 @@
+flowchart LR
+    USER[Requester / Agent / Admin] --> BROWSER[Browser UI]
+    BROWSER -->|HTTPS| SERVER[SvelteKit server]
+    SERVER --> AUTH[Authentication and permissions]
+    SERVER --> VALID[Input validation]
+    AUTH --> DB[Drizzle database operations]
+    VALID --> DB
+    DB <--> PG[(PostgreSQL)]
+    SERVER -->|Authorized response| BROWSER

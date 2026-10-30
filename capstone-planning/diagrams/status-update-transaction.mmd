@@ -1,0 +1,16 @@
+sequenceDiagram
+    actor User
+    participant SK as SvelteKit server
+    participant DB as PostgreSQL
+    User->>SK: Change ticket status
+    SK->>SK: Authorize actor, ticket and transition
+    SK->>DB: Begin transaction
+    SK->>DB: Update ticket status + updated_at
+    SK->>DB: Insert event with old/new status
+    alt Both operations succeed
+        SK->>DB: Commit
+        SK-->>User: Show updated ticket
+    else Either operation fails
+        SK->>DB: Roll back
+        SK-->>User: Show error, no partial change
+    end

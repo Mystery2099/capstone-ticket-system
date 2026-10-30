@@ -1,0 +1,15 @@
+sequenceDiagram
+    actor User
+    participant UI as Browser
+    participant SK as SvelteKit server
+    participant DB as PostgreSQL
+    User->>UI: Submit subject, category, description
+    UI->>SK: Form submission
+    SK->>SK: Verify session and validate fields
+    SK->>DB: Begin transaction
+    SK->>DB: Insert ticket
+    SK->>DB: Insert ticket-created event
+    SK->>DB: Commit transaction
+    DB-->>SK: Ticket ID / number
+    SK-->>UI: Redirect to ticket detail
+    UI-->>User: Show created ticket

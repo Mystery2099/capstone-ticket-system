@@ -1,0 +1,58 @@
+erDiagram
+  APP_USER ||--o{ TICKET : submits
+  APP_USER o|--o{ TICKET : assigned_agent
+  CATEGORY ||--o{ TICKET : classifies
+  TICKET_STATUS ||--o{ TICKET : identifies_state
+  TICKET ||--o{ TICKET_COMMENT : contains
+  APP_USER ||--o{ TICKET_COMMENT : authors
+  TICKET ||--o{ TICKET_EVENT : records
+  APP_USER o|--o{ TICKET_EVENT : performs
+
+  APP_USER {
+    uuid id PK
+    text email "unique ignoring case"
+    text password_hash
+    text display_name
+    text role "requester-agent-admin"
+    boolean enabled
+    timestamptz created_at
+  }
+  CATEGORY {
+    uuid id PK
+    text name "unique ignoring case"
+    boolean active
+  }
+  TICKET_STATUS {
+    text code PK
+    text label UK
+    integer sort_order UK
+  }
+  TICKET {
+    uuid id PK
+    bigint ticket_number UK "public-facing number"
+    text subject
+    text description
+    uuid requester_id FK
+    uuid assigned_to_user_id FK "optional"
+    uuid category_id FK
+    text status_code FK
+    text priority "low-normal-high"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+  TICKET_COMMENT {
+    uuid id PK
+    uuid ticket_id FK
+    uuid author_id FK
+    text body
+    boolean is_internal "default false"
+    timestamptz created_at
+  }
+  TICKET_EVENT {
+    uuid id PK
+    uuid ticket_id FK
+    uuid actor_id FK "nullable"
+    text event_type
+    jsonb details "no private note body"
+    timestamptz created_at
+  }
