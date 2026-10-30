@@ -1,4 +1,4 @@
-# Concept designs
+# Design
 
 UI concept images grouped by platform and purpose. Original image filenames are preserved.
 

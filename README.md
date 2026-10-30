@@ -16,16 +16,19 @@ One full-stack SvelteKit app handles both the web UI and server logic. The brows
 
 Planning only. No working app, generated Better Auth schema or executed migration has been committed. We'll develop locally first; Azure deployment is optional once the demonstration works locally.
 
-The UI direction is a Gmail-inspired ticket workspace with responsive mobile layouts and a Plum & Apricot palette. The Claude-produced design files are implementation references, not part of this repository.
+The UI direction is a Gmail-inspired ticket workspace with responsive mobile layouts and a Plum & Apricot palette. The Claude-produced design mockups in [design/](design/) are implementation references developed alongside the app.
 
 ## Documentation
 
 - [Requirements](docs/requirements.md)
 - [Architecture](docs/architecture.md)
-- [Database design](docs/database-design.md)
+- [Database design](docs/database-design.md) (with SQL reference and data dictionary in [docs/database/](docs/database/))
 - [Development plan](docs/development-plan.md)
-- [Role and workflow rules](docs/roles-and-workflow.md)
+- [Roles and workflow rules](docs/roles-and-workflow.md)
 - [Better Auth integration](docs/auth-integration.md)
+- [Request lifecycle](docs/request-lifecycle.md)
+- [Site map](docs/site-map.md)
+- [Test and demo plan](docs/test-and-demo-plan.md)
 - [Diagrams](docs/diagrams/)
 - [Change log](docs/change-log.md)
 
