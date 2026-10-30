@@ -1,36 +1,32 @@
-# Development Plan
+# Development Plan — Web Baseline v0.4
 
-## Milestone 0 — Baseline (current)
-- [x] Write initial requirements, architecture, and database design.
-- [x] Draft first migration.
-- [ ] Review initial assumptions with Professor Enke.
+## Milestone 0: Planning
+- [x] Decide on SvelteKit full-stack web app following instructor feedback.
+- [x] Draft needs assessment, architecture and revised requirements.
+- [ ] Review initial PostgreSQL schema and migration before adoption.
 
-## Milestone 1 — Working vertical slice
-- [ ] Bootstrap Gradle multi-module Kotlin project.
-- [ ] Start PostgreSQL locally and execute migration.
-- [ ] Add fictional development users and seed categories/statuses.
-- [ ] Build Ktor health, authentication, list/create/detail ticket routes.
-- [ ] Build Compose desktop sign-in, list, create, and detail screens.
-- [ ] Verify client/server/database flow and permissions with tests.
+## Milestone 1: Vertical slice
+- [ ] Scaffold SvelteKit, Svelte 5, TypeScript, Tailwind and shadcn-svelte.
+- [ ] Configure PostgreSQL and Drizzle migrations; seed fictional records.
+- [ ] Implement basic sessions and server authorization.
+- [ ] Build create/list/detail ticket server actions.
+- [ ] Build the split-view ticket UI using actual database data.
+- [ ] Test access restrictions and persistence using PostgreSQL.
 
-## Milestone 2 — Ticket workflow
-- [ ] Add assignment, status changes, and comments.
-- [ ] Add server-side role checks and database transactions.
-- [ ] Add status/category filters and basic SQL aggregation.
-- [ ] Add audit events for ticket modifications.
+## Milestone 2: Ticket workflow
+- [ ] Add assignment, status updates, comments and history.
+- [ ] Verify transactional writes and constraints.
+- [ ] Add filtering, useful indexes, minimal administration and UI feedback.
 
-## Milestone 3 — Lab demonstration and change request
-- [ ] Show working application and database diagram to Professor Enke.
-- [ ] Record new requirements verbatim in `change-log.md`.
-- [ ] Assess database/API/UI impact before implementation.
-- [ ] Add migrations, tests, and documentation for approved changes.
+## Milestone 3: Review with Professor Enke
+- [ ] Demonstrate the app with ER diagram, migrations and SQL.
+- [ ] Record new requirements exactly and assess their consequences.
+- [ ] Implement changes with migrations and regression tests.
 
-## Milestone 4 — Submission
-- [ ] Document Linux/Windows setup and configuration.
-- [ ] Run integration tests and backup/restore test.
-- [ ] Capture screenshots and query examples.
-- [ ] Produce a course-format report with cover page.
-- [ ] Confirm deliverables and demonstrate to Professor Enke.
+## Milestone 4: Submission
+- [ ] Document local startup, security and database recovery.
+- [ ] Capture test results, screenshots and example SQL.
+- [ ] Compile a readable lab report with course-required cover page.
+- [ ] Confirm any instructor-specific submission requirements.
 
-## Definition of done for initial demo
-A fictional user can authenticate in the Compose client, create a ticket through the Ktor API, and see that ticket persisted and retrieved from PostgreSQL. The same repository has the initial requirements, ER diagram, versioned SQL migration, and documented test results.
+**Initial demo definition of done:** a fictional user signs in through the browser, creates a ticket, and retrieves its data from PostgreSQL, with the permission boundary tested.
