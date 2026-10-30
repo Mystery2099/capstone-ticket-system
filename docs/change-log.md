@@ -1,16 +1,14 @@
-# Requirements Change Log
+# Requirements and Architecture Change Log
 
-## Baseline v0.1 — Initial proposal
-**Date:** 2026-10-30  
-**Status:** Proposed, not yet demonstrated or reviewed  
-**Scope:** Generic ticketing system, requester/agent/admin roles, one assigned agent per ticket, categories, statuses, comments, and event history.
+## 2026-10-30 — Baseline v0.1
+Initial ticketing proposal using a Compose Multiplatform desktop client, Ktor API and PostgreSQL. Intended requester, agent and admin roles; one assigned agent per ticket.
 
-## Template for new professor-requested changes
-- **Change ID / date:**
-- **Requested by / exact request:**
-- **Initial behavior:**
-- **New expected behavior:**
-- **Impact on schema/API/UI/security:**
-- **Migration plan / data compatibility:**
-- **Tests and evidence:**
-- **Status / approval:**
+## 2026-10-30 — Web-first baseline v0.4
+**Origin:** Professor Enke encouraged making the application a web app.  
+**Decision:** Replace Compose/Ktor with SvelteKit full-stack, using PostgreSQL and Drizzle. Keep the core ticketing scenario, relational database focus and desktop-oriented split-view UX.  
+**Reason:** simpler access and demonstration for multiple users, less setup and maintenance for a course-only project.  
+**Impact:** architecture, requirements, development plan and UI implementation guidance changed; initial database schema still needs independent review.  
+**Status:** Planning decision; implementation not started.
+
+## Future requirement changes
+Record the exact request, date, requester, prior behavior, new expected behavior, impact on schema/security/UI, migration and test approach, and completion evidence. Do not invent instructor requests.
