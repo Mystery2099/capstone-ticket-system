@@ -1,0 +1,14 @@
+sequenceDiagram
+ participant Staff
+ participant Server as SvelteKit server
+ participant DB as PostgreSQL
+ Staff->>Server: Change status
+ Server->>Server: Verify session and permissions
+ Server->>DB: BEGIN
+ Server->>DB: UPDATE ticket
+ Server->>DB: INSERT ticket_event
+ alt Both successful
+  Server->>DB: COMMIT
+ else Any failure
+  Server->>DB: ROLLBACK
+ end
