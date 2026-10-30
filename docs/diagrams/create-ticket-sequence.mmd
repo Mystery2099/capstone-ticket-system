@@ -1,0 +1,9 @@
+sequenceDiagram
+ participant Requester
+ participant Server as SvelteKit server
+ participant DB as PostgreSQL
+ Requester->>Server: Submit subject, description, category
+ Server->>Server: Check session, validate input
+ Server->>DB: INSERT ticket (Normal priority, Open status)
+ DB-->>Server: New ticket ID
+ Server-->>Requester: Ticket details

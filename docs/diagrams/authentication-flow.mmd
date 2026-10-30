@@ -1,0 +1,16 @@
+sequenceDiagram
+    participant Browser
+    participant SvelteKit
+    participant BetterAuth as Better Auth
+    participant DB as PostgreSQL
+    Browser->>SvelteKit: Sign in
+    SvelteKit->>BetterAuth: Authenticate credentials
+    BetterAuth->>DB: Read account, create session
+    BetterAuth-->>Browser: Session cookie
+    Browser->>SvelteKit: Request ticket
+    SvelteKit->>BetterAuth: Validate session
+    BetterAuth-->>SvelteKit: User and session
+    SvelteKit->>SvelteKit: Check enabled, role, ownership
+    SvelteKit->>DB: Authorized ticket query
+    DB-->>SvelteKit: Ticket rows
+    SvelteKit-->>Browser: Only allowed fields

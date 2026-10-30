@@ -1,0 +1,12 @@
+stateDiagram-v2
+    [*] --> Open
+    Open --> InProgress
+    InProgress --> OnHold
+    OnHold --> InProgress
+    Open --> Resolved
+    InProgress --> Resolved
+    OnHold --> Resolved
+    Resolved --> Open: Requester reopens own ticket
+    Resolved --> InProgress: Staff reopens
+    Resolved --> Closed: Staff closes
+    Closed --> Open: Administrator only
