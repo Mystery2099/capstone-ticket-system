@@ -1,0 +1,21 @@
+# Local AI assistant configuration and installed skills
+.agents/
+.augment/
+.claude/
+.codex/
+.continue/
+.crush/
+.cursor/
+.goose/
+.junie/
+.minimax/
+.qwen/
+.roo/
+.tabnine/
+.trae/
+.vibe/
+.windsurf/
+skills-lock.json
+AGENTS.md
+CLAUDE.md
+GEMINI.md
