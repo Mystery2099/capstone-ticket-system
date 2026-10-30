@@ -1,7 +1,0 @@
-flowchart TD
-    B[Browser: desktop / mobile] -->|HTTPS| S[SvelteKit application]
-    S --> A[Server load functions / form actions]
-    A --> V[Validation and authorization]
-    V --> D[Drizzle ORM / SQL transactions]
-    D --> P[(PostgreSQL)]
-    A --> H[Session authentication]

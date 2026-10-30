@@ -1,5 +1,7 @@
 -- Design reference only, NOT an executable Drizzle migration.
 -- Build equivalent Drizzle table definitions and generate a tracked migration.
+-- Written before Better Auth was adopted: auth tables (user/session/account) are
+-- now generated from Better Auth, so app_user here is historical naming.
 -- PostgreSQL 16+ baseline; uses built-in gen_random_uuid().
 
 CREATE TABLE app_user (
