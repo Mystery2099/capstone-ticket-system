@@ -1,0 +1,7 @@
+flowchart TB
+  Browser[Browser: desktop or mobile] -->|HTTPS| Kit[SvelteKit: UI and server]
+  Kit --> Auth[Better Auth: sessions]
+  Kit --> Rules[Ticket authorization and workflows]
+  Rules --> ORM[Drizzle ORM]
+  Auth --> ORM
+  ORM --> DB[(PostgreSQL)]
