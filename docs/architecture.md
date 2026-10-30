@@ -1,29 +1,29 @@
-# Proposed Architecture — v0.1
+# Architecture
 
-```mermaid
-flowchart TB
-    Desktop[Compose Multiplatform desktop client\nLinux / Windows] -->|HTTPS + JSON| API[Ktor backend API\nKotlin]
-    API -->|parameterized SQL / transactions| DB[(PostgreSQL)]
-```
+I'm keeping this project as one SvelteKit application rather than adding a separate backend service. SvelteKit server code handles session validation, access rules, input validation and PostgreSQL operations through Drizzle; the browser only receives data it is allowed to see.
 
-## Responsibilities
-**Desktop client:** Screens, navigation, form state, client-side validation, and authenticated calls to the API. It must not store raw PostgreSQL credentials.
+[System architecture diagram](diagrams/system-architecture.mmd) · [Authentication flow](diagrams/authentication-flow.mmd)
 
-**Backend:** Sign-in/session handling, validation, authorization, ticket workflows, transaction boundaries, and API response shaping.
+## Stack and responsibilities
 
-**PostgreSQL:** Persistent state, foreign keys, unique constraints, indexes, and transactional consistency.
+| Layer | Choice | Responsibility |
+|---|---|---|
+| UI | SvelteKit, Svelte 5, Tailwind 4, shadcn-svelte/Bits UI | Ticket screens and responsive navigation |
+| Server | SvelteKit server routes/actions | Validation, permissions, ticket workflows and transactions |
+| Authentication | Better Auth | Email/password login, sessions and auth-managed tables |
+| Database access | Drizzle ORM and Drizzle Kit | Typed queries and tracked migrations |
+| Database | PostgreSQL | Relational integrity, indexes and persisted application data |
 
-## Proposed modules
-- `client/`: desktop GUI, screen state, API client.
-- `server/`: HTTP routes, services, authorization, persistence adapters.
-- `database/migrations/`: ordered SQL migrations.
-- `docs/`: project decision and demonstration material.
+Better Auth manages identity, but it does not automatically enforce who may see a ticket or private note. Those rules belong in server-side application logic. A disabled user's existing session must not grant ticket access.
 
-## Decisions to revisit
-- Authentication/session strategy and established password-hashing library.
-- HTTP client and persistence library (favor demonstrating readable SQL even if a library is used).
-- Migration runner (Flyway or a similarly appropriate tool).
-- Deployment layout for the demonstration.
+## Deployment
 
-## Scope-control rule
-No feature is added only because a mature help desk product would have it. Add features when they demonstrate a course objective, are needed for a usable MVP, or follow a documented requirement change.
+Local development and testing come first. Azure App Service and Azure Database for PostgreSQL are optional deployment choices and should only be configured after the full local workflow passes. Fictional demo data only; no credentials in version control.
+
+## Implementation boundaries
+
+- Public registration is disabled; demo users are created through a supported server-only setup procedure.
+- Authentication schema is generated from the installed Better Auth version and incorporated into our Drizzle schema. Do not hand-maintain an independent SQL migration for it.
+- Ticket mutations that require audit events use a single transaction.
+- Server queries exclude private notes before responding to requesters.
+- No separate Ktor service or Compose desktop application is planned.
