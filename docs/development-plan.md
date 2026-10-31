@@ -16,6 +16,17 @@ The first usable milestone is a requester signing in and submitting a ticket tha
 
 No command bar, email integration, attachments, real-time updates, PWA/offline mode or elaborate dashboard. Keep schema decisions documented, especially changes requested by Professor Enke.
 
+## Demonstration acceptance checklist
+
+- Seeded requester can sign in, submit a ticket, and view it.
+- Another requester cannot open it through a guessed/direct URL.
+- An agent can find the ticket, assign it, reply, and resolve it.
+- The ticket's PostgreSQL records and joins can be inspected using SQL.
+- Invalid foreign keys and unauthorized state changes are rejected.
+- An authorized mutation and its history record commit or roll back together.
+- The database can be backed up and restored to a fresh instance.
+- Professor's change request can be recorded in the change log, scoped, migrated if needed, tested, and demonstrated.
+
 ## Remaining implementation checks
 
 - Confirm generated Better Auth schema and Drizzle version compatibility.

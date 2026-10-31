@@ -2,7 +2,7 @@
 
 This is a **design proposal**, not a migrated or validated database. The aim is to demonstrate genuine relational behavior without adding tables that don't help this class project.
 
-[ERD](diagrams/entity-relationship.mmd) · [Better Auth plan](auth-integration.md)
+[ERD](diagrams/entity-relationship.mmd) · [Better Auth plan](auth-integration.md) · [SQL design reference](database/schema-reference.sql) · [Data dictionary](database/data-dictionary.md) · [Review checklist](database/schema-review-checklist.md)
 
 ## Planned tables
 
