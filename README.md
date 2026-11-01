@@ -15,8 +15,9 @@ One full-stack SvelteKit app handles both the web UI and server logic. The brows
 ## Current status
 
 Implemented: project setup, PostgreSQL migrations and demo seed,
-Better Auth sign-in, a protected workspace, and ticket reads/writes with server-side permissions.
-The workspace currently displays a placeholder; the full ticket interface is pending.
+Better Auth sign-in, the responsive ticket workspace, user and category administration,
+browser-remembered appearance settings, and loading skeletons with instant reply and
+metadata feedback, all backed by server-side permissions.
 
 Use Node.js 24+ and pnpm 12.8.1:
 

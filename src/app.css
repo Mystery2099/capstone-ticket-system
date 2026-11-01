@@ -513,21 +513,62 @@
 	aside nav a:hover:not(.active) {
 		background: var(--muted);
 	}
+	.sidebar-scroll {
+		flex: 1;
+		min-height: 0;
+		overflow-y: auto;
+		scrollbar-width: thin;
+	}
+	.nav-row {
+		position: relative;
+	}
+	.nav-row > a {
+		padding-right: 42px;
+	}
+	.nav-toggle {
+		position: absolute;
+		top: 4px;
+		right: 8px;
+		width: 32px;
+		height: 32px;
+		display: grid;
+		place-items: center;
+		border-radius: 50%;
+		color: var(--muted-fg);
+		transition: rotate 120ms ease-out;
+	}
+	.nav-toggle:hover {
+		background: var(--secondary);
+	}
+	.nav-toggle[data-state='closed'] {
+		rotate: -90deg;
+	}
+	.category-nav {
+		margin: 2px 0 6px 29px;
+		padding-left: 8px;
+		border-left: 1px solid var(--border);
+	}
+	.category-nav a {
+		height: 32px;
+		margin: 1px 0;
+		padding: 0 18px 0 14px;
+		gap: 8px;
+		font-size: 13px;
+	}
+	.category-nav a span {
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 	.nav-section {
 		padding: 22px 18px 10px;
 		color: var(--muted-fg);
 		font-size: 12px;
 		font-weight: 650;
 	}
-	.sidebar-footer {
-		margin-top: auto;
-		padding: 20px 18px;
-		color: var(--muted-fg);
-		font-size: 11px;
-		line-height: 1.8;
-	}
-	.sidebar-footer span {
-		opacity: 0.7;
+	.sidebar-bottom {
+		padding: 8px 0 12px;
 	}
 	.drawer-brand,
 	.drawer-scrim,
@@ -1211,8 +1252,12 @@
 		aside nav a span,
 		aside nav a small,
 		.nav-section,
-		.sidebar-footer {
+		.category-nav,
+		.nav-toggle {
 			display: none;
+		}
+		.nav-row > a {
+			padding: 0;
 		}
 		.new-ticket {
 			width: 54px;
@@ -1637,9 +1682,15 @@
 		}
 		.rail aside nav a span,
 		.rail aside nav a small,
-		.rail .nav-section,
-		.rail .sidebar-footer {
+		.rail .nav-section {
 			display: none;
+		}
+		.rail .category-nav,
+		.rail .nav-toggle {
+			display: none;
+		}
+		.rail .nav-row > a {
+			padding: 0;
 		}
 		.rail aside .new-ticket {
 			width: 54px;
@@ -2087,5 +2138,41 @@
 			text-align: center;
 			margin-top: 10px;
 		}
+	}
+
+	/* Loading placeholders stay static on purpose. Pulse and shimmer loops repaint
+	   every frame, so the only motion here is a single fade when they appear. */
+	.skeleton {
+		max-width: 100%;
+		background: var(--secondary);
+		border-radius: 6px;
+	}
+	/* Avatars keep their own display rule, since ticket rows hide them on desktop. */
+	.skeleton:not(.avatar) {
+		display: block;
+	}
+	.avatar.skeleton {
+		border-radius: 50%;
+	}
+	.skeleton-fade {
+		animation: skeleton-in 160ms ease-out;
+	}
+	.skeleton-row:hover {
+		background: none;
+	}
+	/* The extra delay keeps quick refreshes from flickering. */
+	.rows {
+		transition: opacity 120ms ease-out 120ms;
+	}
+	.rows[aria-busy='true'] {
+		opacity: 0.55;
+	}
+	.message.sending {
+		opacity: 0.7;
+	}
+}
+@keyframes skeleton-in {
+	from {
+		opacity: 0;
 	}
 }
