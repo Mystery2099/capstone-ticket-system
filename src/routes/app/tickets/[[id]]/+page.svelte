@@ -17,6 +17,7 @@
 		SquarePen,
 		Inbox
 	} from '@lucide/svelte';
+	import PersonCombobox from '$lib/components/PersonCombobox.svelte';
 	import StatusBadge from '$lib/StatusBadge.svelte';
 	import { statuses, initials } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -76,6 +77,10 @@
 		data.people.filter((p) => p.enabled).sort((a, b) => a.name.localeCompare(b.name))
 	);
 	let assignees = $derived(requesters.filter((p) => p.role !== 'requester'));
+	const personOption = (p: (typeof requesters)[number]) => ({
+		value: p.id,
+		label: p.name + (p.id === data.user.id ? ' (you)' : '')
+	});
 	const person = (id: string | null) =>
 		data.people.find((p) => p.id === id)?.name || 'Support team';
 	const role = (id: string) => data.people.find((p) => p.id === id)?.role || 'agent';
@@ -214,21 +219,33 @@
 			return async ({ result, update }) => {
 				await update({ reset: false });
 				delete chosen[field];
-				const select = formElement.elements.namedItem('value') as HTMLSelectElement;
-				if (result.type !== 'success') select.value = value;
+				const control = formElement.elements.namedItem('value') as HTMLSelectElement;
+				if (result.type !== 'success') control.value = value;
 			};
 		}}
 		class="metadata-control"
 	>
-		<input type="hidden" name="field" value={field} /><span>{label}</span><select
-			name="value"
-			aria-label={label}
-			class={field === 'statusCode' ? 'status ' + (chosen[field] ?? value) : ''}
-			{value}
-			disabled={closed || paneLoading}
-			onchange={(e) => e.currentTarget.form?.requestSubmit()}
-			>{#each options as o}<option value={o.value}>{o.label}</option>{/each}</select
-		>
+		<input type="hidden" name="field" value={field} /><span>{label}</span>
+		{#if field === 'assignedToUserId'}
+			<PersonCombobox
+				name="value"
+				{label}
+				{options}
+				value={chosen[field] ?? value}
+				disabled={closed || paneLoading}
+				submitOnSelect
+			/>
+		{:else}
+			<select
+				name="value"
+				aria-label={label}
+				class={field === 'statusCode' ? 'status ' + (chosen[field] ?? value) : ''}
+				{value}
+				disabled={closed || paneLoading}
+				onchange={(e) => e.currentTarget.form?.requestSubmit()}
+				>{#each options as o}<option value={o.value}>{o.label}</option>{/each}</select
+			>
+		{/if}
 	</form>
 {/snippet}
 {#if showNew}
@@ -275,24 +292,22 @@
 				}}
 			>
 				{#if staff}<div class="new-ticket-people">
-						<Label class="flex-col items-start gap-2">
-							Requester<select
-								aria-label="Requester"
+						<Label class="flex-col items-stretch gap-2">
+							Requester<PersonCombobox
 								name="requesterId"
+								label="Requester"
 								value={data.user.id}
-								required
+								options={requesters.map(personOption)}
 								disabled={creating}
-								>{#each requesters as p (p.id)}<option value={p.id}
-										>{p.name}{p.id === data.user.id ? ' (you)' : ''}</option
-									>{/each}</select
-							>
+							/>
 						</Label>
-						<Label class="flex-col items-start gap-2">
-							Assignee<select aria-label="Assignee" name="assignedToUserId" disabled={creating}
-								><option value="">Unassigned</option>{#each assignees as p (p.id)}<option
-										value={p.id}>{p.name}{p.id === data.user.id ? ' (you)' : ''}</option
-									>{/each}</select
-							>
+						<Label class="flex-col items-stretch gap-2">
+							Assignee<PersonCombobox
+								name="assignedToUserId"
+								label="Assignee"
+								options={[{ value: '', label: 'Unassigned' }, ...assignees.map(personOption)]}
+								disabled={creating}
+							/>
 						</Label>
 					</div>{/if}
 				<Label class="flex-col items-start gap-2">
