@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, inArray, or, ilike, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, or, ilike, lt, sql, type SQL } from 'drizzle-orm';
 import { OPEN_STATUSES, TicketEventType } from '../status';
 import { db } from './db';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
@@ -14,6 +14,7 @@ import {
 
 /** Longest search text sent to the database. */
 const MAX_SEARCH_LENGTH = 200;
+const TICKET_PAGE_SIZE = 50;
 
 export type Person = typeof user.$inferSelect;
 type Ticket = typeof ticket.$inferSelect;
@@ -139,18 +140,30 @@ export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) 
 	const view = url.searchParams.get('view') || (isStaff(actor) ? 'open' : 'mine');
 	const conditions = buildListConditions(actor, url, view, categories, people);
 
+	const before = url.searchParams.get('before');
+	if (before) conditions.push(lt(ticket.ticketNumber, parseTicketNumber(Number(before))));
 	// Drafts live in the browser, so that view has no tickets to fetch.
-	const tickets =
+	const matchingTickets =
 		view === 'drafts'
 			? []
 			: await db
 					.select()
 					.from(ticket)
 					.where(and(...conditions))
-					.orderBy(desc(ticket.ticketNumber));
+					.orderBy(desc(ticket.ticketNumber))
+					.limit(TICKET_PAGE_SIZE + 1);
+	const hasMoreTickets = matchingTickets.length > TICKET_PAGE_SIZE;
+	const tickets = matchingTickets.slice(0, TICKET_PAGE_SIZE);
+	const nextPage = new URL(url);
+	nextPage.pathname = '/app/tickets';
+	if (tickets.length)
+		nextPage.searchParams.set('before', String(tickets[tickets.length - 1].ticketNumber));
+	const firstPage = new URL(url);
+	firstPage.pathname = '/app/tickets';
+	firstPage.searchParams.delete('before');
 	const publicComments = tickets.length
 		? await db
-				.select()
+				.selectDistinctOn([ticketComment.ticketId])
 				.from(ticketComment)
 				.where(
 					and(
@@ -161,7 +174,7 @@ export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) 
 						eq(ticketComment.isInternal, false)
 					)
 				)
-				.orderBy(desc(ticketComment.createdAt))
+				.orderBy(ticketComment.ticketId, desc(ticketComment.createdAt), desc(ticketComment.id))
 		: [];
 	const rows = tickets.map((item) => {
 		const latest = publicComments.find((comment) => comment.ticketId === item.id);
@@ -194,6 +207,8 @@ export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) 
 			);
 	return {
 		tickets: rows,
+		nextPageHref: hasMoreTickets ? nextPage.pathname + nextPage.search : null,
+		firstPageHref: before ? firstPage.pathname + firstPage.search : null,
 		categories,
 		people: visiblePeople,
 		selected,

@@ -217,6 +217,7 @@
 	}
 	async function applyListFilter(key: string, value: string) {
 		const params = new URLSearchParams(listParams);
+		params.delete('before');
 		if (value) params.set(key, value);
 		else params.delete(key);
 		await goto('/app/tickets?' + params);
@@ -574,6 +575,14 @@
 						<p>Try another view or change your filters.</p>
 						<a href="/app/tickets" class="text-link">Clear filters</a>
 					</div>{/each}
+				{#if data.firstPageHref || data.nextPageHref}
+					<nav aria-label="Ticket list pages" class="flex items-center justify-between gap-4 p-4">
+						{#if data.firstPageHref}<a class="text-link" href={data.firstPageHref}>Newest tickets</a
+							>{/if}
+						{#if data.nextPageHref}<a class="text-link" href={data.nextPageHref}>Older tickets</a
+							>{/if}
+					</nav>
+				{/if}
 			</div>{/if}
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">

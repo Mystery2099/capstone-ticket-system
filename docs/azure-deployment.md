@@ -81,3 +81,35 @@ The external PostgreSQL connection path has now been exercised against the confi
 Configure Better Auth's trusted client IP before real users sign in. Until `advanced.ipAddress` is set for the actual proxy topology, every client shares one sign-in rate limit, so a few attempts from anyone can return 429 to everyone. Don't trust forwarded headers that public clients can set themselves.
 
 The admin plugin migrations (`0001` and `0002`) replace `user.enabled` with `banned`, carrying disabled accounts over. They apply the next time the app or `pnpm db:setup` connects to a database, so back up first and don't run an older build against a migrated database.
+
+## Application hardening
+
+Production startup rejects authentication secrets shorter than 32 characters, the
+prototype secret, and origins that are not exact HTTPS origins. Do not include a
+path or trailing slash in `ORIGIN`. Development localhost origins are excluded
+from the production authentication allowlist. Builds do not need these secrets.
+
+Demo initialization accepts only `SEED_DEMO=1` or `SEED_DEMO=true`; values such as
+`false` and `0` leave it disabled. Demo accounts still share their initial password,
+so use fictional data and remove the seed setting after initialization.
+
+Application and authentication responses use `Cache-Control: no-store`, frame
+restrictions, MIME sniffing protection, and a restrictive referrer/permissions
+policy. HTTPS responses include HSTS. SvelteKit supplies the script CSP nonce;
+inline styles remain allowed for existing components and transitions.
+
+Authenticated application writes are limited to 30 requests per minute per account.
+Rejected requests return HTTP 429 and `Retry-After`. This limiter has bounded,
+process-local storage: restarts reset it, and replicas each have their own limits.
+Before scaling out, use a shared gateway or shared rate-limit store. Authentication
+routes continue to use Better Auth's protections; verify trusted proxy/client IP
+handling as described in the acceptance checklist.
+
+Ticket lists use 50-row cursor pages, with links to older tickets and back to the
+newest page. Each preview query retrieves only the latest public comment per
+ticket. Full conversations are still loaded together; unusually large threads
+would need separate pagination.
+
+Further production work includes administrator MFA and recovery, administrative
+audit logs, separate deployment/runtime database credentials, and a hosted restore
+drill. Migrations still run during application initialization.

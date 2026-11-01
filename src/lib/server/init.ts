@@ -1,3 +1,4 @@
+import { isDemoEnabled } from './security';
 import { db } from './db';
 import { migrate } from 'drizzle-orm/pglite/migrator';
 import { hashPassword } from 'better-auth/crypto';
@@ -16,7 +17,7 @@ export const initialize = () => (pending ??= setup());
 async function setup() {
 	await migrate(db, { migrationsFolder: './drizzle' });
 	if ((await db.select().from(user).limit(1)).length) return;
-	if (process.env.NODE_ENV === 'production' && !process.env.SEED_DEMO) return;
+	if (process.env.NODE_ENV === 'production' && !isDemoEnabled()) return;
 	if (
 		process.env.NODE_ENV === 'production' &&
 		(!process.env.DEMO_PASSWORD || process.env.DEMO_PASSWORD.length < 12)

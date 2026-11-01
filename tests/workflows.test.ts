@@ -363,3 +363,61 @@ test('invalid metadata enum and malformed category references fail without chang
 	assert.equal(after.selected?.priority, before.selected?.priority);
 	assert.equal(after.selected?.statusCode, before.selected?.statusCode);
 });
+
+test('ticket pages use a cursor and previews exclude newer private notes', async () => {
+	const { eq, inArray } = await import('drizzle-orm');
+	const [category] = await db.select().from(schema.category);
+	const records = await db
+		.insert(schema.ticket)
+		.values(
+			Array.from({ length: 51 }, (_, index) => ({
+				subject: `Pagination ${index}`,
+				description: 'Page boundary check',
+				requesterId: people.marcus.id,
+				categoryId: category.id
+			}))
+		)
+		.returning();
+	try {
+		const latest = records[records.length - 1];
+		await db.insert(schema.ticketComment).values([
+			{
+				ticketId: latest.id,
+				authorId: people.priya.id,
+				body: 'Public preview',
+				createdAt: new Date('2026-01-01')
+			},
+			{
+				ticketId: latest.id,
+				authorId: people.priya.id,
+				body: 'Private preview',
+				isInternal: true,
+				createdAt: new Date('2026-01-02')
+			}
+		]);
+		const first = await service.loadTicketWorkspace(
+			people.marcus,
+			new URL('http://localhost/app/tickets?view=mine')
+		);
+		assert.equal(first.tickets.length, 50);
+		assert.equal(first.tickets[0].preview, 'Public preview');
+		assert(first.nextPageHref);
+		const second = await service.loadTicketWorkspace(
+			people.marcus,
+			new URL(first.nextPageHref, 'http://localhost')
+		);
+		assert(second.tickets.some((row) => row.id === records[0].id));
+		assert(!second.tickets.some((row) => first.tickets.some((previous) => previous.id === row.id)));
+		assert(second.firstPageHref);
+	} finally {
+		await db
+			.delete(schema.ticketComment)
+			.where(eq(schema.ticketComment.ticketId, records[records.length - 1].id));
+		await db.delete(schema.ticket).where(
+			inArray(
+				schema.ticket.id,
+				records.map((row) => row.id)
+			)
+		);
+	}
+});
