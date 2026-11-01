@@ -26,7 +26,9 @@
 		LogOut
 	} from '@lucide/svelte';
 	import { initials } from '$lib/status';
+	import { mergeProps } from 'bits-ui';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { delayed } from '$lib/delayed.svelte';
 	import { motionMs } from '$lib/motion';
 	import RouteSkeleton, {
@@ -60,21 +62,47 @@
 	$effect(() => {
 		if (routeTarget) lastRouteTarget = routeTarget;
 	});
-	let nav = $derived([
-		...(staff
+	let requests = $derived({
+		key: 'mine',
+		label: 'My requests',
+		hint: 'Tickets you opened, in any status',
+		count: data.counts.mine
+	});
+	let nav = $derived(
+		staff
 			? [
-					{ key: 'queue', label: 'My queue', icon: UserRound, count: data.counts.queue },
+					{
+						key: 'queue',
+						label: 'Assigned to me',
+						hint: 'Unresolved tickets assigned to you',
+						icon: UserRound,
+						count: data.counts.queue
+					},
 					{
 						key: 'unassigned',
 						label: 'Unassigned',
+						hint: 'Unresolved tickets with no assignee',
 						icon: UserRoundPlus,
 						count: data.counts.unassigned
 					},
-					{ key: 'open', label: 'All open', icon: Inbox, count: data.counts.open },
-					{ key: 'all', label: 'All tickets', icon: Layers, count: data.counts.all }
+					{
+						key: 'open',
+						label: 'All open',
+						hint: 'Every ticket that isn’t resolved or closed',
+						icon: Inbox,
+						count: data.counts.open
+					},
+					{
+						key: 'all',
+						label: 'All tickets',
+						hint: 'Every ticket, including resolved and closed',
+						icon: Layers,
+						count: data.counts.all
+					},
+					{ ...requests, icon: UserRound }
 				]
-			: [{ key: 'mine', label: 'My tickets', icon: Inbox, count: data.counts.mine }])
-	]);
+			: [{ ...requests, icon: Inbox }]
+	);
 	$effect(() => {
 		query = page.url.searchParams.get('q') || '';
 	});
@@ -124,134 +152,140 @@
 		}
 	}}
 />
-<div data-hydrated={hydrated} class="app-shell" class:rail={drawer}>
-	<header class="topbar">
-		<button
-			class="icon-button menu-button"
-			aria-label="Toggle navigation"
-			onclick={() => (drawer = !drawer)}><Menu /></button
-		><a class="brand" href="/app/tickets"
-			><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
-		>
-		<form class="search-bar" onsubmit={search}>
-			<Search size={23} /><input
-				aria-label="Search tickets"
-				placeholder="Search tickets, people, #number"
-				bind:value={query}
-			/><kbd>/</kbd><button
-				class="icon-button"
-				aria-label="Filter tickets"
-				type="button"
-				onclick={() => {
-					const field = document.querySelector<HTMLSelectElement>(
-						'[aria-label="Filter by status"]'
-					);
-					if (field) field.focus();
-					else goto('/app/tickets?view=' + view);
-				}}><SlidersHorizontal size={21} /></button
+<Tooltip.Provider delayDuration={400}>
+	<div data-hydrated={hydrated} class="app-shell" class:rail={drawer}>
+		<header class="topbar">
+			<button
+				class="icon-button menu-button"
+				aria-label="Toggle navigation"
+				onclick={() => (drawer = !drawer)}><Menu /></button
+			><a class="brand" href="/app/tickets"
+				><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
 			>
-		</form>
-		<div class="account-wrap">
-			<button class="avatar" aria-label="Account menu" onclick={() => (account = !account)}
-				>{initials(data.user.name)}</button
-			>{#if account}<div
-					class="account-menu"
-					transition:scale={{ start: 0.96, duration: motionMs(120) }}
+			<form class="search-bar" onsubmit={search}>
+				<Search size={23} /><input
+					aria-label="Search tickets"
+					placeholder="Search tickets, people, #number"
+					bind:value={query}
+				/><kbd>/</kbd><button
+					class="icon-button"
+					aria-label="Filter tickets"
+					type="button"
+					onclick={() => {
+						const field = document.querySelector<HTMLSelectElement>(
+							'[aria-label="Filter by status"]'
+						);
+						if (field) field.focus();
+						else goto('/app/tickets?view=' + view);
+					}}><SlidersHorizontal size={21} /></button
 				>
-					<strong>{data.user.name}</strong><small>{data.user.role}</small><a
-						href="/app/settings"
-						onclick={() => (account = false)}>Appearance & settings</a
-					><button onclick={signOut} disabled={signingOut}
-						><LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}</button
+			</form>
+			<div class="account-wrap">
+				<button class="avatar" aria-label="Account menu" onclick={() => (account = !account)}
+					>{initials(data.user.name)}</button
+				>{#if account}<div
+						class="account-menu"
+						transition:scale={{ start: 0.96, duration: motionMs(120) }}
 					>
-				</div>{/if}
-		</div>
-	</header>
-	{#if drawer}<button
-			transition:fade={{ duration: motionMs(180) }}
-			class="drawer-scrim"
-			aria-label="Close navigation"
-			onclick={() => (drawer = false)}
-		></button>{/if}
-	<aside class:drawer-open={drawer}>
-		<div class="drawer-brand">
-			<span>Ticket System</span><button
-				class="icon-button"
+						<strong>{data.user.name}</strong><small>{data.user.role}</small><a
+							href="/app/settings"
+							onclick={() => (account = false)}>Appearance & settings</a
+						><button onclick={signOut} disabled={signingOut}
+							><LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}</button
+						>
+					</div>{/if}
+			</div>
+		</header>
+		{#if drawer}<button
+				transition:fade={{ duration: motionMs(180) }}
+				class="drawer-scrim"
 				aria-label="Close navigation"
-				onclick={() => (drawer = false)}><X /></button
+				onclick={() => (drawer = false)}
+			></button>{/if}
+		<aside class:drawer-open={drawer}>
+			<div class="drawer-brand">
+				<span>Ticket System</span><button
+					class="icon-button"
+					aria-label="Close navigation"
+					onclick={() => (drawer = false)}><X /></button
+				>
+			</div>
+			<a class="new-ticket" href="/app/tickets/new" onclick={() => (drawer = false)}
+				><SquarePen size={25} /><span>New ticket</span></a
 			>
-		</div>
-		<a class="new-ticket" href="/app/tickets/new" onclick={() => (drawer = false)}
-			><SquarePen size={25} /><span>New ticket</span></a
-		>
-		<div class="sidebar-scroll">
-			<nav aria-label="Tickets">
-				{#each nav as n}
-					{#snippet viewLink()}<a
-							class:active={url.pathname.startsWith('/app/tickets') &&
-								view === n.key &&
-								!openCategory}
-							href={'/app/tickets?view=' + n.key}
-							onclick={() => (drawer = false)}
-							><n.icon size={23} /><span>{n.label}</span><small>{n.count}</small></a
-						>{/snippet}
-					{#if n.key === 'open' && data.openByCategory.length}
-						<Collapsible.Root bind:open={categoriesOpen}>
-							<div class="nav-row">
-								{@render viewLink()}
-								<Collapsible.Trigger
-									class="nav-toggle"
-									aria-label={categoriesOpen ? 'Hide categories' : 'Show categories'}
-									><ChevronDown size={18} /></Collapsible.Trigger
-								>
-							</div>
-							<Collapsible.Content class="category-nav">
-								{#each data.openByCategory as c (c.id)}<a
-										class:active={url.pathname.startsWith('/app/tickets') && openCategory === c.id}
-										href={`/app/tickets?view=open&category=${c.id}`}
-										onclick={() => (drawer = false)}
-										><span>{c.name}</span><small>{c.count}</small></a
-									>{/each}
-							</Collapsible.Content>
-						</Collapsible.Root>
-					{:else}{@render viewLink()}{/if}
-				{/each}{#if staff}<a
-						class:active={url.pathname.startsWith('/app/tickets') && view === 'mine'}
-						href="/app/tickets?view=mine"
-						onclick={() => (drawer = false)}
-						><UserRound size={23} /><span>My tickets</span><small>{data.counts.mine}</small></a
-					>{/if}
+			<div class="sidebar-scroll">
+				<nav aria-label="Tickets">
+					{#each nav as n}
+						{#snippet viewLink()}
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									{#snippet child({ props })}<a
+											{...mergeProps(props, { onclick: () => (drawer = false) })}
+											class:active={url.pathname.startsWith('/app/tickets') &&
+												view === n.key &&
+												!openCategory}
+											href={'/app/tickets?view=' + n.key}
+											aria-label={n.label}
+											><n.icon size={23} /><span>{n.label}</span><small>{n.count}</small></a
+										>{/snippet}
+								</Tooltip.Trigger>
+								<Tooltip.Content side="right" sideOffset={8}>{n.hint}</Tooltip.Content>
+							</Tooltip.Root>
+						{/snippet}
+						{#if n.key === 'open' && data.openByCategory.length}
+							<Collapsible.Root bind:open={categoriesOpen}>
+								<div class="nav-row">
+									{@render viewLink()}
+									<Collapsible.Trigger
+										class="nav-toggle"
+										aria-label={categoriesOpen ? 'Hide categories' : 'Show categories'}
+										><ChevronDown size={18} /></Collapsible.Trigger
+									>
+								</div>
+								<Collapsible.Content class="category-nav">
+									{#each data.openByCategory as c (c.id)}<a
+											class:active={url.pathname.startsWith('/app/tickets') &&
+												openCategory === c.id}
+											href={`/app/tickets?view=open&category=${c.id}`}
+											onclick={() => (drawer = false)}
+											><span>{c.name}</span><small>{c.count}</small></a
+										>{/each}
+								</Collapsible.Content>
+							</Collapsible.Root>
+						{:else}{@render viewLink()}{/if}
+					{/each}
+				</nav>
+				{#if data.user.role === 'admin'}<p class="nav-section">Administration</p>
+					<nav aria-label="Administration">
+						<a
+							class:active={url.pathname.endsWith('/users')}
+							href="/app/admin/users"
+							onclick={() => (drawer = false)}><Users size={23} /><span>Users</span></a
+						><a
+							class:active={url.pathname.endsWith('/categories')}
+							href="/app/admin/categories"
+							onclick={() => (drawer = false)}><Tags size={23} /><span>Categories</span></a
+						>
+					</nav>{/if}
+			</div>
+			<nav class="sidebar-bottom" aria-label="General">
+				<a
+					class:active={url.pathname === '/app/settings'}
+					href="/app/settings"
+					onclick={() => (drawer = false)}><Settings size={23} /><span>Settings</span></a
+				>
 			</nav>
-			{#if data.user.role === 'admin'}<p class="nav-section">Administration</p>
-				<nav aria-label="Administration">
-					<a
-						class:active={url.pathname.endsWith('/users')}
-						href="/app/admin/users"
-						onclick={() => (drawer = false)}><Users size={23} /><span>Users</span></a
-					><a
-						class:active={url.pathname.endsWith('/categories')}
-						href="/app/admin/categories"
-						onclick={() => (drawer = false)}><Tags size={23} /><span>Categories</span></a
-					>
-				</nav>{/if}
-		</div>
-		<nav class="sidebar-bottom" aria-label="General">
-			<a
-				class:active={url.pathname === '/app/settings'}
-				href="/app/settings"
-				onclick={() => (drawer = false)}><Settings size={23} /><span>Settings</span></a
-			>
+		</aside>
+		<main>
+			{#if routeLoading.current}<RouteSkeleton kind={routeTarget ?? lastRouteTarget} />{/if}
+			<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
+			<div class={routeLoading.current ? 'hidden' : 'contents'}>{@render children()}</div>
+		</main>
+		<nav class="mobile-nav" aria-label="Mobile navigation">
+			{#each nav.slice(0, 3) as n}<a
+					class:active={view === n.key && url.pathname.startsWith('/app/tickets')}
+					href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
+				>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
 		</nav>
-	</aside>
-	<main>
-		{#if routeLoading.current}<RouteSkeleton kind={routeTarget ?? lastRouteTarget} />{/if}
-		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
-		<div class={routeLoading.current ? 'hidden' : 'contents'}>{@render children()}</div>
-	</main>
-	<nav class="mobile-nav" aria-label="Mobile navigation">
-		{#each nav.slice(0, 3) as n}<a
-				class:active={view === n.key && url.pathname.startsWith('/app/tickets')}
-				href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
-			>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
-	</nav>
-</div>
+	</div>
+</Tooltip.Provider>

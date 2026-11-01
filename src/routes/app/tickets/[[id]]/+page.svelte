@@ -90,10 +90,10 @@
 		(
 			{
 				open: 'All open',
-				queue: 'My queue',
+				queue: 'Assigned to me',
 				unassigned: 'Unassigned',
 				all: 'All tickets',
-				mine: 'My tickets'
+				mine: 'My requests'
 			} as Record<string, string>
 		)[view] || 'All tickets'
 	);
@@ -654,7 +654,7 @@
 				{#if !listLoading}<span class="small muted"
 						>{openCategory
 							? `${data.tickets.length} open ${openCategory.name} tickets`
-							: `${data.tickets.length} tickets in ${title.toLowerCase()}`}</span
+							: `${data.tickets.length} tickets · ${title}`}</span
 					>{/if}
 			</div>{/if}
 	</section>
