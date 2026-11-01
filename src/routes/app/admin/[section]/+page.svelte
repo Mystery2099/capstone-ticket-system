@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { navigating, page } from '$app/state';
@@ -105,19 +106,20 @@
 				}
 			};
 		};
-</script>
 
-<svelte:window
-	onkeydown={(e) => {
-		if (!adding || !addForm?.contains(e.target as Node)) return;
-		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-			e.preventDefault();
-			addForm.requestSubmit();
-		} else if (e.key === 'Escape') {
-			void goto(listHref);
-		}
-	}}
-/>
+	const createFormHotkeys = createHotkeysAttachment(
+		[
+			{ hotkey: 'Mod+Enter', callback: () => addForm?.requestSubmit() },
+			{
+				hotkey: 'Escape',
+				callback: () => {
+					void goto(listHref);
+				}
+			}
+		],
+		() => ({ enabled: adding && !(busy !== ''), ignoreInputs: false })
+	);
+</script>
 
 {#snippet toolbar(title: string, subtitle: string)}
 	<div class="reading-toolbar">
@@ -156,7 +158,7 @@
 {#snippet footer(key: string, primary: string, working: string, discard?: () => void)}
 	<div class="composer-footer admin-actions">
 		{#if discard}
-			<span class="muted small compose-hint">Esc to close · Ctrl+Enter to create</span>
+			<span class="muted small compose-hint">Esc to close · Ctrl/Cmd+Enter to create</span>
 			<Button
 				variant="ghost"
 				size="sm"
@@ -267,6 +269,7 @@
 			{#key userDraft.id}
 				<form
 					bind:this={addForm}
+					{@attach createFormHotkeys}
 					class="compose"
 					method="POST"
 					action="?/createUser"
@@ -335,6 +338,7 @@
 			{#key categoryDraft.id}
 				<form
 					bind:this={addForm}
+					{@attach createFormHotkeys}
 					class="compose"
 					method="POST"
 					action="?/category"

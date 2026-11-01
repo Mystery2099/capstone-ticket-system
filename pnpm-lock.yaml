@@ -181,6 +181,9 @@ importers:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^6.2.1
         version: 6.2.4(svelte@5.57.3)(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15))
+      '@tanstack/svelte-hotkeys':
+        specifier: ^0.18.0
+        version: 0.18.0(svelte@5.57.3)
       better-auth:
         specifier: ^1.7.14
         version: 1.7.14(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.3)(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)))(svelte@5.57.3)(typescript@5.9.3)(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)))(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.3.14)(kysely@0.29.7)(postgres@3.4.9))(svelte@5.57.3)(vitest@4.1.12(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)))
@@ -1179,6 +1182,16 @@ packages:
     resolution: {integrity: sha512-yYU8cogLeSh/ms2jh8Fj7jaba/EWa7Ja6GoUqYZaraEuCI5YS6ms6ObZgjjedm+jm6XZjdNRWBpPP6Z86oOxcw==}
     peerDependencies:
       vite: ^5.2.0 || ^6 || ^7 || ^8
+
+  '@tanstack/hotkeys@0.20.0':
+    resolution: {integrity: sha512-dH9r8ZCCAcjQTcTSHlHooJgnTfS5AGnTbo7mZ9VfM6ZGGWWVA0lea7tUs3oAO2lWS5keYWrH+hg8hmGjmdNrbQ==}
+    engines: {node: '>=20'}
+
+  '@tanstack/svelte-hotkeys@0.18.0':
+    resolution: {integrity: sha512-rnoRZds2X6hCr0kxi8HcUfGgqFM6RYTzUSfayHZRYnbZJyJpBKRzM2Q/56bJSAHApiADptIrSalxoA+1XA085w==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      svelte: ^5.40.0
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -2553,6 +2566,13 @@ snapshots:
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
       vite: 7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)
+
+  '@tanstack/hotkeys@0.20.0': {}
+
+  '@tanstack/svelte-hotkeys@0.18.0(svelte@5.57.3)':
+    dependencies:
+      '@tanstack/hotkeys': 0.20.0
+      svelte: 5.57.3
 
   '@types/chai@5.2.3':
     dependencies:

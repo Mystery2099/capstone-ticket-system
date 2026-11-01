@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { enhance } from '$app/forms';
 	import { navigating, page } from '$app/state';
 	import {
@@ -219,6 +220,19 @@
 		// New-ticket drafts need no warning, because they're saved in this browser.
 		if (body.trim() && !confirm('Discard your unsent text and leave this page?')) cancel();
 	});
+
+	const createFormHotkeys = createHotkeysAttachment(
+		[
+			{ hotkey: 'Mod+Enter', callback: () => formEl?.requestSubmit() },
+			{
+				hotkey: 'Escape',
+				callback: () => {
+					void goto(listHref);
+				}
+			}
+		],
+		() => ({ enabled: composing && !creating, ignoreInputs: false })
+	);
 </script>
 
 <svelte:window
@@ -228,20 +242,12 @@
 			e.returnValue = '';
 		}
 	}}
-	onkeydown={(e) => {
-		if (!composing || !formEl?.contains(e.target as Node)) return;
-		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-			e.preventDefault();
-			formEl.requestSubmit();
-		} else if (e.key === 'Escape' && !creating) {
-			void goto(listHref);
-		}
-	}}
 />
 
 {#snippet compose()}
 	<form
 		bind:this={formEl}
+		{@attach createFormHotkeys}
 		class="compose"
 		method="POST"
 		action="?/create"
@@ -354,7 +360,7 @@
 							? 'Creating ticket…'
 							: draft.description.length > 3600
 								? `${draft.description.length} / 4000`
-								: 'Esc to close · Ctrl+Enter to create'}</span
+								: 'Esc to close · Ctrl/Cmd+Enter to create'}</span
 					>
 					<span class="compose-actions">
 						<Button

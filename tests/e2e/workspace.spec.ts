@@ -173,3 +173,45 @@ test('a minimized sidebar stays minimized while navigating', async ({ page }) =>
 	await expect(page).toHaveURL(/view=all/);
 	await expect(page.locator('.app-shell')).toHaveClass(/rail/);
 });
+
+test('hotkeys focus search, preserve typing, and submit or close ticket forms', async ({
+	page
+}) => {
+	await signIn(page, 'marcus.lee@example.test');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.locator('body').click({ position: { x: 1, y: 1 } });
+	await page.keyboard.press('/');
+	await expect(page.getByRole('textbox', { name: 'Search tickets', exact: true })).toBeFocused();
+
+	await openNewTicket(page);
+	const subject = page.getByLabel('Subject', { exact: true });
+	await subject.fill('Hotkey ticket');
+	await subject.press('/');
+	await expect(subject).toHaveValue('Hotkey ticket/');
+	await expect(subject).toBeFocused();
+	await subject.press('Escape');
+	await expect(page.getByLabel('Subject', { exact: true })).toHaveCount(0);
+
+	await openNewTicket(page);
+	await subject.fill('Created with a keyboard shortcut');
+	await page.getByLabel('Description', { exact: true }).fill('Submit from a focused textarea.');
+	await choose(page, 'Category', 'Hardware');
+	await page.getByLabel('Description', { exact: true }).press('ControlOrMeta+Enter');
+	await expect(
+		page.getByRole('heading', { name: 'Created with a keyboard shortcut', exact: true })
+	).toBeVisible();
+});
+
+test('hotkeys submit and close admin create forms', async ({ page }) => {
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto('/app/admin/categories?new');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	const name = page.getByLabel('Category name', { exact: true });
+	await name.fill('Keyboard category');
+	await name.press('Escape');
+	await expect(page).toHaveURL(/\/app\/admin\/categories$/);
+	await page.getByRole('link', { name: 'Add category', exact: true }).click();
+	await name.fill('Keyboard category');
+	await name.press('ControlOrMeta+Enter');
+	await expect(page).toHaveURL(/\/app\/admin\/categories\?id=/);
+});

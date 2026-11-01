@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { createHotkey } from '@tanstack/svelte-hotkeys';
 	import { onMount } from 'svelte';
 	let hydrated = $state(false);
 	onMount(() => {
@@ -182,20 +183,19 @@
 		await invalidateAll();
 		await goto('/login');
 	}
+
+	createHotkey(
+		'/',
+		() => {
+			document.querySelector<HTMLInputElement>('[aria-label="Search tickets"]')?.focus();
+		},
+		{ ignoreInputs: true }
+	);
 </script>
 
 <svelte:window
 	onpagehide={() => drafts.stores.forEach((store) => store.save())}
 	onstorage={(e) => drafts.stores.find((store) => store.key === e.key)?.load()}
-	onkeydown={(e) => {
-		if (
-			e.key === '/' &&
-			!['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as HTMLElement)?.tagName)
-		) {
-			e.preventDefault();
-			document.querySelector<HTMLInputElement>('[aria-label="Search tickets"]')?.focus();
-		}
-	}}
 />
 
 <div data-hydrated={hydrated} class="app-shell" class:rail={railed}>
