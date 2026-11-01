@@ -14,9 +14,9 @@ One full-stack SvelteKit app handles both the web UI and server logic. The brows
 
 ## Current status
 
-Tutorial Chapters 1–4 are implemented: project setup, PostgreSQL migrations and demo seed,
+Implemented: project setup, PostgreSQL migrations and demo seed,
 Better Auth sign-in, a protected workspace, and ticket reads/writes with server-side permissions.
-The workspace currently displays a placeholder; the full ticket interface begins in Chapter 5.
+The workspace currently displays a placeholder; the full ticket interface is pending.
 
 Use Node.js 24+ and pnpm 12.8.1:
 
@@ -54,7 +54,7 @@ The UI direction is a Gmail-inspired ticket workspace with responsive mobile lay
 
 ## Next development target
 
-Follow Chapter 5 to build the ticket list, conversation, creation form, and workspace shell.
-Administration and the remaining acceptance tests follow in later chapters.
+Build the ticket list, conversation, creation form, and workspace shell.
+Then add administration and the remaining acceptance tests.
 
 **Scope:** No command palette, email integration, attachments, push notifications, real-time chat or offline/PWA functionality.
