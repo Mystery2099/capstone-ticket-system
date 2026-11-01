@@ -31,14 +31,21 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { delayed } from '$lib/delayed.svelte';
 	import { motionMs } from '$lib/motion';
-	import { setTicketDraft, TicketDraft } from '$lib/ticket-draft.svelte';
+	import { setTicketDrafts, TicketDrafts } from '$lib/ticket-draft.svelte';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
 	} from '$lib/components/skeleton/RouteSkeleton.svelte';
 	let { data, children } = $props();
 	// This layout remounts when the user changes, so reading the id once is correct.
 	// svelte-ignore state_referenced_locally
-	setTicketDraft(new TicketDraft(data.user.id));
+	const drafts = setTicketDrafts(new TicketDrafts(data.user.id));
+	onMount(() => drafts.load());
+	// Debounced so typing costs one write after a pause, not one per keystroke.
+	$effect(() => {
+		const json = drafts.serialize();
+		const timer = setTimeout(() => drafts.save(json), 300);
+		return () => clearTimeout(timer);
+	});
 	let drawer = $state(false),
 		query = $state(''),
 		account = $state(false),
@@ -64,6 +71,13 @@
 		if (path === '/app/admin/users') return 'users';
 		if (path === '/app/admin/categories') return 'categories';
 		return path === '/app/settings' ? 'settings' : null;
+	});
+	// Stays on the current list, and always starts a fresh ticket rather than an open draft.
+	let newTicketHref = $derived.by(() => {
+		if (!page.url.pathname.startsWith('/app/tickets')) return '/app/tickets/new';
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('draft');
+		return `/app/tickets/new${params.size ? '?' + params : ''}`;
 	});
 	let routeLoading = delayed(() => routeTarget !== null);
 	let lastRouteTarget = $state<RouteSkeletonKind>('tickets');
@@ -134,6 +148,7 @@
 	async function search(e: SubmitEvent) {
 		e.preventDefault();
 		const p = new URLSearchParams(page.url.searchParams);
+		p.delete('draft');
 		query.trim() ? p.set('q', query.trim()) : p.delete('q');
 		await goto('/app/tickets?' + p);
 	}
@@ -150,6 +165,10 @@
 </script>
 
 <svelte:window
+	onpagehide={() => drafts.save()}
+	onstorage={(e) => {
+		if (e.key === drafts.key) drafts.load();
+	}}
 	onkeydown={(e) => {
 		if (
 			e.key === '/' &&
@@ -218,11 +237,8 @@
 					onclick={() => (drawer = false)}><X /></button
 				>
 			</div>
-			<a
-				class="new-ticket"
-				href={'/app/tickets/new' +
-					(page.url.pathname.startsWith('/app/tickets') ? page.url.search : '')}
-				onclick={() => (drawer = false)}><SquarePen size={25} /><span>New ticket</span></a
+			<a class="new-ticket" href={newTicketHref} onclick={() => (drawer = false)}
+				><SquarePen size={25} /><span>New ticket</span></a
 			>
 			<div class="sidebar-scroll">
 				<nav aria-label="Tickets">

@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { navigating, page } from '$app/state';
-	import { goto, invalidateAll, beforeNavigate, afterNavigate } from '$app/navigation';
+	import {
+		goto,
+		invalidateAll,
+		beforeNavigate,
+		afterNavigate,
+		replaceState
+	} from '$app/navigation';
 	import {
 		RefreshCw,
 		ChevronLeft,
@@ -17,7 +23,7 @@
 		SquarePen,
 		Inbox
 	} from '@lucide/svelte';
-	import PersonCombobox from '$lib/components/PersonCombobox.svelte';
+	import Combobox from '$lib/components/Combobox.svelte';
 	import StatusBadge from '$lib/StatusBadge.svelte';
 	import { statuses, initials } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -25,7 +31,7 @@
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import { delayed } from '$lib/delayed.svelte';
-	import { getTicketDraft } from '$lib/ticket-draft.svelte';
+	import { getTicketDrafts } from '$lib/ticket-draft.svelte';
 	let { data, form } = $props();
 	let body = $state(''),
 		internal = $state(false),
@@ -40,7 +46,7 @@
 		sendingMessage = $state<{ body: string; isInternal: boolean } | null>(null),
 		// Metadata values chosen but not yet confirmed, keyed by field.
 		chosen = $state<Record<string, string>>({});
-	const draft = getTicketDraft();
+	const drafts = getTicketDrafts();
 	let creating = $state(false),
 		formEl = $state<HTMLFormElement>();
 	let staff = $derived(data.user.role !== 'requester');
@@ -52,6 +58,34 @@
 	let opening = $derived(targetId === 'new');
 	// Leaving the form takes effect at once, so the pane never lags behind a click.
 	let composing = $derived(opening || (data.isNew && !target));
+	// Shallow routing leaves page.url as it was, so the draft just added to the URL is tracked here.
+	let promotedId = $state<string | null>(null);
+	let draftId = $derived(
+		target
+			? target.url.searchParams.get('draft')
+			: (page.url.searchParams.get('draft') ?? promotedId)
+	);
+	let draft = $derived(drafts.find(draftId) ?? drafts.blank);
+	let draftRows = $derived([
+		...(composing && draft === drafts.blank ? [draft] : []),
+		...drafts.items.filter((item) => item.dirty || (composing && item === draft))
+	]);
+	// The list's URL params, without the draft that happens to be open.
+	let listParams = $derived.by(() => {
+		const params = new URLSearchParams(page.url.searchParams);
+		params.delete('draft');
+		return params;
+	});
+	let listSearch = $derived(listParams.size ? '?' + listParams : '');
+	// Waits for navigation to land, because that would replace the URL set here.
+	$effect(() => {
+		if (!composing || target || draft !== drafts.blank || !draft.dirty) return;
+		const url = new URL(page.url);
+		url.searchParams.set('draft', draft.id);
+		promotedId = draft.id;
+		drafts.promote();
+		replaceState(url, {});
+	});
 	let listChanging = $derived(!!target && !opening && target.url.search !== page.url.search);
 	let targetRow = $derived(
 		targetId && !listChanging
@@ -64,12 +98,21 @@
 	let t = $derived(paneLoading ? (targetRow ?? null) : data.selected);
 	let highlighted = $derived(composing ? undefined : target ? targetRow?.id : data.selected?.id);
 	let hasTicket = $derived(composing || (target && !targetId ? false : !!t || paneLoading));
-	let listHref = $derived('/app/tickets' + page.url.search);
+	let listHref = $derived('/app/tickets' + listSearch);
 	let closed = $derived(t?.statusCode === 'closed');
 	let requesters = $derived(
 		data.people.filter((p) => p.enabled).sort((a, b) => a.name.localeCompare(b.name))
 	);
 	let assignees = $derived(requesters.filter((p) => p.role !== 'requester'));
+	const statusOptions = Object.entries(statuses).map(([value, s]) => ({ value, label: s.label }));
+	const priorityOptions = [
+		{ value: 'high', label: 'High' },
+		{ value: 'normal', label: 'Normal' },
+		{ value: 'low', label: 'Low' }
+	];
+	let categoryOptions = $derived(
+		data.categories.map((c) => ({ value: c.id, label: c.name, active: c.active }))
+	);
 	const personOption = (p: (typeof requesters)[number]) => ({
 		value: p.id,
 		label: p.name + (p.id === data.user.id ? ' (you)' : '')
@@ -85,9 +128,11 @@
 	let view = $derived(
 		listChanging ? target?.url.searchParams.get('view') || (staff ? 'open' : 'mine') : data.view
 	);
-	let listParams = $derived((listChanging ? target?.url : page.url)?.searchParams);
+	let targetParams = $derived((listChanging ? target?.url : page.url)?.searchParams);
 	let openCategory = $derived(
-		view === 'open' ? data.categories.find((c) => c.id === listParams?.get('category')) : undefined
+		view === 'open'
+			? data.categories.find((c) => c.id === targetParams?.get('category'))
+			: undefined
 	);
 	let title = $derived(
 		(
@@ -112,10 +157,10 @@
 	);
 	let shown = $derived(expanded ? timeline : timeline.slice(-4));
 	function href(n: number) {
-		return `/app/tickets/${n}${page.url.search}`;
+		return `/app/tickets/${n}${listSearch}`;
 	}
 	async function filter(key: string, value: string) {
-		const q = new URLSearchParams(page.url.searchParams);
+		const q = new URLSearchParams(listParams);
 		value ? q.set(key, value) : q.delete(key);
 		await goto('/app/tickets?' + q);
 	}
@@ -142,16 +187,17 @@
 		details = false;
 		sendError = '';
 		creating = false;
+		promotedId = null;
 	});
 	beforeNavigate(({ cancel }) => {
-		// New-ticket drafts need no warning here, because they stay in the list.
+		// New-ticket drafts need no warning, because they're saved in this browser.
 		if (body.trim() && !confirm('Discard your unsent text and leave this page?')) cancel();
 	});
 </script>
 
 <svelte:window
 	onbeforeunload={(e) => {
-		if (body.trim() || (draft.dirty && !creating)) {
+		if (body.trim()) {
 			e.preventDefault();
 			e.returnValue = '';
 		}
@@ -174,9 +220,10 @@
 		method="POST"
 		action="?/create"
 		use:enhance={() => {
+			const submitted = draft;
 			creating = true;
 			return async ({ result, update }) => {
-				if (result.type === 'redirect') draft.reset();
+				if (result.type === 'redirect') drafts.discard(submitted.id);
 				await update({ reset: false });
 				creating = false;
 			};
@@ -187,7 +234,10 @@
 				><ArrowLeft size={21} /></a
 			>
 			<div class="ticket-title">
+				<!-- SvelteKit clears focus when navigation lands unless an element has autofocus. -->
+				<!-- svelte-ignore a11y_autofocus -->
 				<input
+					autofocus
 					{@attach (input) => input.focus()}
 					class="compose-subject"
 					name="subject"
@@ -211,7 +261,7 @@
 				<div class="ticket-metadata">
 					{#if staff}
 						<div class="metadata-control">
-							<span>Requester</span><PersonCombobox
+							<span>Requester</span><Combobox
 								name="requesterId"
 								label="Requester"
 								bind:value={draft.requesterId}
@@ -220,7 +270,7 @@
 							/>
 						</div>
 						<div class="metadata-control">
-							<span>Assignee</span><PersonCombobox
+							<span>Assignee</span><Combobox
 								name="assignedToUserId"
 								label="Assignee"
 								bind:value={draft.assignedToUserId}
@@ -229,19 +279,17 @@
 							/>
 						</div>
 					{/if}
-					<label class="metadata-control">
-						<span>Category</span><select
-							aria-label="Category"
+					<div class="metadata-control">
+						<span>Category</span><Combobox
 							name="categoryId"
+							label="Category"
+							placeholder="Choose"
 							bind:value={draft.categoryId}
-							required
+							options={categoryOptions.filter((c) => c.active)}
 							disabled={creating}
-							><option value="">Choose</option
-							>{#each data.categories.filter((c) => c.active) as c}<option value={c.id}
-									>{c.name}</option
-								>{/each}</select
-						>
-					</label>
+							required
+						/>
+					</div>
 				</div>
 			</div>
 			{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
@@ -272,7 +320,7 @@
 							class="rounded-full px-4"
 							disabled={creating}
 							onclick={() => {
-								draft.reset();
+								drafts.discard(draft.id);
 								void goto(listHref);
 							}}>Discard</Button
 						>
@@ -324,38 +372,25 @@
 	<form
 		method="POST"
 		action="?/update"
-		use:enhance={({ formData, formElement }) => {
+		use:enhance={({ formData }) => {
 			chosen[field] = String(formData.get('value'));
-			return async ({ result, update }) => {
+			return async ({ update }) => {
 				await update({ reset: false });
 				delete chosen[field];
-				const control = formElement.elements.namedItem('value') as HTMLSelectElement;
-				if (result.type !== 'success') control.value = value;
 			};
 		}}
 		class="metadata-control"
 	>
 		<input type="hidden" name="field" value={field} /><span>{label}</span>
-		{#if field === 'assignedToUserId'}
-			<PersonCombobox
-				name="value"
-				{label}
-				{options}
-				value={chosen[field] ?? value}
-				disabled={closed || paneLoading}
-				submitOnSelect
-			/>
-		{:else}
-			<select
-				name="value"
-				aria-label={label}
-				class={field === 'statusCode' ? 'status ' + (chosen[field] ?? value) : ''}
-				{value}
-				disabled={closed || paneLoading}
-				onchange={(e) => e.currentTarget.form?.requestSubmit()}
-				>{#each options as o}<option value={o.value}>{o.label}</option>{/each}</select
-			>
-		{/if}
+		<Combobox
+			name="value"
+			{label}
+			{options}
+			value={chosen[field] ?? value}
+			class={field === 'statusCode' ? 'status ' + (chosen[field] ?? value) : ''}
+			disabled={closed || paneLoading}
+			submitOnSelect
+		/>
 	</form>
 {/snippet}
 <div class="workspace" class:has-ticket={hasTicket}>
@@ -373,44 +408,43 @@
 			>
 		</div>
 		<div class="filters">
-			<select
-				aria-label="Filter by status"
+			<Combobox
+				label="Filter by status"
+				placeholder="Status"
 				value={page.url.searchParams.get('status') || ''}
-				onchange={(e) => filter('status', e.currentTarget.value)}
-				><option value="">Status</option>{#each Object.entries(statuses) as [code, s]}<option
-						value={code}>{s.label}</option
-					>{/each}</select
-			><select
-				aria-label="Filter by priority"
+				options={[{ value: '', label: 'Any status' }, ...statusOptions]}
+				onchange={(value) => filter('status', value)}
+			/>
+			<Combobox
+				label="Filter by priority"
+				placeholder="Priority"
 				value={page.url.searchParams.get('priority') || ''}
-				onchange={(e) => filter('priority', e.currentTarget.value)}
-				><option value="">Priority</option><option value="high">High</option><option value="normal"
-					>Normal</option
-				><option value="low">Low</option></select
-			><select
-				aria-label="Filter by category"
+				options={[{ value: '', label: 'Any priority' }, ...priorityOptions]}
+				onchange={(value) => filter('priority', value)}
+			/>
+			<Combobox
+				label="Filter by category"
+				placeholder="Category"
 				value={page.url.searchParams.get('category') || ''}
-				onchange={(e) => filter('category', e.currentTarget.value)}
-				><option value="">Category</option>{#each data.categories as c}<option value={c.id}
-						>{c.name}</option
-					>{/each}</select
-			>
+				options={[{ value: '', label: 'Any category' }, ...categoryOptions]}
+				onchange={(value) => filter('category', value)}
+			/>
 		</div>
 		{#if listLoading}<TicketRowsSkeleton />{:else}<div class="rows" aria-busy={refreshing}>
-				{#if composing || draft.dirty}<a
-						href={'/app/tickets/new' + page.url.search}
+				{#each draftRows as item (item.id)}<a
+						href={`/app/tickets/new${listSearch ? listSearch + '&' : '?'}draft=${item.id}`}
 						class="ticket-row"
-						class:selected={composing}
-						><span class="avatar row-avatar">{initials(person(draft.requesterId))}</span>
+						class:selected={composing && item === draft}
+						><span class="avatar row-avatar">{initials(person(item.requesterId))}</span>
 						<div class="row-content">
 							<div class="row-title">
-								<strong>{draft.subject.trim() || 'New ticket'}</strong><time>Draft</time>
+								<strong>{item.subject.trim() || 'New ticket'}</strong><time>Draft</time>
 							</div>
 							<div class="row-meta">
-								<span class="row-preview">{draft.description.trim() || 'Nothing written yet'}</span>
+								<span class="row-preview">{item.description.trim() || 'Nothing written yet'}</span>
 							</div>
 						</div></a
-					>{/if}
+					>{/each}
 				{#each data.tickets as row}<a
 						href={href(row.ticketNumber)}
 						class="ticket-row"
@@ -443,7 +477,9 @@
 			</div>{/if}
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">
-		{#if composing}{@render compose()}{:else if paneLoading && !t}<div class="conversation-scroll">
+		{#if composing}{#key draft.id}{@render compose()}{/key}{:else if paneLoading && !t}<div
+				class="conversation-scroll"
+			>
 				<ConversationSkeleton heading />
 			</div>{:else if t}<div class="reading-toolbar">
 				<a
