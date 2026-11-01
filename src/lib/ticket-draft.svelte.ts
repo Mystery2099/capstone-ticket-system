@@ -60,6 +60,11 @@ export class TicketDrafts {
 		return new TicketDraft({ id: newId(), requesterId: this.#userId });
 	}
 
+	/** Drafts with content, which is what the sidebar and Drafts view show. */
+	get saved() {
+		return this.items.filter((draft) => draft.dirty);
+	}
+
 	find(id: string | null) {
 		return this.items.find((draft) => draft.id === id);
 	}
@@ -76,7 +81,7 @@ export class TicketDrafts {
 	}
 
 	serialize() {
-		return JSON.stringify(this.items.filter((draft) => draft.dirty));
+		return JSON.stringify(this.saved);
 	}
 
 	/** Reads saved drafts, keeping open ones as they are so unsaved typing isn't replaced. */

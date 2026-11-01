@@ -11,6 +11,7 @@
 	import {
 		Ticket,
 		ChevronDown,
+		FilePen,
 		Menu,
 		Search,
 		SlidersHorizontal,
@@ -90,7 +91,14 @@
 		hint: 'Tickets you opened, in any status',
 		count: data.counts.mine
 	});
-	let nav = $derived(
+	let draftsLink = $derived({
+		key: 'drafts',
+		label: 'Drafts',
+		hint: 'Tickets you’ve started, saved in this browser',
+		icon: FilePen,
+		count: drafts.saved.length
+	});
+	let ticketViews = $derived(
 		staff
 			? [
 					{
@@ -125,6 +133,10 @@
 				]
 			: [{ ...requests, icon: Inbox }]
 	);
+	// Stays while its view is open, so emptying it doesn't pull the page out from under you.
+	let nav = $derived(
+		draftsLink.count || view === 'drafts' ? [...ticketViews, draftsLink] : ticketViews
+	);
 	$effect(() => {
 		query = page.url.searchParams.get('q') || '';
 	});
@@ -149,6 +161,7 @@
 		e.preventDefault();
 		const p = new URLSearchParams(page.url.searchParams);
 		p.delete('draft');
+		if (p.get('view') === 'drafts') p.delete('view');
 		query.trim() ? p.set('q', query.trim()) : p.delete('q');
 		await goto('/app/tickets?' + p);
 	}

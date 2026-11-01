@@ -66,10 +66,6 @@
 			: (page.url.searchParams.get('draft') ?? promotedId)
 	);
 	let draft = $derived(drafts.find(draftId) ?? drafts.blank);
-	let draftRows = $derived([
-		...(composing && draft === drafts.blank ? [draft] : []),
-		...drafts.items.filter((item) => item.dirty || (composing && item === draft))
-	]);
 	// The list's URL params, without the draft that happens to be open.
 	let listParams = $derived.by(() => {
 		const params = new URLSearchParams(page.url.searchParams);
@@ -141,10 +137,12 @@
 				queue: 'Assigned to me',
 				unassigned: 'Unassigned',
 				all: 'All tickets',
-				mine: 'My requests'
+				mine: 'My requests',
+				drafts: 'Drafts'
 			} as Record<string, string>
 		)[view] || 'All tickets'
 	);
+	let showingDrafts = $derived(view === 'drafts');
 	let heading = $derived(openCategory ? `Open · ${openCategory.name}` : title);
 	let index = $derived(data.tickets.findIndex((x) => x.id === t?.id));
 	let timeline = $derived(
@@ -398,53 +396,62 @@
 		<div class="list-top">
 			<h1>
 				{heading}{#if !listLoading}
-					<span>{data.tickets.length}</span>{/if}
+					<span>{showingDrafts ? drafts.saved.length : data.tickets.length}</span>{/if}
 			</h1>
-			<button
-				class="icon-button"
-				aria-label="Refresh tickets"
-				disabled={refreshing}
-				onclick={refresh}><RefreshCw size={20} /></button
-			>
+			{#if !showingDrafts}<button
+					class="icon-button"
+					aria-label="Refresh tickets"
+					disabled={refreshing}
+					onclick={refresh}><RefreshCw size={20} /></button
+				>{/if}
 		</div>
-		<div class="filters">
-			<Combobox
-				label="Filter by status"
-				placeholder="Status"
-				value={page.url.searchParams.get('status') || ''}
-				options={[{ value: '', label: 'Any status' }, ...statusOptions]}
-				onchange={(value) => filter('status', value)}
-			/>
-			<Combobox
-				label="Filter by priority"
-				placeholder="Priority"
-				value={page.url.searchParams.get('priority') || ''}
-				options={[{ value: '', label: 'Any priority' }, ...priorityOptions]}
-				onchange={(value) => filter('priority', value)}
-			/>
-			<Combobox
-				label="Filter by category"
-				placeholder="Category"
-				value={page.url.searchParams.get('category') || ''}
-				options={[{ value: '', label: 'Any category' }, ...categoryOptions]}
-				onchange={(value) => filter('category', value)}
-			/>
-		</div>
-		{#if listLoading}<TicketRowsSkeleton />{:else}<div class="rows" aria-busy={refreshing}>
-				{#each draftRows as item (item.id)}<a
-						href={`/app/tickets/new${listSearch ? listSearch + '&' : '?'}draft=${item.id}`}
+		{#if !showingDrafts}<div class="filters">
+				<Combobox
+					label="Filter by status"
+					placeholder="Status"
+					value={page.url.searchParams.get('status') || ''}
+					options={[{ value: '', label: 'Any status' }, ...statusOptions]}
+					onchange={(value) => filter('status', value)}
+				/>
+				<Combobox
+					label="Filter by priority"
+					placeholder="Priority"
+					value={page.url.searchParams.get('priority') || ''}
+					options={[{ value: '', label: 'Any priority' }, ...priorityOptions]}
+					onchange={(value) => filter('priority', value)}
+				/>
+				<Combobox
+					label="Filter by category"
+					placeholder="Category"
+					value={page.url.searchParams.get('category') || ''}
+					options={[{ value: '', label: 'Any category' }, ...categoryOptions]}
+					onchange={(value) => filter('category', value)}
+				/>
+			</div>{/if}
+		{#if showingDrafts}<div class="rows">
+				{#each drafts.saved as item (item.id)}<a
+						href={`/app/tickets/new?view=drafts&draft=${item.id}`}
 						class="ticket-row"
 						class:selected={composing && item === draft}
 						><span class="avatar row-avatar">{initials(person(item.requesterId))}</span>
 						<div class="row-content">
 							<div class="row-title">
-								<strong>{item.subject.trim() || 'New ticket'}</strong><time>Draft</time>
+								<strong>{item.subject.trim() || 'No subject'}</strong><time>Draft</time>
 							</div>
 							<div class="row-meta">
 								<span class="row-preview">{item.description.trim() || 'Nothing written yet'}</span>
 							</div>
 						</div></a
-					>{/each}
+					>{:else}<div class="empty">
+						<Inbox size={36} />
+						<h2>No drafts</h2>
+						<p>Tickets you start but don’t create are saved here.</p>
+						<a href="/app/tickets" class="text-link">Back to tickets</a>
+					</div>{/each}
+			</div>{:else if listLoading}<TicketRowsSkeleton />{:else}<div
+				class="rows"
+				aria-busy={refreshing}
+			>
 				{#each data.tickets as row}<a
 						href={href(row.ticketNumber)}
 						class="ticket-row"
@@ -740,7 +747,9 @@
 				{#if !listLoading}<span class="small muted"
 						>{openCategory
 							? `${data.tickets.length} open ${openCategory.name} tickets`
-							: `${data.tickets.length} tickets · ${title}`}</span
+							: showingDrafts
+								? `${drafts.saved.length} drafts`
+								: `${data.tickets.length} tickets · ${title}`}</span
 					>{/if}
 			</div>{/if}
 	</section>

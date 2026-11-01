@@ -54,11 +54,15 @@ export async function workspace(u: Person, url: URL, id?: string) {
 			)!
 		);
 	}
-	const tickets = await db
-		.select()
-		.from(ticket)
-		.where(and(...conditions))
-		.orderBy(desc(ticket.ticketNumber));
+	// Drafts live in the browser, so that view has no tickets to fetch.
+	const tickets =
+		view === 'drafts'
+			? []
+			: await db
+					.select()
+					.from(ticket)
+					.where(and(...conditions))
+					.orderBy(desc(ticket.ticketNumber));
 	const publicComments = tickets.length
 		? await db
 				.select()

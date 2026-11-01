@@ -41,6 +41,13 @@ test('guessed ticket numbers do not reveal another requester ticket', async () =
 		(e: any) => e.status === 404
 	);
 });
+test('the drafts view fetches no tickets', async () => {
+	const r = await service.workspace(
+		people.priya,
+		new URL('http://localhost/app/tickets?view=drafts')
+	);
+	assert.equal(r.tickets.length, 0);
+});
 test('agents can access unassigned tickets', async () => {
 	const r = await service.workspace(
 		people.priya,
