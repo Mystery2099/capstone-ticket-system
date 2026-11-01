@@ -31,7 +31,7 @@
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import { delayed } from '$lib/delayed.svelte';
-	import { getTicketDrafts } from '$lib/ticket-draft.svelte';
+	import { getDrafts } from '$lib/ticket-draft.svelte';
 	let { data, form } = $props();
 	let body = $state(''),
 		internal = $state(false),
@@ -46,7 +46,8 @@
 		sendingMessage = $state<{ body: string; isInternal: boolean } | null>(null),
 		// Metadata values chosen but not yet confirmed, keyed by field.
 		chosen = $state<Record<string, string>>({});
-	const drafts = getTicketDrafts();
+	const allDrafts = getDrafts();
+	const drafts = allDrafts.tickets;
 	let creating = $state(false),
 		formEl = $state<HTMLFormElement>();
 	let staff = $derived(data.user.role !== 'requester');
@@ -143,6 +144,33 @@
 		)[view] || 'All tickets'
 	);
 	let showingDrafts = $derived(view === 'drafts');
+	// Every kind of draft lives in this one list, each opening back in its own form.
+	let draftRows = $derived([
+		...drafts.saved.map((item) => ({
+			id: item.id,
+			title: item.subject.trim() || 'No subject',
+			preview: item.description.trim() || 'Nothing written yet',
+			type: 'Ticket draft',
+			avatar: initials(person(item.requesterId)),
+			href: `/app/tickets/new?view=drafts&draft=${item.id}`
+		})),
+		...allDrafts.users.saved.map((item) => ({
+			id: item.id,
+			title: item.name.trim() || 'No name',
+			preview: item.email.trim() || 'No email yet',
+			type: 'User draft',
+			avatar: item.name.trim() ? initials(item.name.trim()) : '?',
+			href: `/app/admin/users?new&draft=${item.id}`
+		})),
+		...allDrafts.categories.saved.map((item) => ({
+			id: item.id,
+			title: item.name.trim(),
+			preview: 'New category',
+			type: 'Category draft',
+			avatar: '',
+			href: `/app/admin/categories?new&draft=${item.id}`
+		}))
+	]);
 	let heading = $derived(openCategory ? `Open · ${openCategory.name}` : title);
 	let index = $derived(data.tickets.findIndex((x) => x.id === t?.id));
 	let timeline = $derived(
@@ -228,9 +256,16 @@
 		}}
 	>
 		<div class="reading-toolbar">
-			<a href={listHref} class="icon-button back" aria-label="Back to tickets"
-				><ArrowLeft size={21} /></a
-			>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					{#snippet child({ props })}
+						<a {...props} href={listHref} class="icon-button back" aria-label="Back to tickets"
+							><ArrowLeft size={21} /></a
+						>
+					{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="bottom" sideOffset={6}>Back to tickets</Tooltip.Content>
+			</Tooltip.Root>
 			<div class="ticket-title">
 				<!-- SvelteKit clears focus when navigation lands unless an element has autofocus. -->
 				<!-- svelte-ignore a11y_autofocus -->
@@ -250,9 +285,19 @@
 					New ticket{draft.subject.length > 160 ? ` · ${draft.subject.length} / 180` : ''}
 				</p>
 			</div>
-			<a href={listHref} class="icon-button compose-close" aria-label="Close new ticket"
-				><X size={20} /></a
-			>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					{#snippet child({ props })}
+						<a
+							{...props}
+							href={listHref}
+							class="icon-button compose-close"
+							aria-label="Close new ticket"><X size={20} /></a
+						>
+					{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="bottom" sideOffset={6}>Close new ticket</Tooltip.Content>
+			</Tooltip.Root>
 		</div>
 		<div class="conversation-scroll compose-body">
 			<div class="ticket-heading">
@@ -396,14 +441,21 @@
 		<div class="list-top">
 			<h1>
 				{heading}{#if !listLoading}
-					<span>{showingDrafts ? drafts.saved.length : data.tickets.length}</span>{/if}
+					<span>{showingDrafts ? draftRows.length : data.tickets.length}</span>{/if}
 			</h1>
-			{#if !showingDrafts}<button
-					class="icon-button"
-					aria-label="Refresh tickets"
-					disabled={refreshing}
-					onclick={refresh}><RefreshCw size={20} /></button
-				>{/if}
+			{#if !showingDrafts}<Tooltip.Root>
+					<Tooltip.Trigger onclick={refresh}>
+						{#snippet child({ props })}
+							<button
+								{...props}
+								class="icon-button"
+								aria-label="Refresh tickets"
+								disabled={refreshing}><RefreshCw size={20} /></button
+							>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content side="bottom" sideOffset={6}>Refresh tickets</Tooltip.Content>
+				</Tooltip.Root>{/if}
 		</div>
 		{#if !showingDrafts}<div class="filters">
 				<Combobox
@@ -429,23 +481,23 @@
 				/>
 			</div>{/if}
 		{#if showingDrafts}<div class="rows">
-				{#each drafts.saved as item (item.id)}<a
-						href={`/app/tickets/new?view=drafts&draft=${item.id}`}
+				{#each draftRows as row (row.id)}<a
+						href={row.href}
 						class="ticket-row"
-						class:selected={composing && item === draft}
-						><span class="avatar row-avatar">{initials(person(item.requesterId))}</span>
+						class:selected={composing && row.id === draft.id}
+						>{#if row.avatar}<span class="avatar row-avatar">{row.avatar}</span>{/if}
 						<div class="row-content">
 							<div class="row-title">
-								<strong>{item.subject.trim() || 'No subject'}</strong><time>Draft</time>
+								<strong>{row.title}</strong><time>{row.type}</time>
 							</div>
 							<div class="row-meta">
-								<span class="row-preview">{item.description.trim() || 'Nothing written yet'}</span>
+								<span class="row-preview">{row.preview}</span>
 							</div>
 						</div></a
 					>{:else}<div class="empty">
 						<Inbox size={36} />
 						<h2>No drafts</h2>
-						<p>Tickets you start but don’t create are saved here.</p>
+						<p>Anything you start but don’t finish is saved here.</p>
 						<a href="/app/tickets" class="text-link">Back to tickets</a>
 					</div>{/each}
 			</div>{:else if listLoading}<TicketRowsSkeleton />{:else}<div
@@ -489,11 +541,19 @@
 			>
 				<ConversationSkeleton heading />
 			</div>{:else if t}<div class="reading-toolbar">
-				<a
-					href={'/app/tickets' + page.url.search}
-					class="icon-button back"
-					aria-label="Back to tickets"><ArrowLeft size={21} /></a
-				>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							<a
+								{...props}
+								href={'/app/tickets' + page.url.search}
+								class="icon-button back"
+								aria-label="Back to tickets"><ArrowLeft size={21} /></a
+							>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content side="bottom" sideOffset={6}>Back to tickets</Tooltip.Content>
+				</Tooltip.Root>
 				<div class="ticket-title">
 					<h1>{t.subject}</h1>
 					<p class="ticket-dates">
@@ -512,24 +572,45 @@
 				</div>
 				{#if index >= 0}<span class="toolbar-position muted small"
 						>{index + 1} of {data.tickets.length}</span
-					>{/if}<a
-					class="icon-button"
-					aria-label="Previous ticket"
-					aria-disabled={index <= 0}
-					href={index > 0 ? href(data.tickets[index - 1].ticketNumber) : undefined}
-					><ChevronLeft size={20} /></a
-				><a
-					class="icon-button"
-					aria-label="Next ticket"
-					aria-disabled={index < 0 || index >= data.tickets.length - 1}
-					href={index >= 0 && index < data.tickets.length - 1
-						? href(data.tickets[index + 1].ticketNumber)
-						: undefined}><ChevronRight size={20} /></a
-				><button
-					class="icon-button"
-					aria-label="Copy ticket link"
-					onclick={() => copy(window.location.href, 'Link copied')}><Link size={20} /></button
-				>{#if copied}<span class="copy-feedback" role="status">{copied}</span>{/if}
+					>{/if}<Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							<a
+								{...props}
+								class="icon-button"
+								aria-label="Previous ticket"
+								aria-disabled={index <= 0}
+								href={index > 0 ? href(data.tickets[index - 1].ticketNumber) : undefined}
+								><ChevronLeft size={20} /></a
+							>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content side="bottom" sideOffset={6}>Previous ticket</Tooltip.Content>
+				</Tooltip.Root><Tooltip.Root>
+					<Tooltip.Trigger>
+						{#snippet child({ props })}
+							<a
+								{...props}
+								class="icon-button"
+								aria-label="Next ticket"
+								aria-disabled={index < 0 || index >= data.tickets.length - 1}
+								href={index >= 0 && index < data.tickets.length - 1
+									? href(data.tickets[index + 1].ticketNumber)
+									: undefined}><ChevronRight size={20} /></a
+							>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content side="bottom" sideOffset={6}>Next ticket</Tooltip.Content>
+				</Tooltip.Root><Tooltip.Root>
+					<Tooltip.Trigger onclick={() => copy(window.location.href, 'Link copied')}>
+						{#snippet child({ props })}
+							<button {...props} class="icon-button" aria-label="Copy ticket link"
+								><Link size={20} /></button
+							>
+						{/snippet}
+					</Tooltip.Trigger>
+					<Tooltip.Content side="bottom" sideOffset={6}>Copy ticket link</Tooltip.Content>
+				</Tooltip.Root>{#if copied}<span class="copy-feedback" role="status">{copied}</span>{/if}
 			</div>
 			<div class="conversation-scroll">
 				<div class="ticket-heading">
@@ -748,7 +829,7 @@
 						>{openCategory
 							? `${data.tickets.length} open ${openCategory.name} tickets`
 							: showingDrafts
-								? `${drafts.saved.length} drafts`
+								? `${draftRows.length} drafts`
 								: `${data.tickets.length} tickets · ${title}`}</span
 					>{/if}
 			</div>{/if}

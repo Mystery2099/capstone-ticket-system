@@ -1,4 +1,5 @@
 <script lang="ts">
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { onMount } from 'svelte';
 	let ready = $state(false);
 	onMount(() => {
@@ -77,16 +78,25 @@
 							required
 							class="h-11 md:text-base font-normal pr-11"
 						/>
-						<Button
-							variant="ghost"
-							size="icon-sm"
-							type="button"
-							class="absolute right-1 top-1"
-							aria-label={show ? 'Hide password' : 'Show password'}
-							onclick={() => (show = !show)}
-						>
-							{#if show}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
-						</Button>
+						<Tooltip.Root>
+							<Tooltip.Trigger onclick={() => (show = !show)}>
+								{#snippet child({ props })}
+									<Button
+										{...props}
+										variant="ghost"
+										size="icon-sm"
+										type="button"
+										class="absolute right-1 top-1"
+										aria-label={show ? 'Hide password' : 'Show password'}
+									>
+										{#if show}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
+									</Button>
+								{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content side="bottom" sideOffset={6}
+								>{show ? 'Hide password' : 'Show password'}</Tooltip.Content
+							>
+						</Tooltip.Root>
 					</span>
 				</Label>
 				{#if error}<p class="error" role="alert">{error}</p>{/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { onMount } from 'svelte';
 	onMount(() => {
 		const apply = () => {
@@ -25,4 +26,6 @@
 		content="Capstone support ticket workspace"
 	/></svelte:head
 >
-{@render children()}
+<Tooltip.Provider delayDuration={400}>
+	{@render children()}
+</Tooltip.Provider>

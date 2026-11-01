@@ -32,19 +32,19 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { delayed } from '$lib/delayed.svelte';
 	import { motionMs } from '$lib/motion';
-	import { setTicketDrafts, TicketDrafts } from '$lib/ticket-draft.svelte';
+	import { Drafts, setDrafts } from '$lib/ticket-draft.svelte';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
 	} from '$lib/components/skeleton/RouteSkeleton.svelte';
 	let { data, children } = $props();
 	// This layout remounts when the user changes, so reading the id once is correct.
 	// svelte-ignore state_referenced_locally
-	const drafts = setTicketDrafts(new TicketDrafts(data.user.id));
-	onMount(() => drafts.load());
+	const drafts = setDrafts(new Drafts(data.user.id, data.user.role === 'admin'));
+	onMount(() => drafts.stores.forEach((store) => store.load()));
 	// Debounced so typing costs one write after a pause, not one per keystroke.
 	$effect(() => {
-		const json = drafts.serialize();
-		const timer = setTimeout(() => drafts.save(json), 300);
+		const saved = drafts.stores.map((store) => store.serialize());
+		const timer = setTimeout(() => drafts.stores.forEach((s, i) => s.save(saved[i])), 300);
 		return () => clearTimeout(timer);
 	});
 	// The phone drawer and the desktop rail are separate: links close the drawer, and a
@@ -97,9 +97,9 @@
 	let draftsLink = $derived({
 		key: 'drafts',
 		label: 'Drafts',
-		hint: 'Tickets you’ve started, saved in this browser',
+		hint: 'Unfinished work, saved in this browser',
 		icon: FilePen,
-		count: drafts.saved.length
+		count: drafts.count
 	});
 	let ticketViews = $derived(
 		staff
@@ -185,10 +185,8 @@
 </script>
 
 <svelte:window
-	onpagehide={() => drafts.save()}
-	onstorage={(e) => {
-		if (e.key === drafts.key) drafts.load();
-	}}
+	onpagehide={() => drafts.stores.forEach((store) => store.save())}
+	onstorage={(e) => drafts.stores.find((store) => store.key === e.key)?.load()}
 	onkeydown={(e) => {
 		if (
 			e.key === '/' &&
@@ -199,140 +197,159 @@
 		}
 	}}
 />
-<Tooltip.Provider delayDuration={400}>
-	<div data-hydrated={hydrated} class="app-shell" class:rail={railed}>
-		<header class="topbar">
-			<button
-				class="icon-button menu-button"
-				aria-label="Toggle navigation"
-				onclick={toggleNavigation}><Menu /></button
-			><a class="brand" href="/app/tickets"
-				><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
-			>
-			<form class="search-bar" onsubmit={search}>
-				<Search size={23} /><input
-					aria-label="Search tickets"
-					placeholder="Search tickets, people, #number"
-					bind:value={query}
-				/><kbd>/</kbd><button
-					class="icon-button"
-					aria-label="Filter tickets"
-					type="button"
+
+<div data-hydrated={hydrated} class="app-shell" class:rail={railed}>
+	<header class="topbar">
+		<Tooltip.Root>
+			<Tooltip.Trigger onclick={toggleNavigation}>
+				{#snippet child({ props })}
+					<button {...props} class="icon-button menu-button" aria-label="Toggle navigation"
+						><Menu /></button
+					>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content side="bottom" sideOffset={6}>Toggle navigation</Tooltip.Content>
+		</Tooltip.Root><a class="brand" href="/app/tickets"
+			><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
+		>
+		<form class="search-bar" onsubmit={search}>
+			<Search size={23} /><input
+				aria-label="Search tickets"
+				placeholder="Search tickets, people, #number"
+				bind:value={query}
+			/><kbd>/</kbd><Tooltip.Root>
+				<Tooltip.Trigger
 					onclick={() => {
 						const field = document.querySelector<HTMLSelectElement>(
 							'[aria-label="Filter by status"]'
 						);
 						if (field) field.focus();
 						else goto('/app/tickets?view=' + view);
-					}}><SlidersHorizontal size={21} /></button
+					}}
 				>
-			</form>
-			<div class="account-wrap">
-				<button class="avatar" aria-label="Account menu" onclick={() => (account = !account)}
-					>{initials(data.user.name)}</button
-				>{#if account}<div
-						class="account-menu"
-						transition:scale={{ start: 0.96, duration: motionMs(120) }}
+					{#snippet child({ props })}
+						<button {...props} class="icon-button" aria-label="Filter tickets" type="button"
+							><SlidersHorizontal size={21} /></button
+						>
+					{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="bottom" sideOffset={6}>Filter tickets</Tooltip.Content>
+			</Tooltip.Root>
+		</form>
+		<div class="account-wrap">
+			<Tooltip.Root>
+				<Tooltip.Trigger onclick={() => (account = !account)}>
+					{#snippet child({ props })}
+						<button {...props} class="avatar" aria-label="Account menu"
+							>{initials(data.user.name)}</button
+						>
+					{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="bottom" sideOffset={6}>Account menu</Tooltip.Content>
+			</Tooltip.Root>{#if account}<div
+					class="account-menu"
+					transition:scale={{ start: 0.96, duration: motionMs(120) }}
+				>
+					<strong>{data.user.name}</strong><small>{data.user.role}</small><a
+						href="/app/settings"
+						onclick={() => (account = false)}>Appearance & settings</a
+					><button onclick={signOut} disabled={signingOut}
+						><LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}</button
 					>
-						<strong>{data.user.name}</strong><small>{data.user.role}</small><a
-							href="/app/settings"
-							onclick={() => (account = false)}>Appearance & settings</a
-						><button onclick={signOut} disabled={signingOut}
-							><LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}</button
-						>
-					</div>{/if}
-			</div>
-		</header>
-		{#if drawer}<button
-				transition:fade={{ duration: motionMs(180) }}
-				class="drawer-scrim"
-				aria-label="Close navigation"
-				onclick={() => (drawer = false)}
-			></button>{/if}
-		<aside class:drawer-open={drawer}>
-			<div class="drawer-brand">
-				<span>Ticket System</span><button
-					class="icon-button"
-					aria-label="Close navigation"
-					onclick={() => (drawer = false)}><X /></button
-				>
-			</div>
-			<a class="new-ticket" href={newTicketHref} onclick={() => (drawer = false)}
-				><SquarePen size={25} /><span>New ticket</span></a
-			>
-			<div class="sidebar-scroll">
-				<nav aria-label="Tickets">
-					{#each nav as n}
-						{#snippet viewLink()}
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									{#snippet child({ props })}<a
-											{...mergeProps(props, { onclick: () => (drawer = false) })}
-											class:active={url.pathname.startsWith('/app/tickets') &&
-												view === n.key &&
-												!openCategory}
-											href={'/app/tickets?view=' + n.key}
-											aria-label={n.label}
-											><n.icon size={23} /><span>{n.label}</span><small>{n.count}</small></a
-										>{/snippet}
-								</Tooltip.Trigger>
-								<Tooltip.Content side="right" sideOffset={8}>{n.hint}</Tooltip.Content>
-							</Tooltip.Root>
-						{/snippet}
-						{#if n.key === 'open' && data.openByCategory.length}
-							<Collapsible.Root bind:open={categoriesOpen}>
-								<div class="nav-row">
-									{@render viewLink()}
-									<Collapsible.Trigger
-										class="nav-toggle"
-										aria-label={categoriesOpen ? 'Hide categories' : 'Show categories'}
-										><ChevronDown size={18} /></Collapsible.Trigger
-									>
-								</div>
-								<Collapsible.Content class="category-nav">
-									{#each data.openByCategory as c (c.id)}<a
-											class:active={url.pathname.startsWith('/app/tickets') &&
-												openCategory === c.id}
-											href={`/app/tickets?view=open&category=${c.id}`}
-											onclick={() => (drawer = false)}
-											><span>{c.name}</span><small>{c.count}</small></a
-										>{/each}
-								</Collapsible.Content>
-							</Collapsible.Root>
-						{:else}{@render viewLink()}{/if}
-					{/each}
-				</nav>
-				{#if data.user.role === 'admin'}<p class="nav-section">Administration</p>
-					<nav aria-label="Administration">
-						<a
-							class:active={url.pathname.endsWith('/users')}
-							href="/app/admin/users"
-							onclick={() => (drawer = false)}><Users size={23} /><span>Users</span></a
-						><a
-							class:active={url.pathname.endsWith('/categories')}
-							href="/app/admin/categories"
-							onclick={() => (drawer = false)}><Tags size={23} /><span>Categories</span></a
-						>
-					</nav>{/if}
-			</div>
-			<nav class="sidebar-bottom" aria-label="General">
-				<a
-					class:active={url.pathname === '/app/settings'}
-					href="/app/settings"
-					onclick={() => (drawer = false)}><Settings size={23} /><span>Settings</span></a
-				>
+				</div>{/if}
+		</div>
+	</header>
+	{#if drawer}<button
+			transition:fade={{ duration: motionMs(180) }}
+			class="drawer-scrim"
+			aria-label="Close navigation"
+			onclick={() => (drawer = false)}
+		></button>{/if}
+	<aside class:drawer-open={drawer}>
+		<div class="drawer-brand">
+			<span>Ticket System</span><Tooltip.Root>
+				<Tooltip.Trigger onclick={() => (drawer = false)}>
+					{#snippet child({ props })}
+						<button {...props} class="icon-button" aria-label="Close navigation"><X /></button>
+					{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="bottom" sideOffset={6}>Close navigation</Tooltip.Content>
+			</Tooltip.Root>
+		</div>
+		<a class="new-ticket" href={newTicketHref} onclick={() => (drawer = false)}
+			><SquarePen size={25} /><span>New ticket</span></a
+		>
+		<div class="sidebar-scroll">
+			<nav aria-label="Tickets">
+				{#each nav as n}
+					{#snippet viewLink()}
+						<Tooltip.Root>
+							<Tooltip.Trigger>
+								{#snippet child({ props })}<a
+										{...mergeProps(props, { onclick: () => (drawer = false) })}
+										class:active={url.pathname.startsWith('/app/tickets') &&
+											view === n.key &&
+											!openCategory}
+										href={'/app/tickets?view=' + n.key}
+										aria-label={n.label}
+										><n.icon size={23} /><span>{n.label}</span><small>{n.count}</small></a
+									>{/snippet}
+							</Tooltip.Trigger>
+							<Tooltip.Content side="right" sideOffset={8}>{n.hint}</Tooltip.Content>
+						</Tooltip.Root>
+					{/snippet}
+					{#if n.key === 'open' && data.openByCategory.length}
+						<Collapsible.Root bind:open={categoriesOpen}>
+							<div class="nav-row">
+								{@render viewLink()}
+								<Collapsible.Trigger
+									class="nav-toggle"
+									aria-label={categoriesOpen ? 'Hide categories' : 'Show categories'}
+									><ChevronDown size={18} /></Collapsible.Trigger
+								>
+							</div>
+							<Collapsible.Content class="category-nav">
+								{#each data.openByCategory as c (c.id)}<a
+										class:active={url.pathname.startsWith('/app/tickets') && openCategory === c.id}
+										href={`/app/tickets?view=open&category=${c.id}`}
+										onclick={() => (drawer = false)}
+										><span>{c.name}</span><small>{c.count}</small></a
+									>{/each}
+							</Collapsible.Content>
+						</Collapsible.Root>
+					{:else}{@render viewLink()}{/if}
+				{/each}
 			</nav>
-		</aside>
-		<main>
-			{#if routeLoading.current}<RouteSkeleton kind={routeTarget ?? lastRouteTarget} />{/if}
-			<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
-			<div class={routeLoading.current ? 'hidden' : 'contents'}>{@render children()}</div>
-		</main>
-		<nav class="mobile-nav" aria-label="Mobile navigation">
-			{#each nav.slice(0, 3) as n}<a
-					class:active={view === n.key && url.pathname.startsWith('/app/tickets')}
-					href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
-				>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
+			{#if data.user.role === 'admin'}<p class="nav-section">Administration</p>
+				<nav aria-label="Administration">
+					<a
+						class:active={url.pathname.endsWith('/users')}
+						href="/app/admin/users"
+						onclick={() => (drawer = false)}><Users size={23} /><span>Users</span></a
+					><a
+						class:active={url.pathname.endsWith('/categories')}
+						href="/app/admin/categories"
+						onclick={() => (drawer = false)}><Tags size={23} /><span>Categories</span></a
+					>
+				</nav>{/if}
+		</div>
+		<nav class="sidebar-bottom" aria-label="General">
+			<a
+				class:active={url.pathname === '/app/settings'}
+				href="/app/settings"
+				onclick={() => (drawer = false)}><Settings size={23} /><span>Settings</span></a
+			>
 		</nav>
-	</div>
-</Tooltip.Provider>
+	</aside>
+	<main>
+		{#if routeLoading.current}<RouteSkeleton kind={routeTarget ?? lastRouteTarget} />{/if}
+		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
+		<div class={routeLoading.current ? 'hidden' : 'contents'}>{@render children()}</div>
+	</main>
+	<nav class="mobile-nav" aria-label="Mobile navigation">
+		{#each nav.slice(0, 3) as n}<a
+				class:active={view === n.key && url.pathname.startsWith('/app/tickets')}
+				href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
+			>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
+	</nav>
+</div>

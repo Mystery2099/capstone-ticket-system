@@ -128,6 +128,42 @@ test('administrator adds and edits records in the pane beside the list', async (
 	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
 });
 
+test('user and category drafts survive a reload without storing the password', async ({ page }) => {
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto('/app/admin/users?new');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByLabel('Display name').fill('Nina Patel');
+	await page.getByLabel('Email').fill('nina.patel@example.test');
+	await page.getByLabel('Initial password').fill('Temporary-Password-1');
+	await choose(page, 'Role', 'Agent');
+	await expect(page).toHaveURL(/draft=/);
+	await page.reload();
+	await expect(page.getByLabel('Display name')).toHaveValue('Nina Patel');
+	await expect(page.getByRole('button', { name: 'Role', exact: true })).toHaveText('Agent');
+	await expect(page.getByLabel('Initial password')).toHaveValue('');
+	const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
+	expect(stored).toContain('Nina Patel');
+	expect(stored).not.toContain('Temporary-Password-1');
+
+	await page.goto('/app/admin/categories?new');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByLabel('Category name').fill('Security');
+	const drafts = page.getByRole('link', { name: 'Drafts', exact: true });
+	await expect(drafts).toContainText('2');
+
+	await drafts.click();
+	await expect(page.locator('a.ticket-row', { hasText: 'Category draft' })).toContainText(
+		'Security'
+	);
+	await page.locator('a.ticket-row', { hasText: 'User draft' }).click();
+	await expect(page.getByLabel('Display name')).toHaveValue('Nina Patel');
+	await page.getByLabel('Initial password').fill('Temporary-Password-1');
+	await page.getByRole('button', { name: 'Create account', exact: true }).click();
+	await expect(page).toHaveURL(/\?id=/);
+	await expect(page.locator('a.ticket-row', { hasText: 'Nina Patel' })).toHaveClass(/selected/);
+	await expect(drafts).toContainText('1');
+});
+
 test('a minimized sidebar stays minimized while navigating', async ({ page }) => {
 	await signIn(page, 'priya.raman@example.test');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');

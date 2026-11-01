@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto, replaceState } from '$app/navigation';
 	import { enhance } from '$app/forms';
-	import { page } from '$app/state';
+	import { navigating, page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { ArrowLeft, Inbox, Plus, X } from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
@@ -10,6 +10,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { initials } from '$lib/status';
+	import { getDrafts } from '$lib/ticket-draft.svelte';
 
 	let { data, form } = $props();
 
@@ -33,7 +34,11 @@
 		roleFilter = $state(''),
 		stateFilter = $state(''),
 		revision = $state(0),
-		busy = $state('');
+		busy = $state(''),
+		// Never part of a draft, so a password can't end up in localStorage.
+		password = $state(''),
+		promotedId = $state<string | null>(null),
+		addForm = $state<HTMLFormElement>();
 
 	let isUsers = $derived(data.section === 'users');
 	let noun = $derived(isUsers ? 'user' : 'category');
@@ -46,6 +51,27 @@
 		isUsers ? undefined : data.categories.find((c) => c.id === openId)
 	);
 	let paneOpen = $derived(adding || !!selectedUser || !!selectedCategory);
+
+	const drafts = getDrafts();
+	// Shallow routing leaves page.url as it was, so the draft just added is tracked here.
+	let draftId = $derived(page.url.searchParams.get('draft') ?? promotedId);
+	let userDraft = $derived(drafts.users.find(draftId) ?? drafts.users.blank);
+	let categoryDraft = $derived(drafts.categories.find(draftId) ?? drafts.categories.blank);
+	$effect(() => {
+		if (!adding || navigating.to) return;
+		const store = isUsers ? drafts.users : drafts.categories;
+		const draft = isUsers ? userDraft : categoryDraft;
+		if (draft !== store.blank || !draft.dirty) return;
+		const url = new URL(page.url);
+		url.searchParams.set('draft', draft.id);
+		promotedId = draft.id;
+		store.promote();
+		replaceState(url, {});
+	});
+	afterNavigate(() => {
+		promotedId = null;
+		password = '';
+	});
 
 	const matches = (text: string) => text.toLowerCase().includes(search.trim().toLowerCase());
 	let users = $derived(
@@ -67,28 +93,58 @@
 	 * their submitted values: the default reset restores HTML defaults, not saved data.
 	 */
 	const submit =
-		(key: string): SubmitFunction =>
+		(key: string, onCreated?: () => void): SubmitFunction =>
 		() => {
 			busy = key;
 			return async ({ result, update }) => {
 				await update({ reset: false });
 				busy = '';
-				if (result.type === 'success' && result.data?.createdId)
+				if (result.type === 'success' && result.data?.createdId) {
+					onCreated?.();
 					await goto(`?id=${result.data.createdId}`);
+				}
 			};
 		};
 </script>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (!adding || !addForm?.contains(e.target as Node)) return;
+		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+			e.preventDefault();
+			addForm.requestSubmit();
+		} else if (e.key === 'Escape') {
+			void goto(listHref);
+		}
+	}}
+/>
+
 {#snippet toolbar(title: string, subtitle: string)}
 	<div class="reading-toolbar">
-		<a href={listHref} class="icon-button back" aria-label={`Back to ${noun} list`}
-			><ArrowLeft size={21} /></a
-		>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<a {...props} href={listHref} class="icon-button back" aria-label={`Back to ${noun} list`}
+						><ArrowLeft size={21} /></a
+					>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content side="bottom" sideOffset={6}>{`Back to ${noun} list`}</Tooltip.Content>
+		</Tooltip.Root>
 		<div class="ticket-title">
 			<h1>{title}</h1>
 			<p class="ticket-dates">{subtitle}</p>
 		</div>
-		<a href={listHref} class="icon-button compose-close" aria-label="Close"><X size={20} /></a>
+		<Tooltip.Root>
+			<Tooltip.Trigger>
+				{#snippet child({ props })}
+					<a {...props} href={listHref} class="icon-button compose-close" aria-label="Close"
+						><X size={20} /></a
+					>
+				{/snippet}
+			</Tooltip.Trigger>
+			<Tooltip.Content side="bottom" sideOffset={6}>Close details</Tooltip.Content>
+		</Tooltip.Root>
 	</div>
 {/snippet}
 
@@ -97,14 +153,23 @@
 	{#if form?.success}<p class="success" role="status">{form.success}</p>{/if}
 {/snippet}
 
-{#snippet footer(key: string, primary: string, working: string, showRevert: boolean)}
+{#snippet footer(key: string, primary: string, working: string, discard?: () => void)}
 	<div class="composer-footer admin-actions">
-		{#if showRevert}
+		{#if discard}
+			<span class="muted small compose-hint">Esc to close · Ctrl+Enter to create</span>
+			<Button
+				variant="ghost"
+				size="sm"
+				class="rounded-full px-4"
+				onclick={() => {
+					discard();
+					void goto(listHref);
+				}}>Discard</Button
+			>
+		{:else}
 			<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={() => revision++}
 				>Revert</Button
 			>
-		{:else}
-			<Button href={listHref} variant="ghost" size="sm" class="rounded-full px-4">Cancel</Button>
 		{/if}
 		<Button type="submit" size="sm" class="rounded-full px-4" disabled={busy === key}
 			>{busy === key ? working : primary}</Button
@@ -121,12 +186,11 @@
 			</h1>
 			<Tooltip.Root>
 				<Tooltip.Trigger>
-					{#snippet child({ props })}<a
-							{...props}
-							href="?new"
-							class="icon-button"
-							aria-label={`Add ${noun}`}><Plus size={20} /></a
-						>{/snippet}
+					{#snippet child({ props })}
+						<a {...props} href="?new" class="icon-button" aria-label={`Add ${noun}`}
+							><Plus size={20} /></a
+						>
+					{/snippet}
 				</Tooltip.Trigger>
 				<Tooltip.Content side="bottom" sideOffset={6}>Add {noun}</Tooltip.Content>
 			</Tooltip.Root>
@@ -200,65 +264,101 @@
 	<section class="reading-pane" aria-label={isUsers ? 'User details' : 'Category details'}>
 		{#if adding && isUsers}
 			{@render toolbar('Add user', 'Accounts are created here, not by public sign-up')}
-			<form class="compose" method="POST" action="?/createUser" use:enhance={submit('create-user')}>
-				<div class="conversation-scroll admin-form">
-					<Label class="flex-col items-start gap-2">
-						Display name<Input name="name" required maxlength={100} class="h-9 font-normal" />
-					</Label>
-					<Label class="flex-col items-start gap-2">
-						Email<Input
-							name="email"
-							type="email"
-							required
-							maxlength={254}
-							class="h-9 font-normal"
-						/>
-					</Label>
-					<Label class="flex-col items-start gap-2">
-						Initial password<Input
-							name="password"
-							type="password"
-							required
-							minlength={12}
-							maxlength={128}
-							autocomplete="new-password"
-							class="h-9 font-normal"
-						/>
-						<small>At least 12 characters. Share directly with the account holder.</small>
-					</Label>
-					<div class="ticket-metadata">
-						<div class="metadata-control">
-							<span>Role</span><Combobox
-								name="role"
-								label="Role"
-								value="requester"
-								options={roles}
+			{#key userDraft.id}
+				<form
+					bind:this={addForm}
+					class="compose"
+					method="POST"
+					action="?/createUser"
+					use:enhance={submit('create-user', () => drafts.users.discard(userDraft.id))}
+				>
+					<div class="conversation-scroll admin-form">
+						<Label class="flex-col items-start gap-2">
+							<!-- svelte-ignore a11y_autofocus -->
+							Display name<Input
+								autofocus
+								name="name"
+								bind:value={userDraft.name}
+								required
+								maxlength={100}
+								class="h-9 font-normal"
 							/>
+						</Label>
+						<Label class="flex-col items-start gap-2">
+							Email<Input
+								name="email"
+								type="email"
+								bind:value={userDraft.email}
+								required
+								maxlength={254}
+								class="h-9 font-normal"
+							/>
+						</Label>
+						<Label class="flex-col items-start gap-2">
+							Initial password<Input
+								name="password"
+								type="password"
+								bind:value={password}
+								required
+								minlength={12}
+								maxlength={128}
+								autocomplete="new-password"
+								class="h-9 font-normal"
+							/>
+							<small>
+								At least 12 characters. Share directly with the account holder. Passwords aren’t
+								saved in drafts.
+							</small>
+						</Label>
+						<div class="ticket-metadata">
+							<div class="metadata-control">
+								<span>Role</span><Combobox
+									name="role"
+									label="Role"
+									bind:value={userDraft.role}
+									options={roles}
+								/>
+							</div>
 						</div>
+						{@render feedback()}
 					</div>
-					{@render feedback()}
-				</div>
-				{@render footer('create-user', 'Create account', 'Creating…', false)}
-			</form>
+					{@render footer('create-user', 'Create account', 'Creating…', () =>
+						drafts.users.discard(userDraft.id)
+					)}
+				</form>
+			{/key}
 		{:else if adding}
 			{@render toolbar(
 				'Add category',
 				'New categories are active and available on new tickets straight away'
 			)}
-			<form
-				class="compose"
-				method="POST"
-				action="?/category"
-				use:enhance={submit('create-category')}
-			>
-				<div class="conversation-scroll admin-form">
-					<Label class="flex-col items-start gap-2">
-						Category name<Input name="name" required maxlength={80} class="h-9 font-normal" />
-					</Label>
-					{@render feedback()}
-				</div>
-				{@render footer('create-category', 'Add category', 'Adding…', false)}
-			</form>
+			{#key categoryDraft.id}
+				<form
+					bind:this={addForm}
+					class="compose"
+					method="POST"
+					action="?/category"
+					use:enhance={submit('create-category', () => drafts.categories.discard(categoryDraft.id))}
+				>
+					<div class="conversation-scroll admin-form">
+						<Label class="flex-col items-start gap-2">
+							<!-- svelte-ignore a11y_autofocus -->
+							Category name<Input
+								autofocus
+								name="name"
+								bind:value={categoryDraft.name}
+								required
+								maxlength={80}
+								class="h-9 font-normal"
+							/>
+						</Label>
+						{@render feedback()}
+					</div>
+					{@render footer('create-category', 'Add category', 'Adding…', () =>
+						drafts.categories.discard(categoryDraft.id)
+					)}
+				</form>
+			{/key}
 		{:else if selectedUser}
 			{@render toolbar(
 				selectedUser.name,
@@ -310,7 +410,7 @@
 						</p>
 						{@render feedback()}
 					</div>
-					{@render footer('user', 'Save', 'Saving…', true)}
+					{@render footer('user', 'Save', 'Saving…')}
 				</form>
 			{/key}
 		{:else if selectedCategory}
@@ -343,7 +443,7 @@
 						</p>
 						{@render feedback()}
 					</div>
-					{@render footer('category', 'Save', 'Saving…', true)}
+					{@render footer('category', 'Save', 'Saving…')}
 				</form>
 			{/key}
 		{:else}
