@@ -432,7 +432,22 @@
 					class="icon-button back"
 					aria-label="Back to tickets"><ArrowLeft size={21} /></a
 				>
-				<h1>{t.subject}</h1>
+				<div class="ticket-title">
+					<h1>{t.subject}</h1>
+					<p class="ticket-dates">
+						<Tooltip.Root>
+							<Tooltip.Trigger
+								class="ticket-number"
+								aria-label={`Copy ticket number #${t.ticketNumber}`}
+								onclick={() => copy(`#${t?.ticketNumber}`, 'Ticket number copied')}
+								>#{t.ticketNumber}</Tooltip.Trigger
+							>
+							<Tooltip.Content side="bottom" sideOffset={6}>Copy ticket number</Tooltip.Content>
+						</Tooltip.Root>
+						· Opened by {person(t.requesterId)} · {date(t.createdAt)}, {time(t.createdAt)} · Updated
+						{date(t.updatedAt)}, {time(t.updatedAt)}
+					</p>
+				</div>
 				{#if index >= 0}<span class="toolbar-position muted small"
 						>{index + 1} of {data.tickets.length}</span
 					>{/if}<a
@@ -456,19 +471,6 @@
 			</div>
 			<div class="conversation-scroll">
 				<div class="ticket-heading">
-					<Tooltip.Root>
-						<Tooltip.Trigger
-							class="ticket-number"
-							aria-label={`Copy ticket number #${t.ticketNumber}`}
-							onclick={() => copy(`#${t?.ticketNumber}`, 'Ticket number copied')}
-							>#{t.ticketNumber}</Tooltip.Trigger
-						>
-						<Tooltip.Content side="right" sideOffset={8}>Copy ticket number</Tooltip.Content>
-					</Tooltip.Root>
-					<p class="ticket-dates">
-						Opened by {person(t.requesterId)} · {date(t.createdAt)}, {time(t.createdAt)} · Last updated
-						{date(t.updatedAt)}, {time(t.updatedAt)}
-					</p>
 					<button class="mobile-details text-link" onclick={() => (details = !details)}
 						>{details ? 'Hide details' : 'Show details'} <span>⌄</span></button
 					>

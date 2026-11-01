@@ -760,14 +760,17 @@
 		display: flex;
 		align-items: flex-start;
 		gap: 6px;
-		padding: 8px 12px 8px 24px;
+		padding: 8px 12px 10px 24px;
 		border-bottom: 1px solid var(--border);
 		flex-shrink: 0;
+		position: relative;
 	}
-	.reading-toolbar h1 {
+	.ticket-title {
 		flex: 1;
 		min-width: 0;
-		padding: 4px 12px 4px 0;
+		padding: 4px 12px 0 0;
+	}
+	.ticket-title h1 {
 		font-size: 20px;
 		line-height: 28px;
 		font-weight: 650;
@@ -782,7 +785,7 @@
 	}
 	.copy-feedback {
 		position: absolute;
-		top: 48px;
+		top: calc(100% + 6px);
 		right: 16px;
 		background: var(--secondary);
 		padding: 8px 12px;
@@ -792,19 +795,18 @@
 	.conversation-scroll {
 		overflow-y: auto;
 		flex: 1;
-		padding: 22px 24px 28px;
+		padding: 14px 24px 28px;
 	}
 	.ticket-heading {
-		padding-bottom: 18px;
+		padding-bottom: 14px;
 		border-bottom: 1px solid var(--border);
 	}
 	.ticket-number {
-		display: block;
-		margin: 0 0 6px -6px;
-		padding: 1px 6px;
-		border-radius: 6px;
-		font-size: 15px;
-		color: var(--muted-fg);
+		margin-left: -5px;
+		padding: 1px 5px;
+		border-radius: 5px;
+		font-weight: 600;
+		color: var(--foreground);
 	}
 	.ticket-number:hover {
 		background: var(--muted);
@@ -819,7 +821,6 @@
 		display: flex;
 		gap: 6px;
 		flex-wrap: wrap;
-		margin-top: 14px;
 	}
 	.metadata-control,
 	.metadata-pill {
@@ -1241,7 +1242,7 @@
 			font-size: 14px;
 		}
 		.conversation-scroll {
-			padding: 24px 28px;
+			padding: 14px 28px 24px;
 		}
 		.reading-toolbar {
 			padding-left: 28px;
@@ -1311,7 +1312,7 @@
 			font-size: 12px;
 		}
 		.conversation-scroll {
-			padding: 18px 16px;
+			padding: 12px 16px 18px;
 		}
 		.message-heading time {
 			width: 100%;
@@ -1549,7 +1550,7 @@
 			flex-wrap: wrap;
 			padding: 4px 12px 10px;
 		}
-		.reading-toolbar h1 {
+		.ticket-title {
 			order: 1;
 			flex-basis: 100%;
 			padding: 4px 8px 0;
@@ -1561,7 +1562,7 @@
 			display: inline-flex;
 		}
 		.conversation-scroll {
-			padding: 16px 20px 28px;
+			padding: 12px 20px 28px;
 		}
 		.ticket-dates {
 			font-size: 11px;
@@ -1571,7 +1572,6 @@
 			display: inline-flex;
 			font-size: 12px;
 			gap: 6px;
-			margin: 10px 0 0;
 			padding: 2px 0;
 		}
 		.ticket-metadata {
@@ -1579,6 +1579,7 @@
 		}
 		.ticket-metadata.expanded {
 			display: flex;
+			margin-top: 10px;
 		}
 		.message {
 			gap: 12px;
