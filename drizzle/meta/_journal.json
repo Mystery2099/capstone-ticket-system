@@ -8,6 +8,20 @@
       "when": 1793475406918,
       "tag": "0000_empty_wallow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793571013634,
+      "tag": "0001_careful_starbolt",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793571014280,
+      "tag": "0002_nostalgic_master_mold",
+      "breakpoints": true
     }
   ]
 }

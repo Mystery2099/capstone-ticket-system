@@ -13,7 +13,7 @@ This describes the proposed first schema, not an implemented database. **PK** me
 | `password_hash` | text        | Required; hashed using a vetted password hashing library      |
 | `display_name`  | text        | Required, nonblank                                            |
 | `role`          | text        | Required; `requester`, `agent`, or `admin`; default requester |
-| `enabled`       | boolean     | Required; default true                                        |
+| `banned`        | boolean     | Default false                                                 | True when an administrator disables the account; blocks sign-in and access |
 | `created_at`    | timestamptz | Required; default current timestamp                           |
 
 ## category
@@ -41,7 +41,7 @@ This describes the proposed first schema, not an implemented database. **PK** me
 | `subject`             | text        | Required, nonblank                                                                                |
 | `description`         | text        | Required, nonblank; initial request description                                                   |
 | `requester_id`        | uuid        | Required FK to `app_user`                                                                         |
-| `assigned_to_user_id` | uuid        | Optional FK to `app_user`; role/enabled check in server transaction                               |
+| `assigned_to_user_id` | uuid        | Optional FK to `app_user`; role/banned check in server transaction                                |
 | `category_id`         | uuid        | Required FK to `category`                                                                         |
 | `status_code`         | text        | Required FK to `ticket_status`; default open                                                      |
 | `priority`            | text        | Required; low, normal or high; default normal. Only agents/admins can change it (server-enforced) |

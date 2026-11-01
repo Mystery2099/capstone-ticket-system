@@ -1,8 +1,9 @@
-import { redirect } from '@sveltejs/kit';
+import { redirect, type ServerLoadEvent } from '@sveltejs/kit';
+import { SIDEBAR_COOKIE_NAME } from '$lib/components/ui/sidebar/constants';
 import { db } from '$lib/server/db';
 import { category, ticket } from '$lib/server/schema';
 import { asc } from 'drizzle-orm';
-export const load = async ({ locals }: { locals: App.Locals }) => {
+export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 	if (!locals.user) redirect(303, '/login');
 	const [allRows, categories] = await Promise.all([
 		db
@@ -21,6 +22,7 @@ export const load = async ({ locals }: { locals: App.Locals }) => {
 	const open = all.filter((t) => !['resolved', 'closed'].includes(t.statusCode));
 	return {
 		user: u,
+		sidebarOpen: cookies.get(SIDEBAR_COOKIE_NAME) !== 'false',
 		// Sidebar counts for staff. Open means not resolved or closed, the same as All open.
 		// Inactive categories stay listed while they still hold open tickets.
 		openByCategory: staff

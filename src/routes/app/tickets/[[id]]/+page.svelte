@@ -31,6 +31,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
+	import { toast } from 'svelte-sonner';
 	import { delayed } from '$lib/delayed.svelte';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
 	let { data, form } = $props();
@@ -38,11 +39,9 @@
 		internal = $state(false),
 		expanded = $state(false),
 		details = $state(false),
-		copied = $state(''),
 		sending = $state(false),
 		refreshing = $state(false),
 		reopening = $state(false),
-		sendError = $state(''),
 		// A comment awaiting the server, shown in the conversation right away.
 		sendingMessage = $state<{ body: string; isInternal: boolean } | null>(null),
 		// Metadata values chosen but not yet confirmed, keyed by field.
@@ -99,7 +98,7 @@
 	let listHref = $derived('/app/tickets' + listSearch);
 	let closed = $derived(t?.statusCode === 'closed');
 	let requesters = $derived(
-		data.people.filter((p) => p.enabled).sort((a, b) => a.name.localeCompare(b.name))
+		data.people.filter((p) => !p.banned).sort((a, b) => a.name.localeCompare(b.name))
 	);
 	let assignees = $derived(requesters.filter((p) => p.role !== 'requester'));
 	const statusOptions = Object.entries(statuses).map(([value, s]) => ({ value, label: s.label }));
@@ -196,23 +195,24 @@
 		await invalidateAll();
 		refreshing = false;
 	}
-	let copiedTimer: ReturnType<typeof setTimeout>;
 	async function copy(text: string, label: string) {
 		try {
 			await navigator.clipboard.writeText(text);
-			copied = label;
+			toast.success(label);
 		} catch {
-			copied = 'Couldn’t copy';
+			toast.error('Couldn’t copy.');
 		}
-		clearTimeout(copiedTimer);
-		copiedTimer = setTimeout(() => (copied = ''), 2000);
 	}
+	// Failures stay until dismissed, since they usually need something done about them.
+	$effect(() => {
+		if (form?.error) toast.error(form.error, { duration: Infinity });
+		else if (form?.success) toast.success(form.success);
+	});
 	afterNavigate(() => {
 		body = '';
 		internal = false;
 		expanded = false;
 		details = false;
-		sendError = '';
 		creating = false;
 		promotedId = null;
 	});
@@ -255,7 +255,10 @@
 			const submitted = draft;
 			creating = true;
 			return async ({ result, update }) => {
-				if (result.type === 'redirect') drafts.discard(submitted.id);
+				if (result.type === 'redirect') {
+					drafts.discard(submitted.id);
+					toast.success('Ticket created.');
+				}
 				await update({ reset: false });
 				creating = false;
 			};
@@ -341,7 +344,6 @@
 					</div>
 				</div>
 			</div>
-			{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
 			<div class="composer">
 				<textarea
 					name="description"
@@ -616,7 +618,7 @@
 						{/snippet}
 					</Tooltip.Trigger>
 					<Tooltip.Content side="bottom" sideOffset={6}>Copy ticket link</Tooltip.Content>
-				</Tooltip.Root>{#if copied}<span class="copy-feedback" role="status">{copied}</span>{/if}
+				</Tooltip.Root>
 			</div>
 			<div class="conversation-scroll">
 				<div class="ticket-heading">
@@ -663,11 +665,6 @@
 							><span class="metadata-pill">Category <strong>{cat(t.categoryId)}</strong></span>{/if}
 					</div>
 				</div>
-				{#if form?.error && !paneLoading}<p role="alert" class="error feedback">
-						{form.error}
-					</p>{/if}{#if form?.success && !paneLoading}<p role="status" class="success feedback">
-						{form.success}
-					</p>{/if}
 				<article class="message">
 					<span class="avatar">{initials(person(t.requesterId))}</span>
 					<div class="message-content">
@@ -732,7 +729,6 @@
 							sendingMessage.body,
 							true
 						)}{/if}
-					{#if sendError}<p role="alert" class="error feedback">{sendError}</p>{/if}
 					{#if !closed}<form
 							class="composer"
 							class:note-mode={internal}
@@ -742,12 +738,11 @@
 								const text = body;
 								sendingMessage = { body: text, isInternal: internal };
 								sending = true;
-								sendError = '';
 								body = '';
 								return async ({ result, update }) => {
 									// A transport error would otherwise replace the page and lose the text.
 									if (result.type === 'error')
-										sendError = 'Couldn’t send. Your comment is back in the box below.';
+										toast.error('Couldn’t send. Your comment is back in the box below.');
 									else await update({ reset: false });
 									sendingMessage = null;
 									sending = false;

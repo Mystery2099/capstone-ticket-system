@@ -382,6 +382,8 @@
 		padding: 6px 0;
 	}
 	.app-shell {
+		--sidebar-width: 240px;
+		--sidebar-width-icon: 76px;
 		height: 100dvh;
 		display: grid;
 		transition: grid-template-columns var(--motion-base) ease-out;
@@ -467,7 +469,8 @@
 		gap: 10px;
 		text-align: left;
 	}
-	.app-shell aside {
+	aside.app-sidebar {
+		height: 100%;
 		position: relative;
 		padding: 4px 12px;
 		display: flex;
@@ -578,7 +581,6 @@
 		padding: 8px 0 12px;
 	}
 	.drawer-brand,
-	.drawer-scrim,
 	.mobile-nav,
 	.mobile-new {
 		display: none;
@@ -786,15 +788,6 @@
 	}
 	.reading-toolbar .back {
 		display: none;
-	}
-	.copy-feedback {
-		position: absolute;
-		top: calc(100% + 6px);
-		right: 16px;
-		background: var(--secondary);
-		padding: 8px 12px;
-		border-radius: 6px;
-		z-index: 3;
 	}
 	.conversation-scroll {
 		overflow-y: auto;
@@ -1221,6 +1214,7 @@
 	}
 	@media (min-width: 1600px) {
 		.app-shell {
+			--sidebar-width: 250px;
 			grid-template-columns: 250px minmax(0, 1fr);
 		}
 		.workspace {
@@ -1247,6 +1241,7 @@
 	}
 	@media (min-width: 768px) and (max-width: 1023px) {
 		.app-shell {
+			--sidebar-width: 76px;
 			grid-template-columns: 76px minmax(0, 1fr);
 		}
 		.brand {
@@ -1258,7 +1253,7 @@
 		.search-bar {
 			margin-left: 0;
 		}
-		.app-shell aside {
+		aside.app-sidebar {
 			padding: 4px 8px;
 		}
 		aside nav a {
@@ -1389,29 +1384,8 @@
 			pointer-events: none;
 			color: var(--muted-fg);
 		}
-		.app-shell aside {
-			display: none;
-			position: fixed;
-			left: 0;
-			top: 0;
-			bottom: 0;
-			width: 280px;
-			background: var(--background);
-			z-index: 70;
+		aside.app-sidebar {
 			padding: 16px;
-			translate: -100%;
-			transition:
-				translate var(--motion-base) ease-out,
-				display var(--motion-base) allow-discrete;
-		}
-		.app-shell aside.drawer-open {
-			display: flex;
-			translate: 0;
-		}
-		@starting-style {
-			.app-shell aside.drawer-open {
-				translate: -100%;
-			}
 		}
 		.drawer-brand {
 			display: flex;
@@ -1420,14 +1394,6 @@
 			font-weight: 650;
 			font-size: 18px;
 			margin-bottom: 24px;
-		}
-		.drawer-scrim {
-			display: block;
-			position: fixed;
-			inset: 0;
-			background: #17111466;
-			z-index: 60;
-			border-radius: 0;
 		}
 		.app-shell main {
 			border-radius: 0;
@@ -2361,7 +2327,6 @@
 	.admin-feedback,
 	.error,
 	.success,
-	.copy-feedback,
 	.message.sending {
 		animation: rise-in var(--motion-base) ease-out;
 	}

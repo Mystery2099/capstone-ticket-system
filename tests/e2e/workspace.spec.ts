@@ -164,6 +164,43 @@ test('user and category drafts survive a reload without storing the password', a
 	await expect(drafts).toContainText('1');
 });
 
+test('form problems appear beside the field and the password never comes back', async ({
+	page
+}) => {
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto('/app/admin/users?new');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByLabel('Display name').fill('Second Marcus');
+	await page.getByLabel('Email').fill('marcus.lee@example.test');
+	await page.getByLabel('Initial password').fill('Temporary-Password-2');
+	const response = page.waitForResponse((r) => r.url().includes('createUser'));
+	await page.getByRole('button', { name: 'Create account', exact: true }).click();
+	expect(await (await response).text()).not.toContain('Temporary-Password-2');
+	await expect(page.getByText('Another account already uses this email.')).toBeVisible();
+	await expect(page.getByLabel('Display name')).toHaveValue('Second Marcus');
+	await expect(page.getByLabel('Initial password')).toHaveValue('Temporary-Password-2');
+});
+
+test('saving a name keeps role and account state, and Revert restores saved values', async ({
+	page
+}) => {
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto('/app/admin/users');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.locator('a.ticket-row', { hasText: 'Theo Brandt' }).click();
+	await choose(page, 'Role', 'Agent');
+	await page.getByLabel('Display name').fill('Theo B');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.locator('a.ticket-row', { hasText: 'Theo B' })).toContainText('Agent');
+	await expect(page.getByRole('button', { name: 'Role', exact: true })).toHaveText('Agent');
+	await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveText('Enabled');
+	await page.getByLabel('Display name').fill('Someone else');
+	await choose(page, 'Account', 'Disabled');
+	await page.getByRole('button', { name: 'Revert', exact: true }).click();
+	await expect(page.getByLabel('Display name')).toHaveValue('Theo B');
+	await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveText('Enabled');
+});
+
 test('a minimized sidebar stays minimized while navigating', async ({ page }) => {
 	await signIn(page, 'priya.raman@example.test');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
@@ -172,6 +209,21 @@ test('a minimized sidebar stays minimized while navigating', async ({ page }) =>
 	await page.getByRole('link', { name: 'All tickets', exact: true }).click();
 	await expect(page).toHaveURL(/view=all/);
 	await expect(page.locator('.app-shell')).toHaveClass(/rail/);
+	// The cookie lets the server render it minimized, so it never flashes open.
+	const response = await page.reload();
+	expect(await response?.text()).toContain('app-shell rail');
+});
+
+test('the phone sidebar opens as a sheet and closes after choosing a link', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await signIn(page, 'priya.raman@example.test');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByRole('button', { name: 'Toggle navigation' }).click();
+	const link = page.getByRole('link', { name: 'All tickets', exact: true });
+	await expect(link).toBeVisible();
+	await link.click();
+	await expect(page).toHaveURL(/view=all/);
+	await expect(link).toBeHidden();
 });
 
 test('hotkeys focus search, preserve typing, and submit or close ticket forms', async ({

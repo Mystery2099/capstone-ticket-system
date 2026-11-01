@@ -70,14 +70,14 @@ test('staff can open a ticket for another enabled requester', async () => {
 		() => service.createTicket(people.priya, form({ ...fields, requesterId: 'nobody' })),
 		(e: any) => e.status === 400
 	);
-	await db.update(schema.user).set({ enabled: false }).where(eq(schema.user.id, 'rosa'));
+	await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, 'rosa'));
 	try {
 		await assert.rejects(
 			() => service.createTicket(people.priya, form({ ...fields, requesterId: 'rosa' })),
 			(e: any) => e.status === 400
 		);
 	} finally {
-		await db.update(schema.user).set({ enabled: true }).where(eq(schema.user.id, 'rosa'));
+		await db.update(schema.user).set({ banned: false }).where(eq(schema.user.id, 'rosa'));
 	}
 });
 test('staff can assign a ticket when creating it', async () => {
@@ -262,7 +262,7 @@ test('assignment rejects requesters and disabled agents, and successful changes 
 			),
 		(e: any) => e.status === 400
 	);
-	await db.update(schema.user).set({ enabled: false }).where(eq(schema.user.id, 'priya'));
+	await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, 'priya'));
 	await assert.rejects(
 		() =>
 			service.mutateTicket(
@@ -273,7 +273,7 @@ test('assignment rejects requesters and disabled agents, and successful changes 
 			),
 		(e: any) => e.status === 400
 	);
-	await db.update(schema.user).set({ enabled: true }).where(eq(schema.user.id, 'priya'));
+	await db.update(schema.user).set({ banned: false }).where(eq(schema.user.id, 'priya'));
 	await service.mutateTicket(
 		people.priya,
 		1046,

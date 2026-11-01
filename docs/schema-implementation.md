@@ -5,7 +5,7 @@ The schema proposal is now represented in `src/lib/server/db/schema/tickets.ts`.
 ## Before generating migrations
 
 1. Bootstrap SvelteKit and install compatible versions of Better Auth, Drizzle and the PostgreSQL driver.
-2. Configure Better Auth with the Drizzle PostgreSQL adapter, extra user fields (`role` and `enabled`) and public sign-up disabled.
+2. Configure Better Auth with the Drizzle PostgreSQL adapter, the admin plugin's user fields (`role` and `banned`) and public sign-up disabled.
 3. Use Better Auth's schema generator and put its generated tables in `src/lib/server/db/schema/auth.ts`. Verify its actual names and `user.id` type. Then typecheck our application schema.
 4. Review the database defaults and decide whether `ticket_number` should start at 1 or use a custom offset. The visible ticket number must be unique and never change.
 5. Seed the five status codes (`open`, `in_progress`, `on_hold`, `resolved`, `closed`) and fictional categories/users. The seed procedure must use supported Better Auth server-side account creation, not plain-text password inserts.

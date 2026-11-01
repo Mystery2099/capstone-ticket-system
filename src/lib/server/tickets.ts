@@ -13,7 +13,7 @@ import {
 export type Person = typeof user.$inferSelect;
 export const staff = (u: Person) => u.role === 'agent' || u.role === 'admin';
 export function requireUser(u: Person | null): Person {
-	if (!u?.enabled) error(401, 'Please sign in.');
+	if (!u || u.banned) error(401, 'Please sign in.');
 	return u;
 }
 export function authorize(u: Person, t: typeof ticket.$inferSelect) {
@@ -22,7 +22,7 @@ export function authorize(u: Person, t: typeof ticket.$inferSelect) {
 export async function workspace(u: Person, url: URL, id?: string) {
 	const cats = await db.select().from(category).orderBy(asc(category.name));
 	const people = await db
-		.select({ id: user.id, name: user.name, role: user.role, enabled: user.enabled })
+		.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
 		.from(user);
 	const conditions = [];
 	if (!staff(u)) conditions.push(eq(ticket.requesterId, u.id));
@@ -160,12 +160,12 @@ export async function createTicket(u: Person, f: FormData) {
 		const [requester] = await db
 			.select({ id: user.id })
 			.from(user)
-			.where(and(eq(user.id, requesterId), eq(user.enabled, true)));
+			.where(and(eq(user.id, requesterId), eq(user.banned, false)));
 		if (!requester) error(400, 'Choose an enabled requester.');
 	}
 	if (assignedToUserId) {
 		const [assignee] = await db.select().from(user).where(eq(user.id, assignedToUserId));
-		if (!assignee?.enabled || !staff(assignee))
+		if (!assignee || assignee.banned || !staff(assignee))
 			error(400, 'Choose an enabled agent or administrator.');
 	}
 	return db.transaction(async (tx) => {
@@ -241,7 +241,7 @@ export async function mutateTicket(
 		}
 		if (field === 'assignedToUserId' && value) {
 			const [p] = await tx.select().from(user).where(eq(user.id, value));
-			if (!p?.enabled || !staff(p)) error(400, 'Choose an enabled agent or administrator.');
+			if (!p || p.banned || !staff(p)) error(400, 'Choose an enabled agent or administrator.');
 		}
 		const old = t[field];
 		const next = validatedValue || null;

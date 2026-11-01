@@ -145,16 +145,15 @@ export const adminUpdateUserSchema = z.object({
 	id: z.string().trim().min(1, 'Choose an account to update.').max(254),
 	name: displayNameSchema,
 	email: adminEmailSchema,
-	role: roleSchema
+	role: roleSchema,
+	enabled: z.boolean()
 });
 export type AdminUpdateUserInput = z.output<typeof adminUpdateUserSchema>;
 
 /** Category create/edit: name always; id only when the form targets a row. */
 export const adminCategorySchema = z.object({
 	name: boundedText('Category name', 80),
-	id: z.preprocess(
-		(v) => (v == null || v === '' ? undefined : v),
-		uuid('Invalid category identifier.').optional()
-	)
+	id: uuid('Invalid category identifier.').or(z.literal('')),
+	active: z.boolean()
 });
 export type AdminCategoryInput = z.output<typeof adminCategorySchema>;

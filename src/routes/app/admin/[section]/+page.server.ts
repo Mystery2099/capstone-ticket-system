@@ -1,17 +1,23 @@
 import { error, fail, isHttpError } from '@sveltejs/kit';
-import { db } from '$lib/server/db';
-import { user, category, session, account } from '$lib/server/schema';
+import { APIError } from 'better-auth/api';
 import { eq, asc, sql, and } from 'drizzle-orm';
+import { message, setError, superValidate, type SuperValidated } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import { auth } from '$lib/server/auth';
+import { db } from '$lib/server/db';
+import { user, category, session } from '$lib/server/schema';
 import { requireUser } from '$lib/server/tickets';
 import {
 	adminCategorySchema,
 	adminCreateUserSchema,
-	adminUpdateUserSchema,
-	parseForm
+	adminUpdateUserSchema
 } from '$lib/server/validation';
-import { hashPassword } from 'better-auth/crypto';
-import { randomUUID } from 'node:crypto';
 import type { Actions, PageServerLoad } from './$types';
+
+const createUserSchema = zod4(adminCreateUserSchema);
+const updateUserSchema = zod4(adminUpdateUserSchema);
+const categorySchema = zod4(adminCategorySchema);
+
 function admin(u: App.Locals['user']) {
 	const p = requireUser(u);
 	if (p.role !== 'admin') error(403, 'Administrator access required.');
@@ -28,110 +34,99 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				name: user.name,
 				email: user.email,
 				role: user.role,
-				enabled: user.enabled
+				banned: user.banned
 			})
 			.from(user)
 			.orderBy(asc(user.name)),
-		categories: await db.select().from(category).orderBy(asc(category.name))
+		categories: await db.select().from(category).orderBy(asc(category.name)),
+		createUserForm: await superValidate(createUserSchema, { id: 'create-user' }),
+		userForm: await superValidate(updateUserSchema, { id: 'user' }),
+		createCategoryForm: await superValidate(categorySchema, { id: 'create-category' }),
+		categoryForm: await superValidate(categorySchema, { id: 'category' })
 	};
 };
-function adminFailure(e: unknown) {
-	if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-	if (
-		(e as { cause?: { code?: string } }).cause?.code === '23505' ||
-		(e as { code?: string }).code === '23505'
-	)
-		return fail(400, { error: 'Another account already uses this email.' });
+const uniqueViolation = (e: unknown) =>
+	(e as { cause?: { code?: string } }).cause?.code === '23505' ||
+	(e as { code?: string }).code === '23505';
+
+/** Turns an expected failure into a message on the form, and rethrows anything else. */
+function failure<T extends Record<string, unknown>>(form: SuperValidated<T>, e: unknown) {
+	if (isHttpError(e)) return message(form, { text: e.body.message, failed: true }, { status: 400 });
+	if (e instanceof APIError)
+		return message(form, { text: e.message, failed: true }, { status: 400 });
 	throw e;
 }
+
 export const actions: Actions = {
 	createUser: async ({ locals, request }) => {
 		admin(locals.user);
+		const form = await superValidate(request, createUserSchema);
+		const { name, email, password, role } = form.data;
+		// The password is only needed here, so it doesn't travel back in the response.
+		form.data.password = '';
+		if (!form.valid) return fail(400, { form });
 		try {
-			const f = await request.formData();
-			const { name, email, password, role } = parseForm(adminCreateUserSchema, {
-				name: f.get('name'),
-				email: f.get('email'),
-				password: f.get('password'),
-				role: String(f.get('role'))
+			const { user: created } = await auth.api.createUser({
+				headers: request.headers,
+				body: { name, email, password, role, data: { emailVerified: true } }
 			});
-			const id = randomUUID(),
-				hashed = await hashPassword(password);
-			await db.transaction(async (tx) => {
-				await tx.insert(user).values({ id, name, email, role, enabled: true, emailVerified: true });
-				await tx.insert(account).values({
-					id: randomUUID(),
-					userId: id,
-					accountId: id,
-					providerId: 'credential',
-					password: hashed,
-					updatedAt: new Date()
-				});
-			});
-			return { success: 'User created.', createdId: id };
+			return message(form, { text: 'User created.', createdId: created.id });
 		} catch (e) {
-			return adminFailure(e);
+			if (e instanceof APIError && e.body?.code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL')
+				return setError(form, 'email', 'Another account already uses this email.');
+			return failure(form, e);
 		}
 	},
 	user: async ({ locals, request }) => {
 		const actor = admin(locals.user);
+		const form = await superValidate(request, updateUserSchema);
+		if (!form.valid) return fail(400, { form });
+		const { id, name, email, role, enabled } = form.data;
 		try {
-			const f = await request.formData(),
-				enabled = f.get('enabled') === 'true';
-			const { id, name, email, role } = parseForm(adminUpdateUserSchema, {
-				id: String(f.get('id')),
-				name: f.get('name'),
-				email: f.get('email'),
-				role: String(f.get('role'))
-			});
 			if (id === actor.id && (role !== 'admin' || !enabled))
-				return fail(400, { error: 'You cannot remove your own administrator access.' });
+				error(400, 'You cannot remove your own administrator access.');
 			await db.transaction(async (tx) => {
 				await tx.execute(sql`SELECT id FROM "user" WHERE role = 'admin' FOR UPDATE`);
 				if (!enabled || role !== 'admin') {
 					const admins = await tx
 						.select()
 						.from(user)
-						.where(and(eq(user.role, 'admin'), eq(user.enabled, true)));
+						.where(and(eq(user.role, 'admin'), eq(user.banned, false)));
 					if (admins.length === 1 && admins[0].id === id)
 						error(400, 'Keep at least one enabled administrator.');
 				}
 				await tx
 					.update(user)
-					.set({ name, email, role, enabled, updatedAt: new Date() })
+					.set({ name, email, role, banned: !enabled, updatedAt: new Date() })
 					.where(eq(user.id, id));
 				if (!enabled) await tx.delete(session).where(eq(session.userId, id));
 			});
-			return { success: 'User updated.' };
+			return message(form, { text: 'User updated.' });
 		} catch (e) {
-			return adminFailure(e);
+			if (uniqueViolation(e))
+				return setError(form, 'email', 'Another account already uses this email.');
+			return failure(form, e);
 		}
 	},
 	category: async ({ locals, request }) => {
 		admin(locals.user);
-		const f = await request.formData();
+		const form = await superValidate(request, categorySchema);
+		if (!form.valid) return fail(400, { form });
+		const { id, name, active } = form.data;
 		try {
-			const { name, id } = parseForm(adminCategorySchema, {
-				name: f.get('name'),
-				id: String(f.get('id') || '')
-			});
 			if (!id) {
 				const [created] = await db.insert(category).values({ name }).returning();
-				return { success: 'Category added.', createdId: created.id };
+				return message(form, { text: 'Category added.', createdId: created.id });
 			}
 			await db
 				.update(category)
-				.set({ name, active: f.get('active') === 'true', updatedAt: new Date() })
+				.set({ name, active, updatedAt: new Date() })
 				.where(eq(category.id, id));
-			return { success: 'Category saved.' };
+			return message(form, { text: 'Category saved.' });
 		} catch (e) {
-			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-			if (
-				(e as { cause?: { code?: string } }).cause?.code === '23505' ||
-				(e as { code?: string }).code === '23505'
-			)
-				return fail(400, { error: 'A category with that name already exists.' });
-			throw e;
+			if (uniqueViolation(e))
+				return setError(form, 'name', 'A category with that name already exists.');
+			return failure(form, e);
 		}
 	}
 };

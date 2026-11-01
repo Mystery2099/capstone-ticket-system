@@ -1,19 +1,20 @@
 <script lang="ts">
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { afterNavigate, goto, replaceState } from '$app/navigation';
-	import { enhance } from '$app/forms';
 	import { navigating, page } from '$app/state';
-	import type { SubmitFunction } from '@sveltejs/kit';
+	import { untrack } from 'svelte';
+	import { superForm } from 'sveltekit-superforms';
 	import { ArrowLeft, Inbox, Plus, X } from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
+	import * as Form from '$lib/components/ui/form/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { initials } from '$lib/status';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
+	import { toast } from 'svelte-sonner';
 
-	let { data, form } = $props();
+	let { data } = $props();
 
 	const roles = [
 		{ value: 'requester', label: 'Requester' },
@@ -34,8 +35,6 @@
 	let search = $state(''),
 		roleFilter = $state(''),
 		stateFilter = $state(''),
-		revision = $state(0),
-		busy = $state(''),
 		// Never part of a draft, so a password can't end up in localStorage.
 		password = $state(''),
 		promotedId = $state<string | null>(null),
@@ -80,7 +79,7 @@
 			(u) =>
 				matches(`${u.name} ${u.email}`) &&
 				(!roleFilter || u.role === roleFilter) &&
-				(!stateFilter || String(u.enabled) === stateFilter)
+				(!stateFilter || String(!u.banned) === stateFilter)
 		)
 	);
 	let categories = $derived(
@@ -89,23 +88,79 @@
 		)
 	);
 
+	type Result = { text: string; failed?: boolean; createdId?: string };
+
 	/**
-	 * Marks `key` busy while a form submits, then opens whatever it created. Edit forms keep
-	 * their submitted values: the default reset restores HTML defaults, not saved data.
+	 * Shared form behavior. Values stay put after submitting, and results become toasts, with
+	 * failures staying until dismissed. Field errors show beside their input instead.
 	 */
-	const submit =
-		(key: string, onCreated?: () => void): SubmitFunction =>
-		() => {
-			busy = key;
-			return async ({ result, update }) => {
-				await update({ reset: false });
-				busy = '';
-				if (result.type === 'success' && result.data?.createdId) {
-					onCreated?.();
-					await goto(`?id=${result.data.createdId}`);
-				}
-			};
-		};
+	const formOptions = (onCreated?: () => void) => ({
+		resetForm: false,
+		taintedMessage: false,
+		onUpdated({ form }: { form: { message?: Result } }) {
+			if (!form.message) return;
+			const { text, failed, createdId } = form.message;
+			if (failed) toast.error(text, { duration: Infinity });
+			else toast.success(text);
+			if (createdId) {
+				onCreated?.();
+				void goto(`?id=${createdId}`);
+			}
+		}
+	});
+
+	// Create forms are bound to their draft, so only their errors and status are used here.
+	// svelte-ignore state_referenced_locally
+	const createUserForm = superForm(
+		data.createUserForm,
+		formOptions(() => drafts.users.discard(userDraft.id))
+	);
+	const { enhance: enhanceCreateUser, submitting: creatingUser } = createUserForm;
+	// svelte-ignore state_referenced_locally
+	const createCategoryForm = superForm(
+		data.createCategoryForm,
+		formOptions(() => drafts.categories.discard(categoryDraft.id))
+	);
+	const { enhance: enhanceCreateCategory, submitting: creatingCategory } = createCategoryForm;
+
+	// svelte-ignore state_referenced_locally
+	const userForm = superForm(data.userForm, formOptions());
+	const { form: userFields, enhance: enhanceUser, submitting: savingUser } = userForm;
+	// svelte-ignore state_referenced_locally
+	const categoryForm = superForm(data.categoryForm, formOptions());
+	const {
+		form: categoryFields,
+		enhance: enhanceCategory,
+		submitting: savingCategory
+	} = categoryForm;
+
+	/** Loads the saved record into its form, for opening it and for Revert. */
+	function revertUser() {
+		if (!selectedUser) return;
+		const { id, name, email, role, banned } = selectedUser;
+		userForm.reset({
+			data: {
+				id,
+				name,
+				email,
+				role: (role ?? 'requester') as typeof $userFields.role,
+				enabled: !banned
+			}
+		});
+	}
+	function revertCategory() {
+		if (!selectedCategory) return;
+		const { id, name, active } = selectedCategory;
+		categoryForm.reset({ data: { id, name, active } });
+	}
+	$effect(() => {
+		selectedUser;
+		selectedCategory;
+		untrack(() => {
+			revertUser();
+			revertCategory();
+		});
+	});
 
 	const createFormHotkeys = createHotkeysAttachment(
 		[
@@ -117,7 +172,7 @@
 				}
 			}
 		],
-		() => ({ enabled: adding && !(busy !== ''), ignoreInputs: false })
+		() => ({ enabled: adding && !$creatingUser && !$creatingCategory, ignoreInputs: false })
 	);
 </script>
 
@@ -150,31 +205,21 @@
 	</div>
 {/snippet}
 
-{#snippet feedback()}
-	{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
-	{#if form?.success}<p class="success" role="status">{form.success}</p>{/if}
-{/snippet}
-
-{#snippet footer(key: string, primary: string, working: string, discard?: () => void)}
+{#snippet footer(
+	submitting: boolean,
+	primary: string,
+	working: string,
+	secondary: { label: string; hint?: string; run: () => void }
+)}
 	<div class="composer-footer admin-actions">
-		{#if discard}
-			<span class="muted small compose-hint">Esc to close · Ctrl/Cmd+Enter to create</span>
-			<Button
-				variant="ghost"
-				size="sm"
-				class="rounded-full px-4"
-				onclick={() => {
-					discard();
-					void goto(listHref);
-				}}>Discard</Button
-			>
-		{:else}
-			<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={() => revision++}
-				>Revert</Button
-			>
+		{#if secondary.hint}
+			<span class="muted small compose-hint">{secondary.hint}</span>
 		{/if}
-		<Button type="submit" size="sm" class="rounded-full px-4" disabled={busy === key}
-			>{busy === key ? working : primary}</Button
+		<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={secondary.run}
+			>{secondary.label}</Button
+		>
+		<Button type="submit" size="sm" class="rounded-full px-4" disabled={submitting}
+			>{submitting ? working : primary}</Button
 		>
 	</div>
 {/snippet}
@@ -235,7 +280,7 @@
 								<strong>{u.name}</strong><time>{roleLabel(u.role)}</time>
 							</div>
 							<div class="row-meta">
-								<span class="row-preview">{u.email}{u.enabled ? '' : ' · Disabled'}</span>
+								<span class="row-preview">{u.email}{u.banned ? ' · Disabled' : ''}</span>
 							</div>
 						</div></a
 					>{:else}<div class="empty">
@@ -273,46 +318,64 @@
 					class="compose"
 					method="POST"
 					action="?/createUser"
-					use:enhance={submit('create-user', () => drafts.users.discard(userDraft.id))}
+					use:enhanceCreateUser
 				>
 					<div class="conversation-scroll admin-form">
-						<Label class="flex-col items-start gap-2">
-							<!-- svelte-ignore a11y_autofocus -->
-							Display name<Input
-								autofocus
-								name="name"
-								bind:value={userDraft.name}
-								required
-								maxlength={100}
-								class="h-9 font-normal"
-							/>
-						</Label>
-						<Label class="flex-col items-start gap-2">
-							Email<Input
-								name="email"
-								type="email"
-								bind:value={userDraft.email}
-								required
-								maxlength={254}
-								class="h-9 font-normal"
-							/>
-						</Label>
-						<Label class="flex-col items-start gap-2">
-							Initial password<Input
-								name="password"
-								type="password"
-								bind:value={password}
-								required
-								minlength={12}
-								maxlength={128}
-								autocomplete="new-password"
-								class="h-9 font-normal"
-							/>
-							<small>
+						<Form.Field form={createUserForm} name="name">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Display name</Form.Label>
+									<!-- svelte-ignore a11y_autofocus -->
+									<Input
+										{...props}
+										autofocus
+										bind:value={userDraft.name}
+										required
+										maxlength={100}
+										class="h-9 font-normal"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+						<Form.Field form={createUserForm} name="email">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Email</Form.Label>
+									<Input
+										{...props}
+										type="email"
+										bind:value={userDraft.email}
+										required
+										maxlength={254}
+										class="h-9 font-normal"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
+						<Form.Field form={createUserForm} name="password">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Initial password</Form.Label>
+									<Input
+										{...props}
+										type="password"
+										bind:value={password}
+										required
+										minlength={12}
+										maxlength={128}
+										autocomplete="new-password"
+										class="h-9 font-normal"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.Description>
 								At least 12 characters. Share directly with the account holder. Passwords aren’t
 								saved in drafts.
-							</small>
-						</Label>
+							</Form.Description>
+							<Form.FieldErrors />
+						</Form.Field>
 						<div class="ticket-metadata">
 							<div class="metadata-control">
 								<span>Role</span><Combobox
@@ -323,11 +386,15 @@
 								/>
 							</div>
 						</div>
-						{@render feedback()}
 					</div>
-					{@render footer('create-user', 'Create account', 'Creating…', () =>
-						drafts.users.discard(userDraft.id)
-					)}
+					{@render footer($creatingUser, 'Create account', 'Creating…', {
+						label: 'Discard',
+						hint: 'Esc to close · Ctrl/Cmd+Enter to create',
+						run: () => {
+							drafts.users.discard(userDraft.id);
+							void goto(listHref);
+						}
+					})}
 				</form>
 			{/key}
 		{:else if adding}
@@ -342,25 +409,37 @@
 					class="compose"
 					method="POST"
 					action="?/category"
-					use:enhance={submit('create-category', () => drafts.categories.discard(categoryDraft.id))}
+					use:enhanceCreateCategory
 				>
+					<input type="hidden" name="id" value="" />
+					<input type="hidden" name="active" value="true" />
 					<div class="conversation-scroll admin-form">
-						<Label class="flex-col items-start gap-2">
-							<!-- svelte-ignore a11y_autofocus -->
-							Category name<Input
-								autofocus
-								name="name"
-								bind:value={categoryDraft.name}
-								required
-								maxlength={80}
-								class="h-9 font-normal"
-							/>
-						</Label>
-						{@render feedback()}
+						<Form.Field form={createCategoryForm} name="name">
+							<Form.Control>
+								{#snippet children({ props })}
+									<Form.Label>Category name</Form.Label>
+									<!-- svelte-ignore a11y_autofocus -->
+									<Input
+										{...props}
+										autofocus
+										bind:value={categoryDraft.name}
+										required
+										maxlength={80}
+										class="h-9 font-normal"
+									/>
+								{/snippet}
+							</Form.Control>
+							<Form.FieldErrors />
+						</Form.Field>
 					</div>
-					{@render footer('create-category', 'Add category', 'Adding…', () =>
-						drafts.categories.discard(categoryDraft.id)
-					)}
+					{@render footer($creatingCategory, 'Add category', 'Adding…', {
+						label: 'Discard',
+						hint: 'Esc to close · Ctrl/Cmd+Enter to create',
+						run: () => {
+							drafts.categories.discard(categoryDraft.id);
+							void goto(listHref);
+						}
+					})}
 				</form>
 			{/key}
 		{:else if selectedUser}
@@ -368,88 +447,112 @@
 				selectedUser.name,
 				`${selectedUser.email} · ${roleLabel(selectedUser.role)}`
 			)}
-			{#key `${selectedUser.id}:${revision}`}
-				<form class="compose" method="POST" action="?/user" use:enhance={submit('user')}>
-					<input type="hidden" name="id" value={selectedUser.id} />
-					<div class="conversation-scroll admin-form">
-						<div class="ticket-metadata">
-							<div class="metadata-control">
-								<span>Role</span><Combobox
-									name="role"
-									label="Role"
-									value={selectedUser.role ?? 'requester'}
-									options={roles}
-								/>
-							</div>
-							<div class="metadata-control">
-								<span>Account</span><Combobox
-									name="enabled"
-									label="Account"
-									value={String(selectedUser.enabled)}
-									options={accountStates}
-								/>
-							</div>
+			<form class="compose" method="POST" action="?/user" use:enhanceUser>
+				<input type="hidden" name="id" value={$userFields.id} />
+				<div class="conversation-scroll admin-form">
+					<div class="ticket-metadata">
+						<div class="metadata-control">
+							<span>Role</span><Combobox
+								name="role"
+								label="Role"
+								bind:value={
+									() => $userFields.role,
+									(role) => ($userFields.role = role as typeof $userFields.role)
+								}
+								options={roles}
+							/>
 						</div>
-						<Label class="flex-col items-start gap-2">
-							Display name<Input
-								name="name"
-								value={selectedUser.name}
-								required
-								maxlength={100}
-								class="h-9 font-normal"
+						<div class="metadata-control">
+							<span>Account</span><Combobox
+								name="enabled"
+								label="Account"
+								bind:value={
+									() => String($userFields.enabled),
+									(state) => ($userFields.enabled = state === 'true')
+								}
+								options={accountStates}
 							/>
-						</Label>
-						<Label class="flex-col items-start gap-2">
-							Email<Input
-								name="email"
-								type="email"
-								value={selectedUser.email}
-								required
-								maxlength={254}
-								class="h-9 font-normal"
-							/>
-						</Label>
-						<p class="muted small">
-							Disabled accounts can’t sign in. Their tickets and comments are kept.
-						</p>
-						{@render feedback()}
+						</div>
 					</div>
-					{@render footer('user', 'Save', 'Saving…')}
-				</form>
-			{/key}
+					<Form.Field form={userForm} name="name">
+						<Form.Control>
+							{#snippet children({ props })}
+								<Form.Label>Display name</Form.Label>
+								<Input
+									{...props}
+									bind:value={$userFields.name}
+									required
+									maxlength={100}
+									class="h-9 font-normal"
+								/>
+							{/snippet}
+						</Form.Control>
+						<Form.FieldErrors />
+					</Form.Field>
+					<Form.Field form={userForm} name="email">
+						<Form.Control>
+							{#snippet children({ props })}
+								<Form.Label>Email</Form.Label>
+								<Input
+									{...props}
+									type="email"
+									bind:value={$userFields.email}
+									required
+									maxlength={254}
+									class="h-9 font-normal"
+								/>
+							{/snippet}
+						</Form.Control>
+						<Form.FieldErrors />
+					</Form.Field>
+					<p class="muted small">
+						Disabled accounts can’t sign in. Their tickets and comments are kept.
+					</p>
+				</div>
+				{@render footer($savingUser, 'Save', 'Saving…', { label: 'Revert', run: revertUser })}
+			</form>
 		{:else if selectedCategory}
 			{@render toolbar(selectedCategory.name, selectedCategory.active ? 'Active' : 'Inactive')}
-			{#key `${selectedCategory.id}:${revision}`}
-				<form class="compose" method="POST" action="?/category" use:enhance={submit('category')}>
-					<input type="hidden" name="id" value={selectedCategory.id} />
-					<div class="conversation-scroll admin-form">
-						<div class="ticket-metadata">
-							<div class="metadata-control">
-								<span>State</span><Combobox
-									name="active"
-									label="State"
-									value={String(selectedCategory.active)}
-									options={categoryStates}
-								/>
-							</div>
-						</div>
-						<Label class="flex-col items-start gap-2">
-							Category name<Input
-								name="name"
-								value={selectedCategory.name}
-								required
-								maxlength={80}
-								class="h-9 font-normal"
+			<form class="compose" method="POST" action="?/category" use:enhanceCategory>
+				<input type="hidden" name="id" value={$categoryFields.id} />
+				<div class="conversation-scroll admin-form">
+					<div class="ticket-metadata">
+						<div class="metadata-control">
+							<span>State</span><Combobox
+								name="active"
+								label="State"
+								bind:value={
+									() => String($categoryFields.active),
+									(state) => ($categoryFields.active = state === 'true')
+								}
+								options={categoryStates}
 							/>
-						</Label>
-						<p class="muted small">
-							Inactive categories stay on existing tickets but can’t be chosen for new ones.
-						</p>
-						{@render feedback()}
+						</div>
 					</div>
-					{@render footer('category', 'Save', 'Saving…')}
-				</form>
-			{/key}
+					<Form.Field form={categoryForm} name="name">
+						<Form.Control>
+							{#snippet children({ props })}
+								<Form.Label>Category name</Form.Label>
+								<Input
+									{...props}
+									bind:value={$categoryFields.name}
+									required
+									maxlength={80}
+									class="h-9 font-normal"
+								/>
+							{/snippet}
+						</Form.Control>
+						<Form.FieldErrors />
+					</Form.Field>
+					<p class="muted small">
+						Inactive categories stay on existing tickets but can’t be chosen for new ones.
+					</p>
+				</div>
+				{@render footer($savingCategory, 'Save', 'Saving…', {
+					label: 'Revert',
+					run: revertCategory
+				})}
+			</form>
 		{:else}
 			<div class="reading-empty">
 				<span class="empty-icon"><Inbox size={35} /></span>

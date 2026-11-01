@@ -8,28 +8,23 @@
 	import { navigating, page } from '$app/state';
 	import { goto, invalidateAll, onNavigate } from '$app/navigation';
 	import { prefersReducedMotion } from 'svelte/motion';
-	import { fade, scale } from 'svelte/transition';
+	import { scale } from 'svelte/transition';
 	import {
 		Ticket,
-		ChevronDown,
 		FilePen,
-		Menu,
 		Search,
 		SlidersHorizontal,
-		SquarePen,
 		UserRound,
 		UserRoundPlus,
 		Inbox,
 		Layers,
 		Settings,
-		Users,
-		Tags,
-		X,
 		LogOut
 	} from '@lucide/svelte';
 	import { initials } from '$lib/status';
-	import { mergeProps } from 'bits-ui';
-	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
+	import AppSidebar from '$lib/components/AppSidebar.svelte';
+	import SidebarToggle from '$lib/components/SidebarToggle.svelte';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { delayed } from '$lib/delayed.svelte';
 	import { motionMs } from '$lib/motion';
@@ -48,11 +43,10 @@
 		const timer = setTimeout(() => drafts.stores.forEach((s, i) => s.save(saved[i])), 300);
 		return () => clearTimeout(timer);
 	});
-	// The phone drawer and the desktop rail are separate: links close the drawer, and a
-	// minimized rail has to stay minimized while moving around the app.
-	let drawer = $state(false),
-		railed = $state(false),
-		query = $state(''),
+	// Read from the cookie on the server, so a minimized sidebar never flashes open.
+	// svelte-ignore state_referenced_locally
+	let sidebarOpen = $state(data.sidebarOpen);
+	let query = $state(''),
 		account = $state(false),
 		signingOut = $state(false),
 		categoriesOpen = $state(true);
@@ -161,10 +155,6 @@
 			transition.finished.finally(() => root.classList.remove('page-transition'));
 		});
 	});
-	function toggleNavigation() {
-		if (matchMedia('(max-width: 767px)').matches) drawer = !drawer;
-		else railed = !railed;
-	}
 	async function search(e: SubmitEvent) {
 		e.preventDefault();
 		const p = new URLSearchParams(page.url.searchParams);
@@ -198,18 +188,13 @@
 	onstorage={(e) => drafts.stores.find((store) => store.key === e.key)?.load()}
 />
 
-<div data-hydrated={hydrated} class="app-shell" class:rail={railed}>
+<Sidebar.Provider
+	bind:open={sidebarOpen}
+	data-hydrated={hydrated}
+	class={sidebarOpen ? 'app-shell' : 'app-shell rail'}
+>
 	<header class="topbar">
-		<Tooltip.Root>
-			<Tooltip.Trigger onclick={toggleNavigation}>
-				{#snippet child({ props })}
-					<button {...props} class="icon-button menu-button" aria-label="Toggle navigation"
-						><Menu /></button
-					>
-				{/snippet}
-			</Tooltip.Trigger>
-			<Tooltip.Content side="bottom" sideOffset={6}>Toggle navigation</Tooltip.Content>
-		</Tooltip.Root><a class="brand" href="/app/tickets"
+		<SidebarToggle /><a class="brand" href="/app/tickets"
 			><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
 		>
 		<form class="search-bar" onsubmit={search}>
@@ -259,88 +244,15 @@
 				</div>{/if}
 		</div>
 	</header>
-	{#if drawer}<button
-			transition:fade={{ duration: motionMs(180) }}
-			class="drawer-scrim"
-			aria-label="Close navigation"
-			onclick={() => (drawer = false)}
-		></button>{/if}
-	<aside class:drawer-open={drawer}>
-		<div class="drawer-brand">
-			<span>Ticket System</span><Tooltip.Root>
-				<Tooltip.Trigger onclick={() => (drawer = false)}>
-					{#snippet child({ props })}
-						<button {...props} class="icon-button" aria-label="Close navigation"><X /></button>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content side="bottom" sideOffset={6}>Close navigation</Tooltip.Content>
-			</Tooltip.Root>
-		</div>
-		<a class="new-ticket" href={newTicketHref} onclick={() => (drawer = false)}
-			><SquarePen size={25} /><span>New ticket</span></a
-		>
-		<div class="sidebar-scroll">
-			<nav aria-label="Tickets">
-				{#each nav as n}
-					{#snippet viewLink()}
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								{#snippet child({ props })}<a
-										{...mergeProps(props, { onclick: () => (drawer = false) })}
-										class:active={url.pathname.startsWith('/app/tickets') &&
-											view === n.key &&
-											!openCategory}
-										href={'/app/tickets?view=' + n.key}
-										aria-label={n.label}
-										><n.icon size={23} /><span>{n.label}</span><small>{n.count}</small></a
-									>{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content side="right" sideOffset={8}>{n.hint}</Tooltip.Content>
-						</Tooltip.Root>
-					{/snippet}
-					{#if n.key === 'open' && data.openByCategory.length}
-						<Collapsible.Root bind:open={categoriesOpen}>
-							<div class="nav-row">
-								{@render viewLink()}
-								<Collapsible.Trigger
-									class="nav-toggle"
-									aria-label={categoriesOpen ? 'Hide categories' : 'Show categories'}
-									><ChevronDown size={18} /></Collapsible.Trigger
-								>
-							</div>
-							<Collapsible.Content class="category-nav">
-								{#each data.openByCategory as c (c.id)}<a
-										class:active={url.pathname.startsWith('/app/tickets') && openCategory === c.id}
-										href={`/app/tickets?view=open&category=${c.id}`}
-										onclick={() => (drawer = false)}
-										><span>{c.name}</span><small>{c.count}</small></a
-									>{/each}
-							</Collapsible.Content>
-						</Collapsible.Root>
-					{:else}{@render viewLink()}{/if}
-				{/each}
-			</nav>
-			{#if data.user.role === 'admin'}<p class="nav-section">Administration</p>
-				<nav aria-label="Administration">
-					<a
-						class:active={url.pathname.endsWith('/users')}
-						href="/app/admin/users"
-						onclick={() => (drawer = false)}><Users size={23} /><span>Users</span></a
-					><a
-						class:active={url.pathname.endsWith('/categories')}
-						href="/app/admin/categories"
-						onclick={() => (drawer = false)}><Tags size={23} /><span>Categories</span></a
-					>
-				</nav>{/if}
-		</div>
-		<nav class="sidebar-bottom" aria-label="General">
-			<a
-				class:active={url.pathname === '/app/settings'}
-				href="/app/settings"
-				onclick={() => (drawer = false)}><Settings size={23} /><span>Settings</span></a
-			>
-		</nav>
-	</aside>
+	<AppSidebar
+		{nav}
+		openByCategory={data.openByCategory}
+		isAdmin={data.user.role === 'admin'}
+		{url}
+		{view}
+		{openCategory}
+		{newTicketHref}
+	/>
 	<main>
 		{#if routeLoading.current}<RouteSkeleton kind={routeTarget ?? lastRouteTarget} />{/if}
 		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
@@ -352,4 +264,4 @@
 				href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
 			>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
 	</nav>
-</div>
+</Sidebar.Provider>

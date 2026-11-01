@@ -102,6 +102,13 @@ test.skipIf(!base)(
 				admin
 			);
 		}
+		// Admin plugin routes stay closed, even to administrators.
+		r = await fetch(base + '/api/auth/admin/set-role', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Origin: base!, cookie: admin },
+			body: JSON.stringify({ userId: 'jordan', role: 'requester' })
+		});
+		assert.equal(r.status, 404);
 		r = await fetch(base + '/api/auth/sign-up/email', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json', Origin: base! },

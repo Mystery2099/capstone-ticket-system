@@ -6,8 +6,9 @@ A small PostgreSQL-backed support ticket application for the CISY 8503 Open Sour
 
 - SvelteKit, Svelte 5 and TypeScript
 - PostgreSQL with Drizzle ORM and Drizzle Kit migrations
-- Better Auth for email/password sign-in and sessions
+- Better Auth for email/password sign-in, sessions and account creation (admin plugin)
 - Tailwind CSS 4, shadcn-svelte/Bits UI, Lucide icons and Zod
+- Superforms and Formsnap for admin forms, svelte-sonner for toasts
 - Vitest, Playwright and PostgreSQL integration tests
 
 One full-stack SvelteKit app handles both the web UI and server logic. The browser never connects directly to PostgreSQL.

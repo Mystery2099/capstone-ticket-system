@@ -41,7 +41,7 @@ async function setup() {
 				role,
 				email: `${name.toLowerCase().replace(' ', '.')}@example.test`,
 				emailVerified: true,
-				enabled: true
+				banned: false
 			});
 			await tx.insert(account).values({
 				id: `credential-${id}`,
