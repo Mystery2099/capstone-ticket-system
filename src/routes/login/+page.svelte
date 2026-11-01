@@ -1,9 +1,9 @@
 <script lang="ts">
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { onMount } from 'svelte';
-	let ready = $state(false);
+	let isHydrated = $state(false);
 	onMount(() => {
-		ready = true;
+		isHydrated = true;
 	});
 	import { Ticket, Eye, EyeOff } from '@lucide/svelte';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -13,24 +13,24 @@
 	let { data } = $props();
 	let email = $state('priya.raman@example.test'),
 		password = $state(''),
-		show = $state(false),
-		error = $state(''),
-		busy = $state(false);
-	async function signIn(e: SubmitEvent) {
-		e.preventDefault();
-		busy = true;
-		error = '';
+		isPasswordVisible = $state(false),
+		loginError = $state(''),
+		isSigningIn = $state(false);
+	async function signIn(event: SubmitEvent) {
+		event.preventDefault();
+		isSigningIn = true;
+		loginError = '';
 		try {
-			const r = await fetch('/api/auth/sign-in/email', {
+			const response = await fetch('/api/auth/sign-in/email', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ email, password })
 			});
-			if (!r.ok) {
-				error =
-					r.status === 429
+			if (!response.ok) {
+				loginError =
+					response.status === 429
 						? 'Too many sign-in attempts. Please wait a minute and try again.'
-						: r.status >= 500
+						: response.status >= 500
 							? 'Sign-in is temporarily unavailable. Please try again.'
 							: 'Email or password is incorrect, or this account is unavailable.';
 				return;
@@ -38,9 +38,9 @@
 			await invalidateAll();
 			await goto('/app/tickets');
 		} catch {
-			error = 'Could not connect. Please try again.';
+			loginError = 'Could not connect. Please try again.';
 		} finally {
-			busy = false;
+			isSigningIn = false;
 		}
 	}
 </script>
@@ -55,11 +55,11 @@
 					<p>Ticket System help desk</p>
 				</div>
 			</div>
-			<form onsubmit={signIn} inert={!ready}>
+			<form onsubmit={signIn} inert={!isHydrated}>
 				<Label class="flex-col items-start gap-2">
 					Email
 					<Input
-						disabled={!ready}
+						disabled={!isHydrated}
 						type="email"
 						bind:value={email}
 						autocomplete="username"
@@ -71,15 +71,15 @@
 					Password
 					<span class="password-field">
 						<Input
-							disabled={!ready}
-							type={show ? 'text' : 'password'}
+							disabled={!isHydrated}
+							type={isPasswordVisible ? 'text' : 'password'}
 							bind:value={password}
 							autocomplete="current-password"
 							required
 							class="h-11 md:text-base font-normal pr-11"
 						/>
 						<Tooltip.Root>
-							<Tooltip.Trigger onclick={() => (show = !show)}>
+							<Tooltip.Trigger onclick={() => (isPasswordVisible = !isPasswordVisible)}>
 								{#snippet child({ props })}
 									<Button
 										{...props}
@@ -87,25 +87,25 @@
 										size="icon-sm"
 										type="button"
 										class="absolute right-1 top-1"
-										aria-label={show ? 'Hide password' : 'Show password'}
+										aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
 									>
-										{#if show}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
+										{#if isPasswordVisible}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
 									</Button>
 								{/snippet}
 							</Tooltip.Trigger>
 							<Tooltip.Content side="bottom" sideOffset={6}
-								>{show ? 'Hide password' : 'Show password'}</Tooltip.Content
+								>{isPasswordVisible ? 'Hide password' : 'Show password'}</Tooltip.Content
 							>
 						</Tooltip.Root>
 					</span>
 				</Label>
-				{#if error}<p class="error" role="alert">{error}</p>{/if}
+				{#if loginError}<p class="error" role="alert">{loginError}</p>{/if}
 				<Button
 					type="submit"
 					class="login-submit w-full h-11 rounded-full text-[15px]"
-					disabled={busy || !ready}
+					disabled={isSigningIn || !isHydrated}
 				>
-					{busy ? 'Signing in…' : 'Sign in'}
+					{isSigningIn ? 'Signing in…' : 'Sign in'}
 				</Button>
 			</form>
 			<p class="login-help">Accounts are created by an administrator.</p>

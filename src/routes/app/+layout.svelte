@@ -46,10 +46,10 @@
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
 	let sidebarOpen = $state(data.sidebarOpen);
-	let query = $state(''),
-		account = $state(false),
-		signingOut = $state(false),
-		categoriesOpen = $state(true);
+	let query = $state('');
+	let account = $state(false);
+	let signingOut = $state(false);
+	let categoriesOpen = $state(true);
 	let staff = $derived(data.user.role !== 'requester');
 	// Navigation highlights follow the destination, so clicks register before data arrives.
 	let url = $derived(navigating.to?.url ?? page.url);

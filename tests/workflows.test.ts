@@ -29,7 +29,11 @@ afterAll(async () => {
 	await rm(dir, { recursive: true, force: true });
 });
 test('requester queries exclude other tickets, private notes, and note events', async () => {
-	const r = await service.workspace(people.marcus, new URL('http://localhost/app/tickets'), '1046');
+	const r = await service.loadTicketWorkspace(
+		people.marcus,
+		new URL('http://localhost/app/tickets'),
+		'1046'
+	);
 	assert(r.tickets.every((t) => t.requesterId === 'marcus'));
 	assert(r.comments.every((c) => !c.isInternal));
 	assert(!JSON.stringify(r).includes('Likely a Wi-Fi adapter'));
@@ -37,19 +41,19 @@ test('requester queries exclude other tickets, private notes, and note events', 
 });
 test('guessed ticket numbers do not reveal another requester ticket', async () => {
 	await assert.rejects(
-		() => service.workspace(people.rosa, new URL('http://localhost/app/tickets'), '1046'),
+		() => service.loadTicketWorkspace(people.rosa, new URL('http://localhost/app/tickets'), '1046'),
 		(e: any) => e.status === 404
 	);
 });
 test('the drafts view fetches no tickets', async () => {
-	const r = await service.workspace(
+	const r = await service.loadTicketWorkspace(
 		people.priya,
 		new URL('http://localhost/app/tickets?view=drafts')
 	);
 	assert.equal(r.tickets.length, 0);
 });
 test('agents can access unassigned tickets', async () => {
-	const r = await service.workspace(
+	const r = await service.loadTicketWorkspace(
 		people.priya,
 		new URL('http://localhost/app/tickets?view=unassigned')
 	);
@@ -153,64 +157,53 @@ test('requester priority injection and private notes are rejected', async () => 
 		(e: any) => e.status === 403
 	);
 	await assert.rejects(
-		() =>
-			service.mutateTicket(
-				people.marcus,
-				1046,
-				form({ body: 'secret', internal: 'true' }),
-				'reply'
-			),
+		() => service.addTicketComment(people.marcus, 1046, form({ body: 'secret', internal: 'true' })),
 		(e: any) => e.status === 403
 	);
 	await assert.rejects(
 		() =>
-			service.mutateTicket(
-				people.marcus,
-				1046,
-				form({ field: 'priority', value: 'high' }),
-				'update'
-			),
+			service.updateTicketField(people.marcus, 1046, form({ field: 'priority', value: 'high' })),
 		(e: any) => e.status === 403
 	);
 });
 test('closed tickets reject replies and edits; only admin reopens', async () => {
 	await assert.rejects(
-		() => service.mutateTicket(people.priya, 1039, form({ body: 'not allowed' }), 'reply'),
+		() => service.addTicketComment(people.priya, 1039, form({ body: 'not allowed' })),
 		(e: any) => e.status === 403
 	);
 	await assert.rejects(
 		() =>
-			service.mutateTicket(
-				people.priya,
-				1039,
-				form({ field: 'statusCode', value: 'open' }),
-				'update'
-			),
+			service.updateTicketField(people.priya, 1039, form({ field: 'statusCode', value: 'open' })),
 		(e: any) => e.status === 403
 	);
-	await service.mutateTicket(
+	await service.updateTicketField(
 		people.jordan,
 		1039,
-		form({ field: 'statusCode', value: 'open' }),
-		'update'
+		form({ field: 'statusCode', value: 'open' })
 	);
-	const r = await service.workspace(people.jordan, new URL('http://localhost/app/tickets'), '1039');
+	const r = await service.loadTicketWorkspace(
+		people.jordan,
+		new URL('http://localhost/app/tickets'),
+		'1039'
+	);
 	assert.equal(r.selected?.statusCode, 'open');
 });
 test('requester can reopen own resolved ticket', async () => {
-	await service.mutateTicket(
+	await service.updateTicketField(
 		people.priya,
 		1046,
-		form({ field: 'statusCode', value: 'resolved' }),
-		'update'
+		form({ field: 'statusCode', value: 'resolved' })
 	);
-	await service.mutateTicket(
+	await service.updateTicketField(
 		people.marcus,
 		1046,
-		form({ field: 'statusCode', value: 'open' }),
-		'update'
+		form({ field: 'statusCode', value: 'open' })
 	);
-	const r = await service.workspace(people.marcus, new URL('http://localhost/app/tickets'), '1046');
+	const r = await service.loadTicketWorkspace(
+		people.marcus,
+		new URL('http://localhost/app/tickets'),
+		'1046'
+	);
 	assert.equal(r.selected?.statusCode, 'open');
 });
 test('failed foreign key rolls back ticket and audit rows', async () => {
@@ -245,7 +238,7 @@ test('malformed category is a validation error and blank replies fail', async ()
 		(e: any) => e.status === 400
 	);
 	await assert.rejects(
-		() => service.mutateTicket(people.priya, 1046, form({ body: '  ' }), 'reply'),
+		() => service.addTicketComment(people.priya, 1046, form({ body: '  ' })),
 		(e: any) => e.status === 400
 	);
 });
@@ -254,40 +247,41 @@ test('assignment rejects requesters and disabled agents, and successful changes 
 	const { eq } = await import('drizzle-orm');
 	await assert.rejects(
 		() =>
-			service.mutateTicket(
+			service.updateTicketField(
 				people.priya,
 				1046,
-				form({ field: 'assignedToUserId', value: 'marcus' }),
-				'update'
+				form({ field: 'assignedToUserId', value: 'marcus' })
 			),
 		(e: any) => e.status === 400
 	);
 	await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, 'priya'));
 	await assert.rejects(
 		() =>
-			service.mutateTicket(
+			service.updateTicketField(
 				people.jordan,
 				1046,
-				form({ field: 'assignedToUserId', value: 'priya' }),
-				'update'
+				form({ field: 'assignedToUserId', value: 'priya' })
 			),
 		(e: any) => e.status === 400
 	);
 	await db.update(schema.user).set({ banned: false }).where(eq(schema.user.id, 'priya'));
-	await service.mutateTicket(
+	await service.updateTicketField(
 		people.priya,
 		1046,
-		form({ field: 'assignedToUserId', value: 'jordan' }),
-		'update'
+		form({ field: 'assignedToUserId', value: 'jordan' })
 	);
-	const r = await service.workspace(people.priya, new URL('http://localhost/app/tickets'), '1046');
+	const r = await service.loadTicketWorkspace(
+		people.priya,
+		new URL('http://localhost/app/tickets'),
+		'1046'
+	);
 	assert.equal(r.selected?.assignedToUserId, 'jordan');
 	assert(r.events.some((e) => e.eventType === 'assignedToUserId' && e.details.to === 'jordan'));
 });
 test('status mutation rolls back if its activity insert fails', async () => {
 	const { sql } = await import('drizzle-orm');
 	const before = (
-		await service.workspace(people.priya, new URL('http://localhost/app/tickets'), '1046')
+		await service.loadTicketWorkspace(people.priya, new URL('http://localhost/app/tickets'), '1046')
 	).selected!.statusCode;
 	await db.execute(
 		sql`CREATE FUNCTION reject_test_event() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test audit failure'; END $$`
@@ -297,16 +291,16 @@ test('status mutation rolls back if its activity insert fails', async () => {
 	);
 	try {
 		await assert.rejects(() =>
-			service.mutateTicket(
-				people.priya,
-				1046,
-				form({ field: 'statusCode', value: 'on_hold' }),
-				'update'
-			)
+			service.updateTicketField(people.priya, 1046, form({ field: 'statusCode', value: 'on_hold' }))
 		);
 		assert.equal(
-			(await service.workspace(people.priya, new URL('http://localhost/app/tickets'), '1046'))
-				.selected!.statusCode,
+			(
+				await service.loadTicketWorkspace(
+					people.priya,
+					new URL('http://localhost/app/tickets'),
+					'1046'
+				)
+			).selected!.statusCode,
 			before
 		);
 	} finally {
@@ -346,7 +340,7 @@ test('oversized and whitespace-only ticket inputs fail with controlled validatio
 	}
 });
 test('invalid metadata enum and malformed category references fail without changing the ticket', async () => {
-	const before = await service.workspace(
+	const before = await service.loadTicketWorkspace(
 		people.priya,
 		new URL('http://localhost/app/tickets'),
 		'1046'
@@ -357,11 +351,11 @@ test('invalid metadata enum and malformed category references fail without chang
 		{ field: 'statusCode', value: 'unknown' }
 	]) {
 		await assert.rejects(
-			() => service.mutateTicket(people.priya, 1046, form(values), 'update'),
+			() => service.updateTicketField(people.priya, 1046, form(values)),
 			(e: any) => e.status === 400
 		);
 	}
-	const after = await service.workspace(
+	const after = await service.loadTicketWorkspace(
 		people.priya,
 		new URL('http://localhost/app/tickets'),
 		'1046'

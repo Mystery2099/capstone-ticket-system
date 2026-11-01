@@ -1,47 +1,51 @@
 import { fail, isHttpError, redirect } from '@sveltejs/kit';
-import { workspace, requireUser, createTicket, mutateTicket } from '$lib/server/tickets';
+import {
+	addTicketComment,
+	createTicket,
+	loadTicketWorkspace,
+	requireUser,
+	updateTicketField
+} from '$lib/server/tickets';
 import type { Actions, PageServerLoad } from './$types';
-export const load: PageServerLoad = async ({ locals, url, params }) =>
-	workspace(requireUser(locals.user), url, params.id);
+
+export const load: PageServerLoad = async ({ locals, url, params }) => {
+	return loadTicketWorkspace(requireUser(locals.user), url, params.id);
+};
+
+/** Turns an expected error into a form failure, and rethrows anything else. */
+function toFormFailure(e: unknown) {
+	if (isHttpError(e)) return fail(e.status, { error: e.body.message });
+	throw e;
+}
+
 export const actions: Actions = {
 	create: async ({ locals, request }) => {
-		let t;
+		let created;
 		try {
-			t = await createTicket(requireUser(locals.user), await request.formData());
+			created = await createTicket(requireUser(locals.user), await request.formData());
 		} catch (e) {
-			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-			throw e;
+			return toFormFailure(e);
 		}
 		// A ticket opened for someone else isn't in My requests, so stay in All open.
-		const view = t.requesterId === locals.user?.id ? 'mine' : 'open';
-		redirect(303, `/app/tickets/${t.ticketNumber}?view=${view}`);
+		const view = created.requesterId === locals.user?.id ? 'mine' : 'open';
+		redirect(303, `/app/tickets/${created.ticketNumber}?view=${view}`);
 	},
 	reply: async ({ locals, request, params }) => {
 		try {
-			await mutateTicket(
-				requireUser(locals.user),
-				Number(params.id),
-				await request.formData(),
-				'reply'
-			);
+			const actor = requireUser(locals.user);
+			await addTicketComment(actor, Number(params.id), await request.formData());
 			return { success: 'Comment posted.' };
 		} catch (e) {
-			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-			throw e;
+			return toFormFailure(e);
 		}
 	},
 	update: async ({ locals, request, params }) => {
 		try {
-			await mutateTicket(
-				requireUser(locals.user),
-				Number(params.id),
-				await request.formData(),
-				'update'
-			);
+			const actor = requireUser(locals.user);
+			await updateTicketField(actor, Number(params.id), await request.formData());
 			return { success: 'Ticket updated.' };
 		} catch (e) {
-			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-			throw e;
+			return toFormFailure(e);
 		}
 	}
 };

@@ -6,7 +6,7 @@ import { zod4 } from 'sveltekit-superforms/adapters';
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { user, category, session } from '$lib/server/schema';
-import { requireUser } from '$lib/server/tickets';
+import { requireUser, type Person } from '$lib/server/tickets';
 import {
 	adminCategorySchema,
 	adminCreateUserSchema,
@@ -18,13 +18,19 @@ const createUserSchema = zod4(adminCreateUserSchema);
 const updateUserSchema = zod4(adminUpdateUserSchema);
 const categorySchema = zod4(adminCategorySchema);
 
-function admin(u: App.Locals['user']) {
-	const p = requireUser(u);
-	if (p.role !== 'admin') error(403, 'Administrator access required.');
-	return p;
+/**
+ * Returns the signed-in administrator. Every load and action here calls this first.
+ *
+ * @throws 403 when the signed-in person isn't an administrator
+ */
+function requireAdmin(currentUser: App.Locals['user']): Person {
+	const person = requireUser(currentUser);
+	if (person.role !== 'admin') error(403, 'Administrator access required.');
+	return person;
 }
+
 export const load: PageServerLoad = async ({ locals, params }) => {
-	admin(locals.user);
+	requireAdmin(locals.user);
 	if (!['users', 'categories'].includes(params.section)) error(404);
 	return {
 		section: params.section,
@@ -59,7 +65,7 @@ function failure<T extends Record<string, unknown>>(form: SuperValidated<T>, e: 
 
 export const actions: Actions = {
 	createUser: async ({ locals, request }) => {
-		admin(locals.user);
+		requireAdmin(locals.user);
 		const form = await superValidate(request, createUserSchema);
 		const { name, email, password, role } = form.data;
 		// The password is only needed here, so it doesn't travel back in the response.
@@ -78,7 +84,7 @@ export const actions: Actions = {
 		}
 	},
 	user: async ({ locals, request }) => {
-		const actor = admin(locals.user);
+		const actor = requireAdmin(locals.user);
 		const form = await superValidate(request, updateUserSchema);
 		if (!form.valid) return fail(400, { form });
 		const { id, name, email, role, enabled } = form.data;
@@ -109,7 +115,7 @@ export const actions: Actions = {
 		}
 	},
 	category: async ({ locals, request }) => {
-		admin(locals.user);
+		requireAdmin(locals.user);
 		const form = await superValidate(request, categorySchema);
 		if (!form.valid) return fail(400, { form });
 		const { id, name, active } = form.data;

@@ -7,7 +7,7 @@
 	let { data } = $props();
 	let theme = $state('system'),
 		signingOut = $state(false);
-	function apply(value: string) {
+	function applyTheme(value: string) {
 		theme = value;
 		localStorage.setItem('ticket-theme', value);
 		document.documentElement.dataset.theme =
@@ -20,7 +20,7 @@
 	onMount(() => {
 		theme = localStorage.getItem('ticket-theme') || 'system';
 	});
-	async function out() {
+	async function signOut() {
 		signingOut = true;
 		await fetch('/api/auth/sign-out', {
 			method: 'POST',
@@ -47,7 +47,7 @@
 							name="theme"
 							value={option.value}
 							checked={theme === option.value}
-							onchange={() => apply(option.value)}
+							onchange={() => applyTheme(option.value)}
 						/>{option.label} <span class="muted small">{option.hint}</span></label
 					>{/each}
 			</fieldset>
@@ -73,7 +73,7 @@
 				<Button
 					variant="outline"
 					class="rounded-full h-9 px-5 mt-5"
-					onclick={out}
+					onclick={signOut}
 					disabled={signingOut}
 				>
 					<LogOut size={16} />

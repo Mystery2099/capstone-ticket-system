@@ -32,34 +32,38 @@
 		{ value: 'false', label: 'Inactive' }
 	];
 
-	let search = $state(''),
-		roleFilter = $state(''),
-		stateFilter = $state(''),
-		// Never part of a draft, so a password can't end up in localStorage.
-		password = $state(''),
-		promotedId = $state<string | null>(null),
-		addForm = $state<HTMLFormElement>();
+	let filterText = $state('');
+	let roleFilter = $state('');
+	let stateFilter = $state('');
+	// Never part of a draft, so a password can't end up in localStorage.
+	let password = $state('');
+	let promotedId = $state<string | null>(null);
+	let addForm = $state<HTMLFormElement>();
 
 	let isUsers = $derived(data.section === 'users');
-	let noun = $derived(isUsers ? 'user' : 'category');
+	let recordNoun = $derived(isUsers ? 'user' : 'category');
 	let listHref = $derived(page.url.pathname);
 	// The URL holds the open record, so links and the back button work like tickets.
-	let adding = $derived(page.url.searchParams.has('new'));
-	let openId = $derived(page.url.searchParams.get('id'));
-	let selectedUser = $derived(isUsers ? data.users.find((u) => u.id === openId) : undefined);
-	let selectedCategory = $derived(
-		isUsers ? undefined : data.categories.find((c) => c.id === openId)
+	let isAddingRecord = $derived(page.url.searchParams.has('new'));
+	let selectedRecordId = $derived(page.url.searchParams.get('id'));
+	let selectedUser = $derived(
+		isUsers ? data.users.find((u) => u.id === selectedRecordId) : undefined
 	);
-	let paneOpen = $derived(adding || !!selectedUser || !!selectedCategory);
+	let selectedCategory = $derived(
+		isUsers ? undefined : data.categories.find((c) => c.id === selectedRecordId)
+	);
+	let paneOpen = $derived(isAddingRecord || !!selectedUser || !!selectedCategory);
 
-	const drafts = getDrafts();
+	const adminDrafts = getDrafts();
 	// Shallow routing leaves page.url as it was, so the draft just added is tracked here.
 	let draftId = $derived(page.url.searchParams.get('draft') ?? promotedId);
-	let userDraft = $derived(drafts.users.find(draftId) ?? drafts.users.blank);
-	let categoryDraft = $derived(drafts.categories.find(draftId) ?? drafts.categories.blank);
+	let userDraft = $derived(adminDrafts.users.find(draftId) ?? adminDrafts.users.blank);
+	let categoryDraft = $derived(
+		adminDrafts.categories.find(draftId) ?? adminDrafts.categories.blank
+	);
 	$effect(() => {
-		if (!adding || navigating.to) return;
-		const store = isUsers ? drafts.users : drafts.categories;
+		if (!isAddingRecord || navigating.to) return;
+		const store = isUsers ? adminDrafts.users : adminDrafts.categories;
 		const draft = isUsers ? userDraft : categoryDraft;
 		if (draft !== store.blank || !draft.dirty) return;
 		const url = new URL(page.url);
@@ -73,7 +77,7 @@
 		password = '';
 	});
 
-	const matches = (text: string) => text.toLowerCase().includes(search.trim().toLowerCase());
+	const matches = (text: string) => text.toLowerCase().includes(filterText.trim().toLowerCase());
 	let users = $derived(
 		data.users.filter(
 			(u) =>
@@ -113,13 +117,13 @@
 	// svelte-ignore state_referenced_locally
 	const createUserForm = superForm(
 		data.createUserForm,
-		formOptions(() => drafts.users.discard(userDraft.id))
+		formOptions(() => adminDrafts.users.discard(userDraft.id))
 	);
 	const { enhance: enhanceCreateUser, submitting: creatingUser } = createUserForm;
 	// svelte-ignore state_referenced_locally
 	const createCategoryForm = superForm(
 		data.createCategoryForm,
-		formOptions(() => drafts.categories.discard(categoryDraft.id))
+		formOptions(() => adminDrafts.categories.discard(categoryDraft.id))
 	);
 	const { enhance: enhanceCreateCategory, submitting: creatingCategory } = createCategoryForm;
 
@@ -172,7 +176,7 @@
 				}
 			}
 		],
-		() => ({ enabled: adding && !$creatingUser && !$creatingCategory, ignoreInputs: false })
+		() => ({ enabled: isAddingRecord && !$creatingUser && !$creatingCategory, ignoreInputs: false })
 	);
 </script>
 
@@ -181,12 +185,15 @@
 		<Tooltip.Root>
 			<Tooltip.Trigger>
 				{#snippet child({ props })}
-					<a {...props} href={listHref} class="icon-button back" aria-label={`Back to ${noun} list`}
-						><ArrowLeft size={21} /></a
+					<a
+						{...props}
+						href={listHref}
+						class="icon-button back"
+						aria-label={`Back to ${recordNoun} list`}><ArrowLeft size={21} /></a
 					>
 				{/snippet}
 			</Tooltip.Trigger>
-			<Tooltip.Content side="bottom" sideOffset={6}>{`Back to ${noun} list`}</Tooltip.Content>
+			<Tooltip.Content side="bottom" sideOffset={6}>{`Back to ${recordNoun} list`}</Tooltip.Content>
 		</Tooltip.Root>
 		<div class="ticket-title">
 			<h1>{title}</h1>
@@ -234,19 +241,19 @@
 			<Tooltip.Root>
 				<Tooltip.Trigger>
 					{#snippet child({ props })}
-						<a {...props} href="?new" class="icon-button" aria-label={`Add ${noun}`}
+						<a {...props} href="?new" class="icon-button" aria-label={`Add ${recordNoun}`}
 							><Plus size={20} /></a
 						>
 					{/snippet}
 				</Tooltip.Trigger>
-				<Tooltip.Content side="bottom" sideOffset={6}>Add {noun}</Tooltip.Content>
+				<Tooltip.Content side="bottom" sideOffset={6}>Add {recordNoun}</Tooltip.Content>
 			</Tooltip.Root>
 		</div>
 		<div class="filters admin-filters">
 			<Input
 				aria-label={`Filter ${isUsers ? 'users' : 'categories'}`}
 				placeholder="Filter"
-				bind:value={search}
+				bind:value={filterText}
 				class="h-8 min-h-8 min-w-0 flex-1 rounded-lg px-2 font-normal"
 			/>
 			{#if isUsers}
@@ -309,7 +316,7 @@
 	</section>
 
 	<section class="reading-pane" aria-label={isUsers ? 'User details' : 'Category details'}>
-		{#if adding && isUsers}
+		{#if isAddingRecord && isUsers}
 			{@render toolbar('Add user', 'Accounts are created here, not by public sign-up')}
 			{#key userDraft.id}
 				<form
@@ -366,13 +373,13 @@
 						label: 'Discard',
 						hint: 'Esc to close · Ctrl/Cmd+Enter to create',
 						run: () => {
-							drafts.users.discard(userDraft.id);
+							adminDrafts.users.discard(userDraft.id);
 							void goto(listHref);
 						}
 					})}
 				</form>
 			{/key}
-		{:else if adding}
+		{:else if isAddingRecord}
 			{@render toolbar(
 				'Add category',
 				'New categories are active and available on new tickets straight away'
@@ -403,7 +410,7 @@
 						label: 'Discard',
 						hint: 'Esc to close · Ctrl/Cmd+Enter to create',
 						run: () => {
-							drafts.categories.discard(categoryDraft.id);
+							adminDrafts.categories.discard(categoryDraft.id);
 							void goto(listHref);
 						}
 					})}

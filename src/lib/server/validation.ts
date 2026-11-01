@@ -42,10 +42,10 @@ export const createTicketSchema = z.object({
 });
 export type CreateTicketInput = z.output<typeof createTicketSchema>;
 
-export const replySchema = z.object({
+export const commentSchema = z.object({
 	body: boundedText('Message', 10000)
 });
-export type ReplyInput = z.output<typeof replySchema>;
+export type CommentInput = z.output<typeof commentSchema>;
 
 /** Ticket numbers are generated bigint identities; a safe integer is required. */
 const ticketNumberSchema = z.number('Ticket not found.').int('Ticket not found.');
