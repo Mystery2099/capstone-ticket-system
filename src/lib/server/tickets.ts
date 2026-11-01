@@ -140,6 +140,8 @@ export async function createTicket(u: Person, f: FormData) {
 	const requesterId = String(f.get('requesterId') || u.id);
 	if (requesterId !== u.id && !staff(u))
 		error(403, 'Only support staff can open tickets for someone else.');
+	const assignedToUserId = String(f.get('assignedToUserId') || '') || null;
+	if (assignedToUserId && !staff(u)) error(403, 'Only support staff can assign tickets.');
 	const { subject, description, categoryId } = parseForm(createTicketSchema, {
 		subject: f.get('subject'),
 		description: f.get('description'),
@@ -157,14 +159,30 @@ export async function createTicket(u: Person, f: FormData) {
 			.where(and(eq(user.id, requesterId), eq(user.enabled, true)));
 		if (!requester) error(400, 'Choose an enabled requester.');
 	}
+	if (assignedToUserId) {
+		const [assignee] = await db.select().from(user).where(eq(user.id, assignedToUserId));
+		if (!assignee?.enabled || !staff(assignee))
+			error(400, 'Choose an enabled agent or administrator.');
+	}
 	return db.transaction(async (tx) => {
 		const [t] = await tx
 			.insert(ticket)
-			.values({ subject, description, categoryId, requesterId })
+			.values({ subject, description, categoryId, requesterId, assignedToUserId })
 			.returning();
-		await tx
-			.insert(ticketEvent)
-			.values({ ticketId: t.id, actorId: u.id, eventType: 'created', details: {} });
+		await tx.insert(ticketEvent).values([
+			{ ticketId: t.id, actorId: u.id, eventType: 'created', details: {} },
+			// Logged like a later assignment, so it shows up in the ticket's activity.
+			...(assignedToUserId
+				? [
+						{
+							ticketId: t.id,
+							actorId: u.id,
+							eventType: 'assignedToUserId',
+							details: { from: null, to: assignedToUserId }
+						}
+					]
+				: [])
+		]);
 		return t;
 	});
 }

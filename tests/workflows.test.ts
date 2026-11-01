@@ -73,6 +73,32 @@ test('staff can open a ticket for another enabled requester', async () => {
 		await db.update(schema.user).set({ enabled: true }).where(eq(schema.user.id, 'rosa'));
 	}
 });
+test('staff can assign a ticket when creating it', async () => {
+	const [cat] = await db.select().from(schema.category);
+	const fields = { subject: 'Assigned', description: 'Needs an owner', categoryId: cat.id };
+	const t = await service.createTicket(
+		people.priya,
+		form({ ...fields, assignedToUserId: 'priya' })
+	);
+	assert.equal(t.assignedToUserId, 'priya');
+	const { eq } = await import('drizzle-orm');
+	const events = await db
+		.select()
+		.from(schema.ticketEvent)
+		.where(eq(schema.ticketEvent.ticketId, t.id));
+	assert.deepEqual(events.find((e) => e.eventType === 'assignedToUserId')?.details, {
+		from: null,
+		to: 'priya'
+	});
+	await assert.rejects(
+		() => service.createTicket(people.priya, form({ ...fields, assignedToUserId: 'marcus' })),
+		(e: any) => e.status === 400
+	);
+	await assert.rejects(
+		() => service.createTicket(people.marcus, form({ ...fields, assignedToUserId: 'priya' })),
+		(e: any) => e.status === 403
+	);
+});
 test('requesters cannot open a ticket for someone else', async () => {
 	const [cat] = await db.select().from(schema.category);
 	await assert.rejects(

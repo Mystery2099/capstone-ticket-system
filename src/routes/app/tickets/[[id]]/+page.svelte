@@ -75,6 +75,7 @@
 	let requesters = $derived(
 		data.people.filter((p) => p.enabled).sort((a, b) => a.name.localeCompare(b.name))
 	);
+	let assignees = $derived(requesters.filter((p) => p.role !== 'requester'));
 	const person = (id: string | null) =>
 		data.people.find((p) => p.id === id)?.name || 'Support team';
 	const role = (id: string) => data.people.find((p) => p.id === id)?.role || 'agent';
@@ -273,18 +274,27 @@
 					};
 				}}
 			>
-				{#if staff}<Label class="flex-col items-start gap-2 mb-3">
-						Requester<select
-							aria-label="Requester"
-							name="requesterId"
-							value={data.user.id}
-							required
-							disabled={creating}
-							>{#each requesters as p (p.id)}<option value={p.id}
-									>{p.name}{p.id === data.user.id ? ' (you)' : ''}</option
-								>{/each}</select
-						>
-					</Label>{/if}
+				{#if staff}<div class="new-ticket-people">
+						<Label class="flex-col items-start gap-2">
+							Requester<select
+								aria-label="Requester"
+								name="requesterId"
+								value={data.user.id}
+								required
+								disabled={creating}
+								>{#each requesters as p (p.id)}<option value={p.id}
+										>{p.name}{p.id === data.user.id ? ' (you)' : ''}</option
+									>{/each}</select
+							>
+						</Label>
+						<Label class="flex-col items-start gap-2">
+							Assignee<select aria-label="Assignee" name="assignedToUserId" disabled={creating}
+								><option value="">Unassigned</option>{#each assignees as p (p.id)}<option
+										value={p.id}>{p.name}{p.id === data.user.id ? ' (you)' : ''}</option
+									>{/each}</select
+							>
+						</Label>
+					</div>{/if}
 				<Label class="flex-col items-start gap-2">
 					Subject
 					<Input
@@ -493,9 +503,7 @@
 								}))
 							)}{@render updateSelect('assignedToUserId', 'Assignee', t.assignedToUserId || '', [
 								{ value: '', label: 'Unassigned' },
-								...data.people
-									.filter((p) => p.enabled && p.role !== 'requester')
-									.map((p) => ({ value: p.id, label: p.name }))
+								...assignees.map((p) => ({ value: p.id, label: p.name }))
 							])}{@render updateSelect(
 								'categoryId',
 								'Category',
