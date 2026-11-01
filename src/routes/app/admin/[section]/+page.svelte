@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Plus, Search, ArrowLeft, X } from '@lucide/svelte';
+	import { fade } from 'svelte/transition';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { motionMs } from '$lib/motion';
 	import { initials } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -209,7 +211,7 @@
 			</div>
 		</div>{/if}
 </div>
-{#if adding}<div class="modal-overlay">
+{#if adding}<div class="modal-overlay" transition:fade={{ duration: motionMs(120) }}>
 		<section class="new-card">
 			<div class="section-heading">
 				<h1>Add user</h1>

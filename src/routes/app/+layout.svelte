@@ -5,7 +5,9 @@
 		hydrated = true;
 	});
 	import { navigating, page } from '$app/state';
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll, onNavigate } from '$app/navigation';
+	import { prefersReducedMotion } from 'svelte/motion';
+	import { fade, scale } from 'svelte/transition';
 	import {
 		Ticket,
 		ChevronDown,
@@ -26,6 +28,7 @@
 	import { initials } from '$lib/status';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import { delayed } from '$lib/delayed.svelte';
+	import { motionMs } from '$lib/motion';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
 	} from '$lib/components/skeleton/RouteSkeleton.svelte';
@@ -74,6 +77,23 @@
 	]);
 	$effect(() => {
 		query = page.url.searchParams.get('q') || '';
+	});
+	// Crossfades the main pane once a page's data is ready. The new-ticket dialog is left
+	// out because a named transition layer would paint over it. The layer is only named
+	// while transitioning, since a view-transition-name also creates a stacking context.
+	onNavigate(({ from, to, complete }) => {
+		const sameUrl = from?.url.href === to?.url.href;
+		const dialog = from?.params?.id === 'new' || to?.params?.id === 'new';
+		if (!document.startViewTransition || prefersReducedMotion.current || sameUrl || dialog) return;
+		const root = document.documentElement;
+		root.classList.add('page-transition');
+		return new Promise<void>((resolve) => {
+			const transition = document.startViewTransition(async () => {
+				resolve();
+				await complete.catch(() => {});
+			});
+			transition.finished.finally(() => root.classList.remove('page-transition'));
+		});
 	});
 	async function search(e: SubmitEvent) {
 		e.preventDefault();
@@ -134,7 +154,10 @@
 		<div class="account-wrap">
 			<button class="avatar" aria-label="Account menu" onclick={() => (account = !account)}
 				>{initials(data.user.name)}</button
-			>{#if account}<div class="account-menu">
+			>{#if account}<div
+					class="account-menu"
+					transition:scale={{ start: 0.96, duration: motionMs(120) }}
+				>
 					<strong>{data.user.name}</strong><small>{data.user.role}</small><a
 						href="/app/settings"
 						onclick={() => (account = false)}>Appearance & settings</a
@@ -145,6 +168,7 @@
 		</div>
 	</header>
 	{#if drawer}<button
+			transition:fade={{ duration: motionMs(180) }}
 			class="drawer-scrim"
 			aria-label="Close navigation"
 			onclick={() => (drawer = false)}
