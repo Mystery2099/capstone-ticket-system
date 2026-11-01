@@ -6,9 +6,9 @@
 	import { superForm } from 'sveltekit-superforms';
 	import { ArrowLeft, Inbox, Plus, X } from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
+	import FormField from '$lib/components/FormField.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
-	import * as Form from '$lib/components/ui/form/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { initials } from '$lib/status';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
@@ -321,61 +321,36 @@
 					use:enhanceCreateUser
 				>
 					<div class="conversation-scroll admin-form">
-						<Form.Field form={createUserForm} name="name">
-							<Form.Control>
-								{#snippet children({ props })}
-									<Form.Label>Display name</Form.Label>
-									<!-- svelte-ignore a11y_autofocus -->
-									<Input
-										{...props}
-										autofocus
-										bind:value={userDraft.name}
-										required
-										maxlength={100}
-										class="h-9 font-normal"
-									/>
-								{/snippet}
-							</Form.Control>
-							<Form.FieldErrors />
-						</Form.Field>
-						<Form.Field form={createUserForm} name="email">
-							<Form.Control>
-								{#snippet children({ props })}
-									<Form.Label>Email</Form.Label>
-									<Input
-										{...props}
-										type="email"
-										bind:value={userDraft.email}
-										required
-										maxlength={254}
-										class="h-9 font-normal"
-									/>
-								{/snippet}
-							</Form.Control>
-							<Form.FieldErrors />
-						</Form.Field>
-						<Form.Field form={createUserForm} name="password">
-							<Form.Control>
-								{#snippet children({ props })}
-									<Form.Label>Initial password</Form.Label>
-									<Input
-										{...props}
-										type="password"
-										bind:value={password}
-										required
-										minlength={12}
-										maxlength={128}
-										autocomplete="new-password"
-										class="h-9 font-normal"
-									/>
-								{/snippet}
-							</Form.Control>
-							<Form.Description>
-								At least 12 characters. Share directly with the account holder. Passwords aren’t
-								saved in drafts.
-							</Form.Description>
-							<Form.FieldErrors />
-						</Form.Field>
+						<FormField
+							form={createUserForm}
+							name="name"
+							label="Display name"
+							autofocus
+							bind:value={userDraft.name}
+							required
+							maxlength={100}
+						/>
+						<FormField
+							form={createUserForm}
+							name="email"
+							label="Email"
+							type="email"
+							bind:value={userDraft.email}
+							required
+							maxlength={254}
+						/>
+						<FormField
+							form={createUserForm}
+							name="password"
+							label="Initial password"
+							type="password"
+							bind:value={password}
+							required
+							minlength={12}
+							maxlength={128}
+							autocomplete="new-password"
+							description="At least 12 characters. Share directly with the account holder. Passwords aren’t saved in drafts."
+						/>
 						<div class="ticket-metadata">
 							<div class="metadata-control">
 								<span>Role</span><Combobox
@@ -414,23 +389,15 @@
 					<input type="hidden" name="id" value="" />
 					<input type="hidden" name="active" value="true" />
 					<div class="conversation-scroll admin-form">
-						<Form.Field form={createCategoryForm} name="name">
-							<Form.Control>
-								{#snippet children({ props })}
-									<Form.Label>Category name</Form.Label>
-									<!-- svelte-ignore a11y_autofocus -->
-									<Input
-										{...props}
-										autofocus
-										bind:value={categoryDraft.name}
-										required
-										maxlength={80}
-										class="h-9 font-normal"
-									/>
-								{/snippet}
-							</Form.Control>
-							<Form.FieldErrors />
-						</Form.Field>
+						<FormField
+							form={createCategoryForm}
+							name="name"
+							label="Category name"
+							autofocus
+							bind:value={categoryDraft.name}
+							required
+							maxlength={80}
+						/>
 					</div>
 					{@render footer($creatingCategory, 'Add category', 'Adding…', {
 						label: 'Discard',
@@ -474,37 +441,23 @@
 							/>
 						</div>
 					</div>
-					<Form.Field form={userForm} name="name">
-						<Form.Control>
-							{#snippet children({ props })}
-								<Form.Label>Display name</Form.Label>
-								<Input
-									{...props}
-									bind:value={$userFields.name}
-									required
-									maxlength={100}
-									class="h-9 font-normal"
-								/>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
-					<Form.Field form={userForm} name="email">
-						<Form.Control>
-							{#snippet children({ props })}
-								<Form.Label>Email</Form.Label>
-								<Input
-									{...props}
-									type="email"
-									bind:value={$userFields.email}
-									required
-									maxlength={254}
-									class="h-9 font-normal"
-								/>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
+					<FormField
+						form={userForm}
+						name="name"
+						label="Display name"
+						bind:value={$userFields.name}
+						required
+						maxlength={100}
+					/>
+					<FormField
+						form={userForm}
+						name="email"
+						label="Email"
+						type="email"
+						bind:value={$userFields.email}
+						required
+						maxlength={254}
+					/>
 					<p class="muted small">
 						Disabled accounts can’t sign in. Their tickets and comments are kept.
 					</p>
@@ -529,21 +482,14 @@
 							/>
 						</div>
 					</div>
-					<Form.Field form={categoryForm} name="name">
-						<Form.Control>
-							{#snippet children({ props })}
-								<Form.Label>Category name</Form.Label>
-								<Input
-									{...props}
-									bind:value={$categoryFields.name}
-									required
-									maxlength={80}
-									class="h-9 font-normal"
-								/>
-							{/snippet}
-						</Form.Control>
-						<Form.FieldErrors />
-					</Form.Field>
+					<FormField
+						form={categoryForm}
+						name="name"
+						label="Category name"
+						bind:value={$categoryFields.name}
+						required
+						maxlength={80}
+					/>
 					<p class="muted small">
 						Inactive categories stay on existing tickets but can’t be chosen for new ones.
 					</p>
