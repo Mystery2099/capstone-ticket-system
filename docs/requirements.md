@@ -8,8 +8,8 @@ A fictional small support team needs a way to submit requests, assign tickets an
 
 ## Roles
 
-- **Requester:** create tickets, view and publicly reply to their own tickets, reopen their own resolved tickets.
-- **Agent:** access all tickets including unassigned ones, manage assignments, status, priority, category, public replies and private notes.
+- **Requester:** create tickets, view and publicly comment on their own tickets, reopen their own resolved tickets.
+- **Agent:** access all tickets including unassigned ones, manage assignments, status, priority, category, public comments and private notes.
 - **Administrator:** inherit all agent capabilities and manage users, roles and categories. Only administrators can reopen Closed tickets.
 
 ## Functional requirements
@@ -21,7 +21,7 @@ A fictional small support team needs a way to submit requests, assign tickets an
 | FR-03 | Requesters see only their tickets; agents and administrators see all tickets.                                                                                                                                          |
 | FR-04 | Tickets support Open, In Progress, On Hold, Resolved and Closed.                                                                                                                                                       |
 | FR-05 | Agents/admins can assign tickets to one enabled agent/admin and change status, category and priority.                                                                                                                  |
-| FR-06 | Users can post public replies to accessible, non-Closed tickets; agents/admins can also create and read internal notes.                                                                                                |
+| FR-06 | Users can post public comments on accessible, non-Closed tickets; agents/admins can also create and read internal notes.                                                                                                |
 | FR-07 | Requesters can reopen their own Resolved tickets. Administrators alone can reopen Closed tickets.                                                                                                                      |
 | FR-08 | Tickets can be filtered/searched by supported views and fields.                                                                                                                                                        |
 | FR-09 | Administrators can manage categories and account roles/enabled state.                                                                                                                                                  |

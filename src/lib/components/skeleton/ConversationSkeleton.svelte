@@ -1,5 +1,5 @@
 <!--
-	Placeholder for a ticket's replies and composer. Set `heading` when the ticket
+	Placeholder for a ticket's comments and composer. Set `heading` when the ticket
 	isn't in the current list, so even its subject and details are still unknown.
 -->
 <script lang="ts">

@@ -43,7 +43,7 @@
 		refreshing = $state(false),
 		reopening = $state(false),
 		sendError = $state(''),
-		// A reply awaiting the server, shown in the conversation right away.
+		// A comment awaiting the server, shown in the conversation right away.
 		sendingMessage = $state<{ body: string; isInternal: boolean } | null>(null),
 		// Metadata values chosen but not yet confirmed, keyed by field.
 		chosen = $state<Record<string, string>>({});
@@ -53,7 +53,7 @@
 		formEl = $state<HTMLFormElement>();
 	let staff = $derived(data.user.role !== 'requester');
 
-	// The list already holds every ticket field except its replies and events, so a
+	// The list already holds every ticket field except its comments and events, so a
 	// click can paint the real heading at once and leave only the rest as a skeleton.
 	let target = $derived(navigating.to?.route.id === page.route.id ? navigating.to : null);
 	let targetId = $derived(target?.params?.id);
@@ -683,7 +683,7 @@
 				{#if paneLoading}<ConversationSkeleton />{:else}
 					{#if timeline.length > 4 && !expanded}<div class="hidden-messages">
 							<span class="count-pill">{timeline.length - 4}</span><span
-								>Earlier replies and activity hidden</span
+								>Earlier comments and activity hidden</span
 							><button class="text-link" onclick={() => (expanded = true)}>Show all</button>
 						</div>{/if}
 					{#each shown as item}{#if item.kind === 'comment'}{@render commentMessage(
@@ -747,7 +747,7 @@
 								return async ({ result, update }) => {
 									// A transport error would otherwise replace the page and lose the text.
 									if (result.type === 'error')
-										sendError = 'Couldn’t send. Your message is back in the box below.';
+										sendError = 'Couldn’t send. Your comment is back in the box below.';
 									else await update({ reset: false });
 									sendingMessage = null;
 									sending = false;
@@ -757,7 +757,7 @@
 						>
 							<div class="composer-tabs">
 								<button type="button" class:chosen={!internal} onclick={() => (internal = false)}
-									><MessageSquare size={16} /> Reply</button
+									><MessageSquare size={16} /> Comment</button
 								>{#if staff}<button
 										type="button"
 										class:chosen={internal}
@@ -767,10 +767,10 @@
 							</div>
 							<input type="hidden" name="internal" value={internal} /><textarea
 								name="body"
-								aria-label={internal ? 'Internal note' : 'Reply'}
+								aria-label={internal ? 'Internal note' : 'Comment'}
 								placeholder={internal
 									? 'Add a private note for the support team…'
-									: 'Write a reply…'}
+									: 'Write a comment…'}
 								bind:value={body}
 								required
 								maxlength={10000}
@@ -789,7 +789,7 @@
 										? 'Sending…'
 										: internal
 											? 'Add note'
-											: 'Send reply'}</Button
+											: 'Send comment'}</Button
 								>
 							</div>
 						</form>{:else}<div class="closed-banner">

@@ -39,7 +39,7 @@ test('requester sees public conversation, cannot read private notes or foreign t
 	expect(response?.status()).toBe(404);
 });
 
-test('agent opens an assigned ticket for a requester and posts a public reply', async ({
+test('agent opens an assigned ticket for a requester and posts a public comment', async ({
 	page
 }) => {
 	await signIn(page, 'priya.raman@example.test');
@@ -58,9 +58,9 @@ test('agent opens an assigned ticket for a requester and posts a public reply', 
 		'Priya Raman'
 	);
 	await page
-		.getByRole('textbox', { name: 'Reply', exact: true })
+		.getByRole('textbox', { name: 'Comment', exact: true })
 		.fill('I will check the cable this afternoon.');
-	await page.getByRole('button', { name: 'Send reply', exact: true }).click();
+	await page.getByRole('button', { name: 'Send comment', exact: true }).click();
 	await expect(
 		page.getByText('I will check the cable this afternoon.', { exact: true })
 	).toBeVisible();

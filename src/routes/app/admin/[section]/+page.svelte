@@ -410,7 +410,7 @@
 							/>
 						</Label>
 						<p class="muted small">
-							Disabled accounts can’t sign in. Their tickets and replies are kept.
+							Disabled accounts can’t sign in. Their tickets and comments are kept.
 						</p>
 						{@render feedback()}
 					</div>

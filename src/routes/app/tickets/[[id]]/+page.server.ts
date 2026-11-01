@@ -24,7 +24,7 @@ export const actions: Actions = {
 				await request.formData(),
 				'reply'
 			);
-			return { success: 'Message sent.' };
+			return { success: 'Comment posted.' };
 		} catch (e) {
 			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
 			throw e;
