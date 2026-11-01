@@ -167,7 +167,7 @@
 				unassigned: 'Unassigned',
 				all: 'All tickets',
 				mine: 'My requests',
-				ticketDrafts: 'Drafts'
+				drafts: 'Drafts'
 			} as Record<string, string>
 		)[activeView] || 'All tickets'
 	);
@@ -878,7 +878,7 @@
 						>{openCategory
 							? `${data.tickets.length} open ${openCategory.name} tickets`
 							: showingDrafts
-								? `${draftRows.length} ticketDrafts`
+								? `${draftRows.length} drafts`
 								: `${data.tickets.length} tickets · ${viewTitle}`}</span
 					>{/if}
 			</div>{/if}
