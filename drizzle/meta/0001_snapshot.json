@@ -288,13 +288,6 @@
           "notNull": false,
           "default": "'requester'"
         },
-        "enabled": {
-          "name": "enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": true
-        },
         "banned": {
           "name": "banned",
           "type": "boolean",
