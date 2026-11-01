@@ -50,20 +50,15 @@
 		</div>
 	</div>
 {:else}
-	<div class="admin-workspace">
-		<header class="admin-header">
-			<h1>{kind === 'users' ? 'Users' : 'Categories'}</h1>
-		</header>
-		<p class="sr-only" role="status">Loading {kind}</p>
-		<div class="skeleton-fade px-4 py-2" aria-hidden="true">
-			{#each { length: kind === 'users' ? 8 : 6 }}
-				<div class="flex h-13 items-center gap-3 border-b border-border">
-					{#if kind === 'users'}<span class="avatar skeleton shrink-0"></span>{/if}
-					<span class="skeleton h-3.5 w-40"></span>
-					{#if kind === 'users'}<span class="skeleton ml-24 h-3.5 w-48"></span>{/if}
-					<span class="skeleton ml-auto h-3.5 w-24"></span>
-				</div>
-			{/each}
-		</div>
+	<div class="workspace">
+		<section class="ticket-list" aria-label={kind === 'users' ? 'User list' : 'Category list'}>
+			<div class="list-top"><h1>{kind === 'users' ? 'Users' : 'Categories'}</h1></div>
+			<div class="filters" aria-hidden="true">
+				<span class="skeleton h-8 flex-1 rounded-lg"></span>
+				<span class="skeleton h-8 w-24 rounded-lg"></span>
+			</div>
+			<TicketRowsSkeleton />
+		</section>
+		<section class="reading-pane" aria-label="Details"></section>
 	</div>
 {/if}

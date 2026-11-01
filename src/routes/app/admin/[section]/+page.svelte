@@ -1,263 +1,357 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { Plus, Search, ArrowLeft, X } from '@lucide/svelte';
-	import { fade } from 'svelte/transition';
+	import { goto } from '$app/navigation';
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { motionMs } from '$lib/motion';
-	import { initials } from '$lib/status';
+	import { ArrowLeft, Inbox, Plus, X } from '@lucide/svelte';
+	import Combobox from '$lib/components/Combobox.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { initials } from '$lib/status';
 
 	let { data, form } = $props();
-	let filter = $state(''),
-		selectedId = $state(''),
-		adding = $state(false),
+
+	const roles = [
+		{ value: 'requester', label: 'Requester' },
+		{ value: 'agent', label: 'Agent' },
+		{ value: 'admin', label: 'Administrator' }
+	];
+	const roleLabel = (role: string | null) =>
+		roles.find((r) => r.value === role)?.label ?? 'Requester';
+	const accountStates = [
+		{ value: 'true', label: 'Enabled' },
+		{ value: 'false', label: 'Disabled' }
+	];
+	const categoryStates = [
+		{ value: 'true', label: 'Active' },
+		{ value: 'false', label: 'Inactive' }
+	];
+
+	let search = $state(''),
+		roleFilter = $state(''),
+		stateFilter = $state(''),
 		revision = $state(0),
 		busy = $state('');
-	onMount(() => {
-		if (matchMedia('(min-width: 768px)').matches)
-			selectedId = data.users.some((u) => u.id === 'jordan') ? 'jordan' : data.users[0]?.id || '';
-	});
-	let users = $derived(
-		data.users.filter((u) => (u.name + ' ' + u.email).toLowerCase().includes(filter.toLowerCase()))
+
+	let isUsers = $derived(data.section === 'users');
+	let noun = $derived(isUsers ? 'user' : 'category');
+	let listHref = $derived(page.url.pathname);
+	// The URL holds the open record, so links and the back button work like tickets.
+	let adding = $derived(page.url.searchParams.has('new'));
+	let openId = $derived(page.url.searchParams.get('id'));
+	let selectedUser = $derived(isUsers ? data.users.find((u) => u.id === openId) : undefined);
+	let selectedCategory = $derived(
+		isUsers ? undefined : data.categories.find((c) => c.id === openId)
 	);
-	let selected = $derived(data.users.find((u) => u.id === selectedId));
+	let paneOpen = $derived(adding || !!selectedUser || !!selectedCategory);
+
+	const matches = (text: string) => text.toLowerCase().includes(search.trim().toLowerCase());
+	let users = $derived(
+		data.users.filter(
+			(u) =>
+				matches(`${u.name} ${u.email}`) &&
+				(!roleFilter || u.role === roleFilter) &&
+				(!stateFilter || String(u.enabled) === stateFilter)
+		)
+	);
+	let categories = $derived(
+		data.categories.filter(
+			(c) => matches(c.name) && (!stateFilter || String(c.active) === stateFilter)
+		)
+	);
 
 	/**
-	 * Marks `key` busy while a form submits. Edit forms keep their submitted values:
-	 * the default reset restores HTML defaults, not saved data, so selects and
-	 * checkboxes would show the wrong role and state, and the next save would write them.
+	 * Marks `key` busy while a form submits, then opens whatever it created. Edit forms keep
+	 * their submitted values: the default reset restores HTML defaults, not saved data.
 	 */
 	const submit =
-		(key: string, reset = false): SubmitFunction =>
+		(key: string): SubmitFunction =>
 		() => {
 			busy = key;
-			return async ({ update }) => {
-				await update({ reset });
+			return async ({ result, update }) => {
+				await update({ reset: false });
 				busy = '';
+				if (result.type === 'success' && result.data?.createdId)
+					await goto(`?id=${result.data.createdId}`);
 			};
 		};
 </script>
 
-<div class="admin-workspace">
-	<header class="admin-header">
-		<h1>
-			{data.section === 'users' ? 'Users' : 'Categories'}
-			<span class="muted small"
-				>{data.section === 'users' ? data.users.length : data.categories.length}</span
+{#snippet toolbar(title: string, subtitle: string)}
+	<div class="reading-toolbar">
+		<a href={listHref} class="icon-button back" aria-label={`Back to ${noun} list`}
+			><ArrowLeft size={21} /></a
+		>
+		<div class="ticket-title">
+			<h1>{title}</h1>
+			<p class="ticket-dates">{subtitle}</p>
+		</div>
+		<a href={listHref} class="icon-button compose-close" aria-label="Close"><X size={20} /></a>
+	</div>
+{/snippet}
+
+{#snippet feedback()}
+	{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
+	{#if form?.success}<p class="success" role="status">{form.success}</p>{/if}
+{/snippet}
+
+{#snippet footer(key: string, primary: string, working: string, showRevert: boolean)}
+	<div class="composer-footer admin-actions">
+		{#if showRevert}
+			<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={() => revision++}
+				>Revert</Button
 			>
-		</h1>
-		{#if data.section === 'users'}<div class="admin-filter">
-				<Search size={17} />
-				<Input
-					aria-label="Filter users"
-					placeholder="Filter users"
-					bind:value={filter}
-					class="h-9 w-[180px] border-0 bg-transparent font-normal max-[1199px]:w-[120px]"
+		{:else}
+			<Button href={listHref} variant="ghost" size="sm" class="rounded-full px-4">Cancel</Button>
+		{/if}
+		<Button type="submit" size="sm" class="rounded-full px-4" disabled={busy === key}
+			>{busy === key ? working : primary}</Button
+		>
+	</div>
+{/snippet}
+
+<div class="workspace" class:has-ticket={paneOpen}>
+	<section class="ticket-list" aria-label={isUsers ? 'User list' : 'Category list'}>
+		<div class="list-top">
+			<h1>
+				{isUsers ? 'Users' : 'Categories'}
+				<span>{isUsers ? users.length : categories.length}</span>
+			</h1>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					{#snippet child({ props })}<a
+							{...props}
+							href="?new"
+							class="icon-button"
+							aria-label={`Add ${noun}`}><Plus size={20} /></a
+						>{/snippet}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="bottom" sideOffset={6}>Add {noun}</Tooltip.Content>
+			</Tooltip.Root>
+		</div>
+		<div class="filters admin-filters">
+			<Input
+				aria-label={`Filter ${isUsers ? 'users' : 'categories'}`}
+				placeholder="Filter"
+				bind:value={search}
+				class="h-8 min-h-8 min-w-0 flex-1 rounded-lg px-2 font-normal"
+			/>
+			{#if isUsers}
+				<Combobox
+					label="Filter by role"
+					bind:value={roleFilter}
+					options={[{ value: '', label: 'Any role' }, ...roles]}
 				/>
-			</div>
-			<Button class="rounded-full h-9 px-4" onclick={() => (adding = true)}>
-				<Plus size={17} /> Add user
-			</Button>{/if}
-	</header>
-	{#if form?.error}<p class="error admin-feedback" role="alert">
-			{form.error}
-		</p>{/if}{#if form?.success}<p class="success admin-feedback" role="status">
-			{form.success}
-		</p>{/if}
-	{#if data.section === 'users'}<div class="user-workspace" class:editing={!!selected}>
-			<div class="user-table-scroll">
-				<table class="users-table">
-					<thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Account</th></tr></thead><tbody
-						>{#each users as u}<tr class:selected={selectedId === u.id}
-								><td
-									><button class="user-name" onclick={() => (selectedId = u.id)}
-										><span class="avatar">{initials(u.name)}</span><span>{u.name}</span></button
-									></td
-								><td><button onclick={() => (selectedId = u.id)}>{u.email}</button></td><td
-									><span class="role-tag" class:admin-role={u.role === 'admin'}
-										>{u.role === 'admin'
-											? 'Administrator'
-											: u.role === 'agent'
-												? 'Agent'
-												: 'Requester'}</span
-									></td
-								><td
-									><span class="account-state"
-										><span class:disabled={!u.enabled}>●</span>{u.enabled
-											? 'Enabled'
-											: 'Disabled'}</span
-									></td
-								></tr
-							>{/each}</tbody
-					>
-				</table>
-			</div>
-			{#if selected}<section class="user-editor">
-					<header>
-						<button
-							class="icon-button editor-back"
-							aria-label="Back to users"
-							onclick={() => (selectedId = '')}><ArrowLeft size={20} /></button
-						><span class="avatar">{initials(selected.name)}</span>
-						<div>
-							<h2>{selected.name}</h2>
-							<p class="muted small">Account details</p>
-						</div>
-					</header>
-					{#key `${selected.id}:${revision}`}<form
-							method="POST"
-							action="?/user"
-							use:enhance={submit('user')}
-						>
-							<input type="hidden" name="id" value={selected.id} />
-							<div class="editor-fields">
-								<Label class="flex-col items-start gap-2 mb-5 text-[13px] text-muted-foreground">
-									Display name<Input
-										name="name"
-										value={selected.name}
-										required
-										maxlength={100}
-										class="h-9 font-normal"
-									/>
-								</Label>
-								<Label class="flex-col items-start gap-2 mb-5 text-[13px] text-muted-foreground">
-									Email<Input
-										name="email"
-										type="email"
-										value={selected.email}
-										required
-										maxlength={254}
-										class="h-9 font-normal"
-									/>
-								</Label>
-								<Label class="flex-col items-start gap-2 mb-5 text-[13px] text-muted-foreground">
-									Role<select name="role" value={selected.role}
-										><option value="requester">Requester</option><option value="agent">Agent</option
-										><option value="admin">Administrator</option></select
-									><small>One role per user</small></Label
-								>
-								<Label class="checkbox-label mb-1">
-									<input type="checkbox" name="enabled" value="true" checked={selected.enabled} /> Account
-									enabled</Label
-								>
-								<p class="muted small">
-									Disabled accounts can’t sign in. Their tickets and replies are kept.
-								</p>
+				<Combobox
+					label="Filter by account state"
+					bind:value={stateFilter}
+					options={[{ value: '', label: 'Any state' }, ...accountStates]}
+				/>
+			{:else}
+				<Combobox
+					label="Filter by state"
+					bind:value={stateFilter}
+					options={[{ value: '', label: 'Any state' }, ...categoryStates]}
+				/>
+			{/if}
+		</div>
+		<div class="rows">
+			{#if isUsers}
+				{#each users as u (u.id)}<a
+						href={`?id=${u.id}`}
+						class="ticket-row"
+						class:selected={selectedUser?.id === u.id}
+						><span class="avatar row-avatar">{initials(u.name)}</span>
+						<div class="row-content">
+							<div class="row-title">
+								<strong>{u.name}</strong><time>{roleLabel(u.role)}</time>
 							</div>
-							<footer>
-								<Button variant="outline" class="rounded-full h-9 px-5" onclick={() => revision++}
-									>Revert</Button
-								>
-								<Button type="submit" class="rounded-full h-9 px-5" disabled={busy === 'user'}>
-									{busy === 'user' ? 'Saving…' : 'Save'}
-								</Button>
-							</footer>
-						</form>{/key}
-				</section>{/if}
-		</div>{:else}<div class="categories-content">
+							<div class="row-meta">
+								<span class="row-preview">{u.email}{u.enabled ? '' : ' · Disabled'}</span>
+							</div>
+						</div></a
+					>{:else}<div class="empty">
+						<Inbox size={36} />
+						<h2>No users here</h2>
+						<p>Try another search or change your filters.</p>
+					</div>{/each}
+			{:else}
+				{#each categories as c (c.id)}<a
+						href={`?id=${c.id}`}
+						class="ticket-row"
+						class:selected={selectedCategory?.id === c.id}
+						><div class="row-content">
+							<div class="row-title"><strong>{c.name}</strong></div>
+							<div class="row-meta">
+								<span class="row-preview">{c.active ? 'Active' : 'Inactive'}</span>
+							</div>
+						</div></a
+					>{:else}<div class="empty">
+						<Inbox size={36} />
+						<h2>No categories here</h2>
+						<p>Try another search or change your filters.</p>
+					</div>{/each}
+			{/if}
+		</div>
+	</section>
+
+	<section class="reading-pane" aria-label={isUsers ? 'User details' : 'Category details'}>
+		{#if adding && isUsers}
+			{@render toolbar('Add user', 'Accounts are created here, not by public sign-up')}
+			<form class="compose" method="POST" action="?/createUser" use:enhance={submit('create-user')}>
+				<div class="conversation-scroll admin-form">
+					<Label class="flex-col items-start gap-2">
+						Display name<Input name="name" required maxlength={100} class="h-9 font-normal" />
+					</Label>
+					<Label class="flex-col items-start gap-2">
+						Email<Input
+							name="email"
+							type="email"
+							required
+							maxlength={254}
+							class="h-9 font-normal"
+						/>
+					</Label>
+					<Label class="flex-col items-start gap-2">
+						Initial password<Input
+							name="password"
+							type="password"
+							required
+							minlength={12}
+							maxlength={128}
+							autocomplete="new-password"
+							class="h-9 font-normal"
+						/>
+						<small>At least 12 characters. Share directly with the account holder.</small>
+					</Label>
+					<div class="ticket-metadata">
+						<div class="metadata-control">
+							<span>Role</span><Combobox
+								name="role"
+								label="Role"
+								value="requester"
+								options={roles}
+							/>
+						</div>
+					</div>
+					{@render feedback()}
+				</div>
+				{@render footer('create-user', 'Create account', 'Creating…', false)}
+			</form>
+		{:else if adding}
+			{@render toolbar(
+				'Add category',
+				'New categories are active and available on new tickets straight away'
+			)}
 			<form
+				class="compose"
 				method="POST"
 				action="?/category"
-				use:enhance={submit('new-category', true)}
-				class="category-form"
+				use:enhance={submit('create-category')}
 			>
-				<Input
-					placeholder="New category name"
-					name="name"
-					class="w-[260px] max-w-[60%] h-9 font-normal"
-				/><Button type="submit" class="rounded-full h-9 px-4" disabled={busy === 'new-category'}
-					><Plus size={16} /> {busy === 'new-category' ? 'Adding…' : 'Add category'}</Button
-				>
-			</form>
-			<p class="muted small">
-				Inactive categories stay on existing tickets but cannot be selected for new tickets.
-			</p>
-			<div class="table-wrapper">
-				<table>
-					<thead><tr><th>Category name</th><th>State</th><th></th></tr></thead><tbody
-						>{#each data.categories as c}<tr
-								><td colspan="3"
-									><form
-										method="POST"
-										action="?/category"
-										use:enhance={submit(c.id)}
-										class="table-actions"
-									>
-										<input type="hidden" name="id" value={c.id} /><Input
-											aria-label={'Name for ' + c.name}
-											name="name"
-											value={c.name}
-											required
-											maxlength={80}
-											class="w-auto max-sm:w-[170px] h-9 font-normal"
-										/><select
-											aria-label={'State for ' + c.name}
-											name="active"
-											value={String(c.active)}
-											><option value="true">Active</option><option value="false">Inactive</option
-											></select
-										><button class="text-link" disabled={busy === c.id}
-											>{busy === c.id ? 'Saving…' : 'Save'}</button
-										>
-									</form></td
-								></tr
-							>{/each}</tbody
-					>
-				</table>
-			</div>
-		</div>{/if}
-</div>
-{#if adding}<div class="modal-overlay" transition:fade={{ duration: motionMs(120) }}>
-		<section class="new-card">
-			<div class="section-heading">
-				<h1>Add user</h1>
-				<button class="icon-button" aria-label="Cancel add user" onclick={() => (adding = false)}
-					><X /></button
-				>
-			</div>
-			<form
-				method="POST"
-				action="?/createUser"
-				use:enhance={() => {
-					busy = 'create-user';
-					return async ({ result, update }) => {
-						if (result.type === 'success') {
-							adding = false;
-							selectedId = String(result.data?.createdId);
-						}
-						await update();
-						busy = '';
-					};
-				}}
-			>
-				<label>Display name<input name="name" required maxlength={100} /></label><label
-					>Email<input name="email" type="email" required maxlength={254} /></label
-				><label
-					>Initial password<input
-						name="password"
-						type="password"
-						required
-						minlength={12}
-						maxlength={128}
-						autocomplete="new-password"
-					/><small>At least 12 characters. Share directly with the account holder.</small></label
-				><label
-					>Role<select name="role"
-						><option value="requester">Requester</option><option value="agent">Agent</option><option
-							value="admin">Administrator</option
-						></select
-					></label
-				>{#if form?.error}<p class="error">{form.error}</p>{/if}
-				<div class="form-footer">
-					<button type="button" class="outline" onclick={() => (adding = false)}>Cancel</button
-					><button class="primary" disabled={busy === 'create-user'}
-						>{busy === 'create-user' ? 'Creating…' : 'Create account'}</button
-					>
+				<div class="conversation-scroll admin-form">
+					<Label class="flex-col items-start gap-2">
+						Category name<Input name="name" required maxlength={80} class="h-9 font-normal" />
+					</Label>
+					{@render feedback()}
 				</div>
+				{@render footer('create-category', 'Add category', 'Adding…', false)}
 			</form>
-		</section>
-	</div>{/if}
+		{:else if selectedUser}
+			{@render toolbar(
+				selectedUser.name,
+				`${selectedUser.email} · ${roleLabel(selectedUser.role)}`
+			)}
+			{#key `${selectedUser.id}:${revision}`}
+				<form class="compose" method="POST" action="?/user" use:enhance={submit('user')}>
+					<input type="hidden" name="id" value={selectedUser.id} />
+					<div class="conversation-scroll admin-form">
+						<div class="ticket-metadata">
+							<div class="metadata-control">
+								<span>Role</span><Combobox
+									name="role"
+									label="Role"
+									value={selectedUser.role ?? 'requester'}
+									options={roles}
+								/>
+							</div>
+							<div class="metadata-control">
+								<span>Account</span><Combobox
+									name="enabled"
+									label="Account"
+									value={String(selectedUser.enabled)}
+									options={accountStates}
+								/>
+							</div>
+						</div>
+						<Label class="flex-col items-start gap-2">
+							Display name<Input
+								name="name"
+								value={selectedUser.name}
+								required
+								maxlength={100}
+								class="h-9 font-normal"
+							/>
+						</Label>
+						<Label class="flex-col items-start gap-2">
+							Email<Input
+								name="email"
+								type="email"
+								value={selectedUser.email}
+								required
+								maxlength={254}
+								class="h-9 font-normal"
+							/>
+						</Label>
+						<p class="muted small">
+							Disabled accounts can’t sign in. Their tickets and replies are kept.
+						</p>
+						{@render feedback()}
+					</div>
+					{@render footer('user', 'Save', 'Saving…', true)}
+				</form>
+			{/key}
+		{:else if selectedCategory}
+			{@render toolbar(selectedCategory.name, selectedCategory.active ? 'Active' : 'Inactive')}
+			{#key `${selectedCategory.id}:${revision}`}
+				<form class="compose" method="POST" action="?/category" use:enhance={submit('category')}>
+					<input type="hidden" name="id" value={selectedCategory.id} />
+					<div class="conversation-scroll admin-form">
+						<div class="ticket-metadata">
+							<div class="metadata-control">
+								<span>State</span><Combobox
+									name="active"
+									label="State"
+									value={String(selectedCategory.active)}
+									options={categoryStates}
+								/>
+							</div>
+						</div>
+						<Label class="flex-col items-start gap-2">
+							Category name<Input
+								name="name"
+								value={selectedCategory.name}
+								required
+								maxlength={80}
+								class="h-9 font-normal"
+							/>
+						</Label>
+						<p class="muted small">
+							Inactive categories stay on existing tickets but can’t be chosen for new ones.
+						</p>
+						{@render feedback()}
+					</div>
+					{@render footer('category', 'Save', 'Saving…', true)}
+				</form>
+			{/key}
+		{:else}
+			<div class="reading-empty">
+				<span class="empty-icon"><Inbox size={35} /></span>
+				<h2>{isUsers ? 'Choose a user' : 'Choose a category'}</h2>
+				<p>Select one from the list to edit it,<br />or add a new one.</p>
+			</div>
+		{/if}
+	</section>
+</div>

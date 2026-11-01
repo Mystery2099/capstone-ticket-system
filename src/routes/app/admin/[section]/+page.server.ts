@@ -115,12 +115,14 @@ export const actions: Actions = {
 				name: f.get('name'),
 				id: String(f.get('id') || '')
 			});
-			if (id)
-				await db
-					.update(category)
-					.set({ name, active: f.get('active') === 'true', updatedAt: new Date() })
-					.where(eq(category.id, id));
-			else await db.insert(category).values({ name });
+			if (!id) {
+				const [created] = await db.insert(category).values({ name }).returning();
+				return { success: 'Category added.', createdId: created.id };
+			}
+			await db
+				.update(category)
+				.set({ name, active: f.get('active') === 'true', updatedAt: new Date() })
+				.where(eq(category.id, id));
 			return { success: 'Category saved.' };
 		} catch (e) {
 			if (isHttpError(e)) return fail(e.status, { error: e.body.message });

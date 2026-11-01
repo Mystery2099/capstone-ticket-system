@@ -1449,7 +1449,7 @@
 			color: var(--muted-fg);
 			font-size: 14px;
 		}
-		.list-top > .icon-button {
+		.list-top > button.icon-button {
 			display: none;
 		}
 		.filters {
@@ -2269,6 +2269,28 @@
 	}
 	.compose .ticket-metadata {
 		display: flex;
+	}
+	.admin-filters .combobox-trigger {
+		flex-shrink: 0;
+	}
+	.admin-form {
+		display: flex;
+		flex-direction: column;
+		gap: 16px;
+		max-width: 560px;
+	}
+	.admin-form small {
+		color: var(--muted-fg);
+		font-weight: 400;
+	}
+	.admin-form .error,
+	.admin-form .success {
+		margin: 0;
+	}
+	.admin-actions {
+		justify-content: flex-end;
+		padding: 10px 24px;
+		border-top: 1px solid var(--border);
 	}
 	/* The ring goes on the rounded box, since the textarea's own square one gets clipped. */
 	.composer textarea:focus {

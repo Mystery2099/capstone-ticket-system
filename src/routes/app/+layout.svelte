@@ -47,7 +47,10 @@
 		const timer = setTimeout(() => drafts.save(json), 300);
 		return () => clearTimeout(timer);
 	});
+	// The phone drawer and the desktop rail are separate: links close the drawer, and a
+	// minimized rail has to stay minimized while moving around the app.
 	let drawer = $state(false),
+		railed = $state(false),
 		query = $state(''),
 		account = $state(false),
 		signingOut = $state(false),
@@ -157,6 +160,10 @@
 			transition.finished.finally(() => root.classList.remove('page-transition'));
 		});
 	});
+	function toggleNavigation() {
+		if (matchMedia('(max-width: 767px)').matches) drawer = !drawer;
+		else railed = !railed;
+	}
 	async function search(e: SubmitEvent) {
 		e.preventDefault();
 		const p = new URLSearchParams(page.url.searchParams);
@@ -193,12 +200,12 @@
 	}}
 />
 <Tooltip.Provider delayDuration={400}>
-	<div data-hydrated={hydrated} class="app-shell" class:rail={drawer}>
+	<div data-hydrated={hydrated} class="app-shell" class:rail={railed}>
 		<header class="topbar">
 			<button
 				class="icon-button menu-button"
 				aria-label="Toggle navigation"
-				onclick={() => (drawer = !drawer)}><Menu /></button
+				onclick={toggleNavigation}><Menu /></button
 			><a class="brand" href="/app/tickets"
 				><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
 			>

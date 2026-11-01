@@ -105,6 +105,35 @@ test('phone workspace fits and administrator can open user editor', async ({ pag
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	await page.goto('/app/admin/users');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await page.getByRole('button', { name: /Priya Raman$/ }).click();
+	await expect(page.getByRole('link', { name: 'Add user' })).toBeVisible();
+	await page.getByRole('link', { name: /Priya Raman/ }).click();
 	await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('Priya Raman');
+	await page.getByRole('link', { name: 'Back to user list' }).click();
+	await expect(page.getByLabel('Display name', { exact: true })).toHaveCount(0);
+});
+
+test('administrator adds and edits records in the pane beside the list', async ({ page }) => {
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto('/app/admin/categories');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByRole('link', { name: 'Add category' }).click();
+	await page.getByLabel('Category name').fill('Facilities');
+	await page.getByRole('button', { name: 'Add category', exact: true }).click();
+	await expect(page).toHaveURL(/\?id=/);
+	await expect(page.locator('a.ticket-row', { hasText: 'Facilities' })).toHaveClass(/selected/);
+	await choose(page, 'State', 'Inactive');
+	await page.getByRole('button', { name: 'Save', exact: true }).click();
+	await expect(page.locator('a.ticket-row', { hasText: 'Facilities' })).toContainText('Inactive');
+	await page.getByRole('button', { name: 'Revert', exact: true }).click();
+	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
+});
+
+test('a minimized sidebar stays minimized while navigating', async ({ page }) => {
+	await signIn(page, 'priya.raman@example.test');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByRole('button', { name: 'Toggle navigation' }).click();
+	await expect(page.locator('.app-shell')).toHaveClass(/rail/);
+	await page.getByRole('link', { name: 'All tickets', exact: true }).click();
+	await expect(page).toHaveURL(/view=all/);
+	await expect(page.locator('.app-shell')).toHaveClass(/rail/);
 });
