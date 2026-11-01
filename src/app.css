@@ -594,6 +594,8 @@
 		height: 100%;
 		display: grid;
 		grid-template-columns: minmax(310px, 40%) minmax(0, 1fr);
+		/* Keeps the row at the pane's height so the list and conversation scroll themselves. */
+		grid-template-rows: minmax(0, 1fr);
 	}
 	.ticket-list {
 		border-right: 1px solid var(--border);
@@ -748,25 +750,35 @@
 	}
 	.reading-pane {
 		min-width: 0;
+		min-height: 0;
 		display: flex;
 		flex-direction: column;
 		position: relative;
 	}
 	.reading-toolbar {
-		height: 52px;
+		min-height: 52px;
 		display: flex;
-		align-items: center;
-		justify-content: flex-end;
+		align-items: flex-start;
 		gap: 6px;
-		padding: 0 12px;
+		padding: 8px 12px 8px 24px;
 		border-bottom: 1px solid var(--border);
 		flex-shrink: 0;
 	}
+	.reading-toolbar h1 {
+		flex: 1;
+		min-width: 0;
+		padding: 4px 12px 4px 0;
+		font-size: 20px;
+		line-height: 28px;
+		font-weight: 650;
+		overflow-wrap: anywhere;
+	}
+	.toolbar-position {
+		line-height: 36px;
+		white-space: nowrap;
+	}
 	.reading-toolbar .back {
 		display: none;
-	}
-	.toolbar-spacer {
-		flex: 1;
 	}
 	.copy-feedback {
 		position: absolute;
@@ -786,17 +798,17 @@
 		padding-bottom: 18px;
 		border-bottom: 1px solid var(--border);
 	}
-	.ticket-heading h1 {
-		font-size: 23px;
-		line-height: 1.45;
-		font-weight: 650;
-		margin-bottom: 10px;
-		max-width: 780px;
-	}
 	.ticket-number {
+		display: block;
+		margin: 0 0 6px -6px;
+		padding: 1px 6px;
+		border-radius: 6px;
 		font-size: 15px;
 		color: var(--muted-fg);
-		margin-bottom: 6px;
+	}
+	.ticket-number:hover {
+		background: var(--muted);
+		color: var(--foreground);
 	}
 	.ticket-dates {
 		font-size: 12px;
@@ -1231,6 +1243,9 @@
 		.conversation-scroll {
 			padding: 24px 28px;
 		}
+		.reading-toolbar {
+			padding-left: 28px;
+		}
 		.message-body {
 			font-size: 15px;
 		}
@@ -1302,8 +1317,8 @@
 			width: 100%;
 			margin: 0;
 		}
-		.ticket-heading h1 {
-			font-size: 20px;
+		.reading-toolbar {
+			padding-left: 16px;
 		}
 		.composer-footer {
 			align-items: flex-end;
@@ -1528,18 +1543,25 @@
 			display: flex;
 			height: 100%;
 		}
+		/* The title drops below the buttons, since a phone can't fit them on one row. */
 		.has-ticket .reading-toolbar {
-			height: 44px;
-			padding: 0 12px;
+			min-height: 44px;
+			flex-wrap: wrap;
+			padding: 4px 12px 10px;
+		}
+		.reading-toolbar h1 {
+			order: 1;
+			flex-basis: 100%;
+			padding: 4px 8px 0;
+		}
+		.toolbar-position {
+			margin-left: auto;
 		}
 		.reading-toolbar .back {
 			display: inline-flex;
 		}
 		.conversation-scroll {
 			padding: 16px 20px 28px;
-		}
-		.ticket-heading h1 {
-			font-size: 20px;
 		}
 		.ticket-dates {
 			font-size: 11px;

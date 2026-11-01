@@ -136,6 +136,10 @@ export async function createTicket(u: Person, f: FormData) {
 	// Permission first: requesters may only create tickets at Normal priority.
 	if (!staff(u) && f.has('priority') && f.get('priority') !== 'normal')
 		error(403, 'Requesters create tickets at Normal priority.');
+	// Staff can open tickets for someone else. Everyone else is always their own requester.
+	const requesterId = String(f.get('requesterId') || u.id);
+	if (requesterId !== u.id && !staff(u))
+		error(403, 'Only support staff can open tickets for someone else.');
 	const { subject, description, categoryId } = parseForm(createTicketSchema, {
 		subject: f.get('subject'),
 		description: f.get('description'),
@@ -146,10 +150,17 @@ export async function createTicket(u: Person, f: FormData) {
 		.from(category)
 		.where(and(eq(category.id, categoryId), eq(category.active, true)));
 	if (!cat) error(400, 'Choose an active category.');
+	if (requesterId !== u.id) {
+		const [requester] = await db
+			.select({ id: user.id })
+			.from(user)
+			.where(and(eq(user.id, requesterId), eq(user.enabled, true)));
+		if (!requester) error(400, 'Choose an enabled requester.');
+	}
 	return db.transaction(async (tx) => {
 		const [t] = await tx
 			.insert(ticket)
-			.values({ subject, description, categoryId, requesterId: u.id })
+			.values({ subject, description, categoryId, requesterId })
 			.returning();
 		await tx
 			.insert(ticketEvent)

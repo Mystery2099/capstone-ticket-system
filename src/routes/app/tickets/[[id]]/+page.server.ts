@@ -12,7 +12,9 @@ export const actions: Actions = {
 			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
 			throw e;
 		}
-		redirect(303, `/app/tickets/${t.ticketNumber}?view=mine`);
+		// A ticket opened for someone else isn't in My requests, so stay in All open.
+		const view = t.requesterId === locals.user?.id ? 'mine' : 'open';
+		redirect(303, `/app/tickets/${t.ticketNumber}?view=${view}`);
 	},
 	reply: async ({ locals, request, params }) => {
 		try {

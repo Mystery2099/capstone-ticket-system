@@ -48,6 +48,47 @@ test('agents can access unassigned tickets', async () => {
 	);
 	assert.equal(r.tickets.length, 3);
 });
+test('staff can open a ticket for another enabled requester', async () => {
+	const [cat] = await db.select().from(schema.category);
+	const fields = { subject: 'On behalf', description: 'Phoned in', categoryId: cat.id };
+	const t = await service.createTicket(people.priya, form({ ...fields, requesterId: 'marcus' }));
+	assert.equal(t.requesterId, 'marcus');
+	const { eq } = await import('drizzle-orm');
+	const [event] = await db
+		.select()
+		.from(schema.ticketEvent)
+		.where(eq(schema.ticketEvent.ticketId, t.id));
+	assert.equal(event.actorId, 'priya');
+	await assert.rejects(
+		() => service.createTicket(people.priya, form({ ...fields, requesterId: 'nobody' })),
+		(e: any) => e.status === 400
+	);
+	await db.update(schema.user).set({ enabled: false }).where(eq(schema.user.id, 'rosa'));
+	try {
+		await assert.rejects(
+			() => service.createTicket(people.priya, form({ ...fields, requesterId: 'rosa' })),
+			(e: any) => e.status === 400
+		);
+	} finally {
+		await db.update(schema.user).set({ enabled: true }).where(eq(schema.user.id, 'rosa'));
+	}
+});
+test('requesters cannot open a ticket for someone else', async () => {
+	const [cat] = await db.select().from(schema.category);
+	await assert.rejects(
+		() =>
+			service.createTicket(
+				people.marcus,
+				form({
+					subject: 'Spoofed',
+					description: 'Not mine',
+					categoryId: cat.id,
+					requesterId: 'rosa'
+				})
+			),
+		(e: any) => e.status === 403
+	);
+});
 test('ticket creation persists Normal priority and audit event together', async () => {
 	const cats = await db.select().from(schema.category);
 	const t = await service.createTicket(

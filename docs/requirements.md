@@ -17,7 +17,7 @@ A fictional small support team needs a way to submit requests, assign tickets an
 | ID | Requirement |
 |---|---|
 | FR-01 | Seeded users can sign in/out through Better Auth; public signup is disabled. |
-| FR-02 | An authorized user can create a ticket with a subject, description and category. New tickets default to Normal priority. |
+| FR-02 | An authorized user can create a ticket with a subject, description and category. New tickets default to Normal priority. Agents and admins can open a ticket for another enabled user. |
 | FR-03 | Requesters see only their tickets; agents and administrators see all tickets. |
 | FR-04 | Tickets support Open, In Progress, On Hold, Resolved and Closed. |
 | FR-05 | Agents/admins can assign tickets to one enabled agent/admin and change status, category and priority. |

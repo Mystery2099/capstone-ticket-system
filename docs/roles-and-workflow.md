@@ -7,6 +7,7 @@
 | See own tickets | Yes | Yes | Yes |
 | See all tickets | No | Yes | Yes |
 | Create ticket | Yes | Yes | Yes |
+| Create ticket for another requester | No | Yes | Yes |
 | Public reply on accessible, active ticket | Yes | Yes | Yes |
 | Read/write internal notes | No | Yes | Yes |
 | Assign ticket or change status/category | No | Yes | Yes |
@@ -15,7 +16,7 @@
 | Reopen Closed ticket | No | No | Yes |
 | Manage users and categories | No | No | Yes |
 
-Admins inherit agent permissions. A requester creates tickets at Normal priority; server-side checks reject a requester-supplied priority change. Agents see all tickets, including unassigned ones.
+Admins inherit agent permissions. A requester creates tickets at Normal priority; server-side checks reject a requester-supplied priority change or a different requester. Agents see all tickets, including unassigned ones.
 
 **Closed is read-only** until an administrator reopens it to Open. Requesters may reopen only their own Resolved tickets. There's no automatic closure.
 

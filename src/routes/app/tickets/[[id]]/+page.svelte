@@ -24,6 +24,7 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import { delayed } from '$lib/delayed.svelte';
@@ -32,7 +33,7 @@
 		internal = $state(false),
 		expanded = $state(false),
 		details = $state(false),
-		copied = $state(false),
+		copied = $state(''),
 		sending = $state(false),
 		refreshing = $state(false),
 		reopening = $state(false),
@@ -71,6 +72,9 @@
 		if (showNew) dialogOpen = true;
 	});
 	let closed = $derived(t?.statusCode === 'closed');
+	let requesters = $derived(
+		data.people.filter((p) => p.enabled).sort((a, b) => a.name.localeCompare(b.name))
+	);
 	const person = (id: string | null) =>
 		data.people.find((p) => p.id === id)?.name || 'Support team';
 	const role = (id: string) => data.people.find((p) => p.id === id)?.role || 'agent';
@@ -121,10 +125,16 @@
 		await invalidateAll();
 		refreshing = false;
 	}
-	async function copy() {
-		await navigator.clipboard.writeText(window.location.href);
-		copied = true;
-		setTimeout(() => (copied = false), 2000);
+	let copiedTimer: ReturnType<typeof setTimeout>;
+	async function copy(text: string, label: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			copied = label;
+		} catch {
+			copied = 'Couldn’t copy';
+		}
+		clearTimeout(copiedTimer);
+		copiedTimer = setTimeout(() => (copied = ''), 2000);
 	}
 	afterNavigate(({ to }) => {
 		body = '';
@@ -263,6 +273,18 @@
 					};
 				}}
 			>
+				{#if staff}<Label class="flex-col items-start gap-2 mb-3">
+						Requester<select
+							aria-label="Requester"
+							name="requesterId"
+							value={data.user.id}
+							required
+							disabled={creating}
+							>{#each requesters as p (p.id)}<option value={p.id}
+									>{p.name}{p.id === data.user.id ? ' (you)' : ''}</option
+								>{/each}</select
+						>
+					</Label>{/if}
 				<Label class="flex-col items-start gap-2">
 					Subject
 					<Input
@@ -409,11 +431,11 @@
 					href={'/app/tickets' + page.url.search}
 					class="icon-button back"
 					aria-label="Back to tickets"><ArrowLeft size={21} /></a
-				><span class="toolbar-spacer"></span><span class="muted small"
-					>{index >= 0
-						? `${index + 1} of ${data.tickets.length}`
-						: 'Ticket #' + t.ticketNumber}</span
-				><a
+				>
+				<h1>{t.subject}</h1>
+				{#if index >= 0}<span class="toolbar-position muted small"
+						>{index + 1} of {data.tickets.length}</span
+					>{/if}<a
 					class="icon-button"
 					aria-label="Previous ticket"
 					aria-disabled={index <= 0}
@@ -426,14 +448,23 @@
 					href={index >= 0 && index < data.tickets.length - 1
 						? href(data.tickets[index + 1].ticketNumber)
 						: undefined}><ChevronRight size={20} /></a
-				><button class="icon-button" aria-label="Copy ticket link" onclick={copy}
-					><Link size={20} /></button
-				>{#if copied}<span class="copy-feedback" role="status">Link copied</span>{/if}
+				><button
+					class="icon-button"
+					aria-label="Copy ticket link"
+					onclick={() => copy(window.location.href, 'Link copied')}><Link size={20} /></button
+				>{#if copied}<span class="copy-feedback" role="status">{copied}</span>{/if}
 			</div>
 			<div class="conversation-scroll">
 				<div class="ticket-heading">
-					<h1>{t.subject}</h1>
-					<p class="ticket-number">#{t.ticketNumber}</p>
+					<Tooltip.Root>
+						<Tooltip.Trigger
+							class="ticket-number"
+							aria-label={`Copy ticket number #${t.ticketNumber}`}
+							onclick={() => copy(`#${t?.ticketNumber}`, 'Ticket number copied')}
+							>#{t.ticketNumber}</Tooltip.Trigger
+						>
+						<Tooltip.Content side="right" sideOffset={8}>Copy ticket number</Tooltip.Content>
+					</Tooltip.Root>
 					<p class="ticket-dates">
 						Opened by {person(t.requesterId)} · {date(t.createdAt)}, {time(t.createdAt)} · Last updated
 						{date(t.updatedAt)}, {time(t.updatedAt)}
