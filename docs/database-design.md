@@ -8,13 +8,13 @@ This is a **design proposal**, not a migrated or validated database. The aim is 
 
 Better Auth owns `user`, `session`, `account` and `verification`. We'll generate their definitions with the actual installed Better Auth version instead of hand-writing them. Our five application tables are:
 
-| Table | Purpose |
-|---|---|
-| `category` | Ticket categories, with an active flag |
-| `ticket_status` | Open, In Progress, On Hold, Resolved and Closed |
-| `ticket` | Subject, description, requester, optional assignee, status, category, priority and timestamps |
-| `ticket_comment` | Public replies and staff-only internal notes, using `is_internal` |
-| `ticket_event` | Server-written status, assignment, priority and category history |
+| Table            | Purpose                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| `category`       | Ticket categories, with an active flag                                                        |
+| `ticket_status`  | Open, In Progress, On Hold, Resolved and Closed                                               |
+| `ticket`         | Subject, description, requester, optional assignee, status, category, priority and timestamps |
+| `ticket_comment` | Public replies and staff-only internal notes, using `is_internal`                             |
+| `ticket_event`   | Server-written status, assignment, priority and category history                              |
 
 Ticket requester, assignee, comment author and event actor link to Better Auth `user.id`. Its IDs are strings by default; these foreign keys should use the generated compatible type, rather than UUID. Our app records can use UUIDs, alongside a separate readable numeric ticket number.
 

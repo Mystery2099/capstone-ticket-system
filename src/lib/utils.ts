@@ -6,7 +6,7 @@ import { twMerge } from 'tailwind-merge';
  * so later classes win (e.g. a size override passed to a shared component).
  */
 export function cn(...inputs: ClassValue[]) {
-    return twMerge(clsx(inputs));
+	return twMerge(clsx(inputs));
 }
 
 /* Standard shadcn-svelte component property helpers. */

@@ -6,13 +6,13 @@ I'm keeping this project as one SvelteKit application rather than adding a separ
 
 ## Stack and responsibilities
 
-| Layer | Choice | Responsibility |
-|---|---|---|
-| UI | SvelteKit, Svelte 5, Tailwind 4, shadcn-svelte/Bits UI | Ticket screens and responsive navigation |
-| Server | SvelteKit server routes/actions | Validation, permissions, ticket workflows and transactions |
-| Authentication | Better Auth | Email/password login, sessions and auth-managed tables |
-| Database access | Drizzle ORM and Drizzle Kit | Typed queries and tracked migrations |
-| Database | PostgreSQL | Relational integrity, indexes and persisted application data |
+| Layer           | Choice                                                 | Responsibility                                               |
+| --------------- | ------------------------------------------------------ | ------------------------------------------------------------ |
+| UI              | SvelteKit, Svelte 5, Tailwind 4, shadcn-svelte/Bits UI | Ticket screens and responsive navigation                     |
+| Server          | SvelteKit server routes/actions                        | Validation, permissions, ticket workflows and transactions   |
+| Authentication  | Better Auth                                            | Email/password login, sessions and auth-managed tables       |
+| Database access | Drizzle ORM and Drizzle Kit                            | Typed queries and tracked migrations                         |
+| Database        | PostgreSQL                                             | Relational integrity, indexes and persisted application data |
 
 Better Auth manages identity, but it does not automatically enforce who may see a ticket or private note. Those rules belong in server-side application logic. A disabled user's existing session must not grant ticket access.
 

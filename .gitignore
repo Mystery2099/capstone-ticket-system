@@ -28,3 +28,6 @@ build/
 *.log
 playwright-report/
 test-results/
+
+# Local reference sheet with demo logins
+demo-accounts.xlsx

@@ -14,10 +14,11 @@ One full-stack SvelteKit app handles both the web UI and server logic. The brows
 
 ## Current status
 
-Implemented: project setup, PostgreSQL migrations and demo seed,
-Better Auth sign-in, the responsive ticket workspace, user and category administration,
-browser-remembered appearance settings, and loading skeletons with instant reply and
-metadata feedback, all backed by server-side permissions.
+Implemented: project setup, PostgreSQL migrations and demo seed, Better Auth sign-in, the
+responsive ticket workspace, user and category administration, browser-saved ticket drafts,
+appearance settings, a `/health` endpoint and a container image, all backed by server-side
+permissions. Deployment to Azure App Service and a hosted backup restore have not been verified;
+see [docs/azure-deployment.md](docs/azure-deployment.md).
 
 Use Node.js 24+ and pnpm 12.8.1:
 
@@ -32,8 +33,12 @@ Sign in at `http://localhost:5173/login` with `priya.raman@example.test` (agent)
 The fictional demo password is `Capstone2026!`. Local data lives in `.data/postgres`;
 setup applies migrations and seeds only an empty database.
 
-Run `pnpm check`, `pnpm test`, and `pnpm build` to verify the implementation.
-The workflow tests use a disposable database in the system temporary directory.
+Run `pnpm check`, `pnpm test`, `pnpm test:e2e`, and `pnpm build` to verify the implementation.
+The workflow and browser tests use disposable databases in the system temporary directory.
+`TEST_BASE_URL=http://localhost:5173 pnpm test` adds the HTTP acceptance scenario, which briefly
+disables a demo account, so only point it at a disposable fictional server. Copy `.env.example`
+to `.env` to use hosted PostgreSQL. With those settings, `pnpm db:setup` and `pnpm dev` connect
+to that database and apply migrations.
 Production authentication requires `ORIGIN` and `BETTER_AUTH_SECRET`; the local demo
 fallbacks are for development only.
 

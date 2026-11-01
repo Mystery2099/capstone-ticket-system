@@ -25,16 +25,16 @@ I would have `/` redirect to the sign-in screen or an appropriate ticket view ba
 
 ## Roles and navigation
 
-| Area | Requester | Agent | Administrator |
-|---|---|---|---|
-| My Tickets | Yes | Yes | Yes |
-| Assigned to Me | No | Yes | Yes |
-| Unassigned / All Tickets | No | Yes | Yes |
-| Create Ticket | Yes | Yes | Yes |
-| Ticket conversation | Own tickets | All tickets | All tickets |
-| Public reply | Own accessible tickets | Accessible tickets | Accessible tickets |
-| Internal note | No | Yes | Yes |
-| User and category administration | No | No | Yes |
+| Area                             | Requester              | Agent              | Administrator      |
+| -------------------------------- | ---------------------- | ------------------ | ------------------ |
+| My Tickets                       | Yes                    | Yes                | Yes                |
+| Assigned to Me                   | No                     | Yes                | Yes                |
+| Unassigned / All Tickets         | No                     | Yes                | Yes                |
+| Create Ticket                    | Yes                    | Yes                | Yes                |
+| Ticket conversation              | Own tickets            | All tickets        | All tickets        |
+| Public reply                     | Own accessible tickets | Accessible tickets | Accessible tickets |
+| Internal note                    | No                     | Yes                | Yes                |
+| User and category administration | No                     | No                 | Yes                |
 
 An administrator may create tickets, so My Tickets still makes sense for that role. We should avoid placing agent-only destinations in the requester's navigation, although hiding them must never replace the server-side authorization checks.
 

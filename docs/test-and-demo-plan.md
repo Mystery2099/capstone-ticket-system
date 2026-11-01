@@ -1,6 +1,6 @@
 # Capstone Ticket System: Testing and Demonstration Plan
 
-**Status:** Planning checklist; tests have not been implemented yet.
+**Status:** Implemented. Run `pnpm test` for the database and configuration suites, add `TEST_BASE_URL` to include the HTTP acceptance scenario against a disposable server, and run `pnpm test:e2e` for the browser journeys. T15's hosted `pg_dump` restore has not been run.
 
 ## What I want to prove
 
@@ -8,24 +8,24 @@ A working interface isn't enough for this lab. I want to show that PostgreSQL is
 
 ## Acceptance test matrix
 
-| ID | Scenario | Expected result | Main evidence |
-|---|---|---|---|
-| T01 | Requester signs in and creates ticket | Ticket and creation event saved | UI + SQL SELECT |
-| T02 | Submit ticket with missing/invalid category | Validation or foreign-key failure, no partial ticket | Form + integration test |
-| T03 | Requester opens another requester's ticket URL | Access rejected | Authorization test |
-| T04 | Agent opens unassigned and other agents' tickets | Both are visible | Agent list and SQL |
-| T05 | Agent assigns ticket to enabled agent | Assignee changes and history is recorded | UI + transaction test |
-| T06 | Assign ticket to requester or disabled account | Operation rejected | Integration test |
-| T07 | Agent moves ticket to On Hold and resumes it | Valid transitions work and are audited | Workflow test |
-| T08 | Requester reopens own Resolved ticket | Status becomes Open, history recorded | Requester UI + SQL |
-| T09 | Requester tries to reopen another person's ticket | Operation rejected | Authorization test |
-| T10 | Agent adds an internal note | Visible to agent/admin only | Two-role UI test |
-| T11 | Requester manipulates submission to add internal note | Operation rejected | Forged request test |
-| T12 | Requester requests conversation data | No internal note body, metadata or sensitive event details leaked | Server response test |
-| T13 | Status update succeeds but event insert fails | Entire transaction rolls back | Integration test |
-| T14 | Administrator manages categories and roles | Changes persist; non-admin attempts rejected | UI + authorization test |
-| T15 | Backup and restore development database | Restored DB retains expected records | pg_dump / restore verification |
-| T16 | New requirement changes one ticket attribute | Migration, UI and tests updated without data loss | Change log + demo |
+| ID  | Scenario                                              | Expected result                                                   | Main evidence                  |
+| --- | ----------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------ |
+| T01 | Requester signs in and creates ticket                 | Ticket and creation event saved                                   | UI + SQL SELECT                |
+| T02 | Submit ticket with missing/invalid category           | Validation or foreign-key failure, no partial ticket              | Form + integration test        |
+| T03 | Requester opens another requester's ticket URL        | Access rejected                                                   | Authorization test             |
+| T04 | Agent opens unassigned and other agents' tickets      | Both are visible                                                  | Agent list and SQL             |
+| T05 | Agent assigns ticket to enabled agent                 | Assignee changes and history is recorded                          | UI + transaction test          |
+| T06 | Assign ticket to requester or disabled account        | Operation rejected                                                | Integration test               |
+| T07 | Agent moves ticket to On Hold and resumes it          | Valid transitions work and are audited                            | Workflow test                  |
+| T08 | Requester reopens own Resolved ticket                 | Status becomes Open, history recorded                             | Requester UI + SQL             |
+| T09 | Requester tries to reopen another person's ticket     | Operation rejected                                                | Authorization test             |
+| T10 | Agent adds an internal note                           | Visible to agent/admin only                                       | Two-role UI test               |
+| T11 | Requester manipulates submission to add internal note | Operation rejected                                                | Forged request test            |
+| T12 | Requester requests conversation data                  | No internal note body, metadata or sensitive event details leaked | Server response test           |
+| T13 | Status update succeeds but event insert fails         | Entire transaction rolls back                                     | Integration test               |
+| T14 | Administrator manages categories and roles            | Changes persist; non-admin attempts rejected                      | UI + authorization test        |
+| T15 | Backup and restore development database               | Restored DB retains expected records                              | pg_dump / restore verification |
+| T16 | New requirement changes one ticket attribute          | Migration, UI and tests updated without data loss                 | Change log + demo              |
 
 ## Database queries to demonstrate
 
