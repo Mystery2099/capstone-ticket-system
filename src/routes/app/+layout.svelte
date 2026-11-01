@@ -31,10 +31,14 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { delayed } from '$lib/delayed.svelte';
 	import { motionMs } from '$lib/motion';
+	import { setTicketDraft, TicketDraft } from '$lib/ticket-draft.svelte';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
 	} from '$lib/components/skeleton/RouteSkeleton.svelte';
 	let { data, children } = $props();
+	// This layout remounts when the user changes, so reading the id once is correct.
+	// svelte-ignore state_referenced_locally
+	setTicketDraft(new TicketDraft(data.user.id));
 	let drawer = $state(false),
 		query = $state(''),
 		account = $state(false),
@@ -52,7 +56,11 @@
 		if (!to || to.url.pathname === page.url.pathname) return null;
 		const path = to.url.pathname;
 		if (path.startsWith('/app/tickets'))
-			return page.route.id === to.route.id ? null : /\/\d+$/.test(path) ? 'ticket' : 'tickets';
+			return page.route.id === to.route.id
+				? null
+				: /\/(\d+|new)$/.test(path)
+					? 'ticket'
+					: 'tickets';
 		if (path === '/app/admin/users') return 'users';
 		if (path === '/app/admin/categories') return 'categories';
 		return path === '/app/settings' ? 'settings' : null;
@@ -106,13 +114,13 @@
 	$effect(() => {
 		query = page.url.searchParams.get('q') || '';
 	});
-	// Crossfades the main pane once a page's data is ready. The new-ticket dialog is left
-	// out because a named transition layer would paint over it. The layer is only named
+	// Crossfades the main pane once a page's data is ready. Opening a new ticket is left out
+	// because its form is already on screen and being typed in. The layer is only named
 	// while transitioning, since a view-transition-name also creates a stacking context.
 	onNavigate(({ from, to, complete }) => {
 		const sameUrl = from?.url.href === to?.url.href;
-		const dialog = from?.params?.id === 'new' || to?.params?.id === 'new';
-		if (!document.startViewTransition || prefersReducedMotion.current || sameUrl || dialog) return;
+		const writing = to?.params?.id === 'new';
+		if (!document.startViewTransition || prefersReducedMotion.current || sameUrl || writing) return;
 		const root = document.documentElement;
 		root.classList.add('page-transition');
 		return new Promise<void>((resolve) => {
@@ -210,8 +218,11 @@
 					onclick={() => (drawer = false)}><X /></button
 				>
 			</div>
-			<a class="new-ticket" href="/app/tickets/new" onclick={() => (drawer = false)}
-				><SquarePen size={25} /><span>New ticket</span></a
+			<a
+				class="new-ticket"
+				href={'/app/tickets/new' +
+					(page.url.pathname.startsWith('/app/tickets') ? page.url.search : '')}
+				onclick={() => (drawer = false)}><SquarePen size={25} /><span>New ticket</span></a
 			>
 			<div class="sidebar-scroll">
 				<nav aria-label="Tickets">

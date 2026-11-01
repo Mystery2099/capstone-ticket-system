@@ -21,14 +21,11 @@
 	import StatusBadge from '$lib/StatusBadge.svelte';
 	import { statuses, initials } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { Input } from '$lib/components/ui/input/index.js';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import { delayed } from '$lib/delayed.svelte';
+	import { getTicketDraft } from '$lib/ticket-draft.svelte';
 	let { data, form } = $props();
 	let body = $state(''),
 		internal = $state(false),
@@ -43,12 +40,9 @@
 		sendingMessage = $state<{ body: string; isInternal: boolean } | null>(null),
 		// Metadata values chosen but not yet confirmed, keyed by field.
 		chosen = $state<Record<string, string>>({});
-	let newSubject = $state(''),
-		newDescription = $state(''),
-		creating = $state(false),
-		subjectEl = $state<HTMLInputElement | null>(null),
+	const draft = getTicketDraft();
+	let creating = $state(false),
 		formEl = $state<HTMLFormElement>();
-	let dialogOpen = $state(true);
 	let staff = $derived(data.user.role !== 'requester');
 
 	// The list already holds every ticket field except its replies and events, so a
@@ -56,7 +50,8 @@
 	let target = $derived(navigating.to?.route.id === page.route.id ? navigating.to : null);
 	let targetId = $derived(target?.params?.id);
 	let opening = $derived(targetId === 'new');
-	let showNew = $derived(data.isNew || opening);
+	// Leaving the form takes effect at once, so the pane never lags behind a click.
+	let composing = $derived(opening || (data.isNew && !target));
 	let listChanging = $derived(!!target && !opening && target.url.search !== page.url.search);
 	let targetRow = $derived(
 		targetId && !listChanging
@@ -67,11 +62,9 @@
 	let listLoading = $derived(loading.current && listChanging);
 	let paneLoading = $derived(loading.current && !!targetId);
 	let t = $derived(paneLoading ? (targetRow ?? null) : data.selected);
-	let highlighted = $derived(target ? targetRow?.id : data.selected?.id);
-	let hasTicket = $derived(target && !targetId ? false : !!t || paneLoading);
-	$effect(() => {
-		if (showNew) dialogOpen = true;
-	});
+	let highlighted = $derived(composing ? undefined : target ? targetRow?.id : data.selected?.id);
+	let hasTicket = $derived(composing || (target && !targetId ? false : !!t || paneLoading));
+	let listHref = $derived('/app/tickets' + page.url.search);
 	let closed = $derived(t?.statusCode === 'closed');
 	let requesters = $derived(
 		data.people.filter((p) => p.enabled).sort((a, b) => a.name.localeCompare(b.name))
@@ -142,43 +135,160 @@
 		clearTimeout(copiedTimer);
 		copiedTimer = setTimeout(() => (copied = ''), 2000);
 	}
-	afterNavigate(({ to }) => {
+	afterNavigate(() => {
 		body = '';
 		internal = false;
 		expanded = false;
 		details = false;
 		sendError = '';
 		creating = false;
-		// The dialog opens before its navigation lands, so keep anything already typed.
-		if (to?.params?.id !== 'new') {
-			newSubject = '';
-			newDescription = '';
-		}
 	});
 	beforeNavigate(({ cancel }) => {
-		if (
-			(body.trim() || ((newSubject.trim() || newDescription.trim()) && !creating)) &&
-			!confirm('Discard your unsent text and leave this page?')
-		)
-			cancel();
+		// New-ticket drafts need no warning here, because they stay in the list.
+		if (body.trim() && !confirm('Discard your unsent text and leave this page?')) cancel();
 	});
 </script>
 
 <svelte:window
 	onbeforeunload={(e) => {
-		if (body.trim() || ((newSubject.trim() || newDescription.trim()) && !creating)) {
+		if (body.trim() || (draft.dirty && !creating)) {
 			e.preventDefault();
 			e.returnValue = '';
 		}
 	}}
 	onkeydown={(e) => {
-		if (showNew && (e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+		if (!composing || !formEl?.contains(e.target as Node)) return;
+		if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
 			e.preventDefault();
-			formEl?.requestSubmit();
+			formEl.requestSubmit();
+		} else if (e.key === 'Escape' && !creating) {
+			void goto(listHref);
 		}
 	}}
 />
 
+{#snippet compose()}
+	<form
+		bind:this={formEl}
+		class="compose"
+		method="POST"
+		action="?/create"
+		use:enhance={() => {
+			creating = true;
+			return async ({ result, update }) => {
+				if (result.type === 'redirect') draft.reset();
+				await update({ reset: false });
+				creating = false;
+			};
+		}}
+	>
+		<div class="reading-toolbar">
+			<a href={listHref} class="icon-button back" aria-label="Back to tickets"
+				><ArrowLeft size={21} /></a
+			>
+			<div class="ticket-title">
+				<input
+					{@attach (input) => input.focus()}
+					class="compose-subject"
+					name="subject"
+					aria-label="Subject"
+					placeholder="Subject"
+					bind:value={draft.subject}
+					required
+					maxlength={180}
+					readonly={creating}
+				/>
+				<p class="ticket-dates">
+					New ticket{draft.subject.length > 160 ? ` · ${draft.subject.length} / 180` : ''}
+				</p>
+			</div>
+			<a href={listHref} class="icon-button compose-close" aria-label="Close new ticket"
+				><X size={20} /></a
+			>
+		</div>
+		<div class="conversation-scroll compose-body">
+			<div class="ticket-heading">
+				<div class="ticket-metadata">
+					{#if staff}
+						<div class="metadata-control">
+							<span>Requester</span><PersonCombobox
+								name="requesterId"
+								label="Requester"
+								bind:value={draft.requesterId}
+								options={requesters.map(personOption)}
+								disabled={creating}
+							/>
+						</div>
+						<div class="metadata-control">
+							<span>Assignee</span><PersonCombobox
+								name="assignedToUserId"
+								label="Assignee"
+								bind:value={draft.assignedToUserId}
+								options={[{ value: '', label: 'Unassigned' }, ...assignees.map(personOption)]}
+								disabled={creating}
+							/>
+						</div>
+					{/if}
+					<label class="metadata-control">
+						<span>Category</span><select
+							aria-label="Category"
+							name="categoryId"
+							bind:value={draft.categoryId}
+							required
+							disabled={creating}
+							><option value="">Choose</option
+							>{#each data.categories.filter((c) => c.active) as c}<option value={c.id}
+									>{c.name}</option
+								>{/each}</select
+						>
+					</label>
+				</div>
+			</div>
+			{#if form?.error}<p class="error" role="alert">{form.error}</p>{/if}
+			<div class="composer">
+				<textarea
+					name="description"
+					aria-label="Description"
+					placeholder="What happened? Include when it started and what you’ve tried."
+					bind:value={draft.description}
+					required
+					maxlength={4000}
+					rows={8}
+					readonly={creating}></textarea>
+				<div class="composer-footer">
+					<span
+						class="muted small"
+						class:compose-hint={!creating && draft.description.length <= 3600}
+						>{creating
+							? 'Creating ticket…'
+							: draft.description.length > 3600
+								? `${draft.description.length} / 4000`
+								: 'Esc to close · Ctrl+Enter to create'}</span
+					>
+					<span class="compose-actions">
+						<Button
+							variant="ghost"
+							size="sm"
+							class="rounded-full px-4"
+							disabled={creating}
+							onclick={() => {
+								draft.reset();
+								void goto(listHref);
+							}}>Discard</Button
+						>
+						<Button
+							type="submit"
+							size="sm"
+							class="rounded-full px-4 whitespace-nowrap"
+							disabled={creating}
+							><Send size={15} />{creating ? 'Creating…' : 'Create ticket'}</Button
+						>
+					</span>
+				</div>
+			</div>
+		</div>
+	</form>
+{/snippet}
 {#snippet commentMessage(
 	authorId: string,
 	isInternal: boolean,
@@ -248,136 +358,6 @@
 		{/if}
 	</form>
 {/snippet}
-{#if showNew}
-	<Dialog.Root
-		bind:open={dialogOpen}
-		onOpenChange={(open) => {
-			if (!open && !creating)
-				void goto('/app/tickets').finally(() => {
-					if (page.url.pathname.endsWith('/new')) dialogOpen = true;
-				});
-		}}
-	>
-		<Dialog.Content
-			showCloseButton={false}
-			onEscapeKeydown={(event) => {
-				if (creating) event.preventDefault();
-			}}
-			onInteractOutside={(event) => {
-				if (creating) event.preventDefault();
-			}}
-			aria-describedby={undefined}
-			onOpenAutoFocus={(event) => {
-				event.preventDefault();
-				subjectEl?.focus();
-			}}
-			class="w-full max-w-[calc(100%-2rem)] sm:max-w-[580px] gap-0 bg-card border border-border rounded-2xl p-6 shadow-2xl max-h-[90dvh] overflow-y-auto max-md:p-5 max-md:h-dvh max-md:max-h-dvh max-md:content-start max-md:max-w-full max-md:border-0 max-md:rounded-none"
-		>
-			<div class="section-heading">
-				<Dialog.Title class="text-lg font-semibold">New ticket</Dialog.Title>
-				<Dialog.Close class="icon-button" aria-label="Close new ticket"
-					><X size={22} /></Dialog.Close
-				>
-			</div>
-			<form
-				bind:this={formEl}
-				method="POST"
-				action="?/create"
-				use:enhance={() => {
-					creating = true;
-					return async ({ update }) => {
-						await update({ reset: false });
-						creating = false;
-					};
-				}}
-			>
-				{#if staff}<div class="new-ticket-people">
-						<Label class="flex-col items-stretch gap-2">
-							Requester<PersonCombobox
-								name="requesterId"
-								label="Requester"
-								value={data.user.id}
-								options={requesters.map(personOption)}
-								disabled={creating}
-							/>
-						</Label>
-						<Label class="flex-col items-stretch gap-2">
-							Assignee<PersonCombobox
-								name="assignedToUserId"
-								label="Assignee"
-								options={[{ value: '', label: 'Unassigned' }, ...assignees.map(personOption)]}
-								disabled={creating}
-							/>
-						</Label>
-					</div>{/if}
-				<Label class="flex-col items-start gap-2">
-					Subject
-					<Input
-						bind:ref={subjectEl}
-						name="subject"
-						bind:value={newSubject}
-						required
-						maxlength={180}
-						readonly={creating}
-						placeholder="A short summary of your request"
-						class="h-9 font-normal"
-					/>
-				</Label>
-				<div class="field-hint">
-					<span>A short summary of the problem or request</span><span
-						>{newSubject.length} / 180</span
-					>
-				</div>
-				<Label class="flex-col items-start gap-2">
-					Description
-					<Textarea
-						name="description"
-						bind:value={newDescription}
-						rows={6}
-						maxlength={4000}
-						readonly={creating}
-						placeholder="What happened? Include any details that might help us."
-						class="font-normal field-sizing-fixed"
-					/>
-				</Label>
-				<div class="field-hint">
-					<span>What happened, when it started, and what you have tried</span><span
-						>{newDescription.length} / 4000</span
-					>
-				</div>
-				<Label class="flex-col items-start gap-2">
-					Category<select aria-label="Category" name="categoryId" required disabled={creating}
-						><option value="">Choose a category</option
-						>{#each data.categories.filter((c) => c.active) as c}<option value={c.id}
-								>{c.name}</option
-							>{/each}</select
-					>
-				</Label>
-				{#if form?.error}<p class="error mt-3" role="alert">{form.error}</p>{/if}
-				<div class="form-footer items-center">
-					<span class="muted small mr-auto"
-						>{creating ? 'Creating ticket…' : 'Esc to cancel · Ctrl+Enter to create'}</span
-					>
-					<Dialog.Close>
-						{#snippet child({ props })}
-							<Button
-								{...props}
-								variant="outline"
-								class="rounded-full h-9 px-5"
-								disabled={creating}
-							>
-								Cancel
-							</Button>
-						{/snippet}
-					</Dialog.Close>
-					<Button type="submit" class="rounded-full h-9 px-5" disabled={creating}>
-						{creating ? 'Creating…' : 'Create ticket'}
-					</Button>
-				</div>
-			</form>
-		</Dialog.Content>
-	</Dialog.Root>
-{/if}
 <div class="workspace" class:has-ticket={hasTicket}>
 	<section class="ticket-list" aria-label="Ticket list">
 		<div class="list-top">
@@ -417,6 +397,20 @@
 			>
 		</div>
 		{#if listLoading}<TicketRowsSkeleton />{:else}<div class="rows" aria-busy={refreshing}>
+				{#if composing || draft.dirty}<a
+						href={'/app/tickets/new' + page.url.search}
+						class="ticket-row"
+						class:selected={composing}
+						><span class="avatar row-avatar">{initials(person(draft.requesterId))}</span>
+						<div class="row-content">
+							<div class="row-title">
+								<strong>{draft.subject.trim() || 'New ticket'}</strong><time>Draft</time>
+							</div>
+							<div class="row-meta">
+								<span class="row-preview">{draft.description.trim() || 'Nothing written yet'}</span>
+							</div>
+						</div></a
+					>{/if}
 				{#each data.tickets as row}<a
 						href={href(row.ticketNumber)}
 						class="ticket-row"
@@ -449,7 +443,7 @@
 			</div>{/if}
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">
-		{#if paneLoading && !t}<div class="conversation-scroll">
+		{#if composing}{@render compose()}{:else if paneLoading && !t}<div class="conversation-scroll">
 				<ConversationSkeleton heading />
 			</div>{:else if t}<div class="reading-toolbar">
 				<a

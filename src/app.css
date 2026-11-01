@@ -1561,6 +1561,13 @@
 		.reading-toolbar .back {
 			display: inline-flex;
 		}
+		.compose-close,
+		.compose-hint {
+			display: none;
+		}
+		.compose-actions {
+			margin-left: auto;
+		}
 		.conversation-scroll {
 			padding: 12px 20px 28px;
 		}
@@ -2233,11 +2240,59 @@
 	.new-ticket:active {
 		scale: 0.97;
 	}
-	.new-ticket-people {
-		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
-		gap: 12px;
-		margin-bottom: 12px;
+	.compose {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+	}
+	.compose-subject {
+		display: block;
+		width: 100%;
+		min-height: 28px;
+		padding: 0;
+		font-size: 20px;
+		line-height: 28px;
+		font-weight: 650;
+		background: transparent;
+		border: 0;
+		border-radius: 0;
+	}
+	.compose-subject:focus {
+		outline: none;
+	}
+	.compose-body {
+		display: flex;
+		flex-direction: column;
+	}
+	/* The body fills the pane like an email, instead of a fixed box above empty space. */
+	.compose-body .composer {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		min-height: 220px;
+		margin-top: 14px;
+	}
+	.compose-body .composer textarea {
+		flex: 1;
+		resize: none;
+	}
+	.compose .ticket-metadata {
+		display: flex;
+	}
+	/* The ring goes on the rounded box, since the textarea's own square one gets clipped. */
+	.composer textarea:focus {
+		outline: none;
+	}
+	.composer:focus-within {
+		outline: 2px solid var(--primary);
+		outline-offset: -1px;
+	}
+	.compose-actions {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+		flex-shrink: 0;
 	}
 	.combobox-trigger {
 		display: flex;
