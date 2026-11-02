@@ -280,7 +280,7 @@ test('hotkeys focus search, preserve typing, and submit or close ticket forms', 
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.locator('body').click({ position: { x: 1, y: 1 } });
 	await page.keyboard.press('/');
-	await expect(page.getByRole('textbox', { name: 'Search tickets', exact: true })).toBeFocused();
+	await expect(page.getByRole('combobox', { name: 'Search tickets', exact: true })).toBeFocused();
 
 	await openNewTicket(page);
 	const subject = page.getByLabel('Subject', { exact: true });
