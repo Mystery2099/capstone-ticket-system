@@ -49,3 +49,15 @@ When the professor requests a change, I'll record the new requirement, identify 
 - Closed tickets refuse new replies, internal notes and ordinary edits.
 - Agents and requesters cannot reopen Closed tickets; administrators can reopen them to Open and the history records the transition.
 - Requesters can still reopen their own Resolved tickets, without gaining access to other users' tickets.
+
+## Search acceptance checks
+
+Database tests cover reordered words, word forms, subject typos, comment/name matches,
+search highlights, ticket-number redirect permissions, and private-content exclusion in
+live suggestions. Options tests cover requester and creation-date filtering.
+
+For a manual demonstration, type a partial subject, use arrows and Enter to open a
+suggestion, submit an accessible ticket number, search a comment, change result ordering,
+and try the options panel. Check recent-search clearing and the mobile options button.
+Repeat internal-note searches as staff and as the requester. These manual UI checks are
+separate from the database tests; passing the latter does not verify browser interaction.

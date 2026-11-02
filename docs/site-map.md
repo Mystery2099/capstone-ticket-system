@@ -1,6 +1,6 @@
 # Capstone Ticket System: Site Map and Navigation
 
-**Status:** Working draft. The general layout is based on the agreed Gmail-inspired design, but the exact routes and mobile navigation are implementation proposals.
+**Status:** Implemented workspace routes and search behavior; design discussion below explains the layout.
 
 ## How the pages fit together
 
@@ -10,18 +10,21 @@ The application doesn't need a separate page for every ticket list. I want the s
 
 The boxes marked as views, filters, and actions do not need their own routes. Access to a route is not the same as permission to read every record at that route; the server still checks who is signed in and what they're allowed to see.
 
-## Proposed URL structure
+## URL structure
 
 ```text
 /login
 /app/tickets                       list workspace; view/search in query parameters
 /app/tickets/new                   new ticket form
 /app/tickets/[ticketId]            ticket conversation and details
+/app/search/suggest                authenticated live ticket suggestions
+/app/settings                      appearance and settings
+/account-security                  MFA enrollment and verification
 /app/admin/users                   administrator only
 /app/admin/categories              administrator only
 ```
 
-I would have `/` redirect to the sign-in screen or an appropriate ticket view based on the session. We don't need a separate dashboard unless the professor specifically asks for one. Search stays a normal search field rather than a command palette.
+I would have `/` redirect to the sign-in screen or an appropriate ticket view based on the session. We don't need a separate dashboard unless the professor specifically asks for one. Search uses a text field with live ticket/people suggestions, keyboard selection, recent searches, and an options panel. See [search behavior](../README.md#ticket-search).
 
 ## Roles and navigation
 
