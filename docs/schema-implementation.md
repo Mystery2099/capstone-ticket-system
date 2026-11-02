@@ -13,13 +13,13 @@ The schema is composed in `src/lib/server/schema.ts`; tracked migrations live in
 Migrations provision required statuses and built-in roles, not accounts or sample
 tickets. Use [operations](azure-deployment.md) for first-account setup and recovery.
 
-| Migration | Change |
-| --- | --- |
-| `0000_empty_wallow` | Initial auth and ticket schema |
-| `0001_careful_starbolt` | Admin-plugin columns; enabled-to-banned conversion |
-| `0002_black_namor` | MFA, security events, required statuses |
-| `0003_search_subject_trigram` | `pg_trgm` and subject index |
-| `0004_lonely_felicia_hardy` | Saved roles and permissions |
+| Migration                     | Change                                             |
+| ----------------------------- | -------------------------------------------------- |
+| `0000_empty_wallow`           | Initial auth and ticket schema                     |
+| `0001_careful_starbolt`       | Admin-plugin columns; enabled-to-banned conversion |
+| `0002_black_namor`            | MFA, security events, required statuses            |
+| `0003_search_subject_trigram` | `pg_trgm` and subject index                        |
+| `0004_lonely_felicia_hardy`   | Saved roles and permissions                        |
 
 See [database design](database-design.md) for integrity and indexing, and the
 [review checklist](database/schema-review-checklist.md) for validation.

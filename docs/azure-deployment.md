@@ -4,10 +4,8 @@ For free F1 hosting with automatic GitHub deployments, start with
 [the student deployment guide](azure-student-deployment.md). The container-based
 App Service option below requires a plan that supports custom containers.
 
-Run the Linux container on Azure App Service with Azure Database for PostgreSQL.
-The application uses the same authentication and permissions in every environment.
-It has no demo mode, automatic account creation, or shared production password.
-Use fictional ticket content for the course, with individual accounts.
+Shared database provisioning, recovery, and acceptance procedures for either hosting
+option. Use individual accounts and fictional course data.
 
 ## Deployment order
 
@@ -33,9 +31,9 @@ Use fictional ticket content for the course, with individual accounts.
    shell history, or the repository. Remove the file securely after provisioning.
    This command is serialized and refuses to overwrite any existing account.
 
-5. Build and deploy the container. Give the web process only application database
-   credentials. Setup tools run from the trusted checkout, not the runtime image;
-   the image no longer contains migration files.
+5. Build and deploy using the [student hosting workflow](azure-student-deployment.md)
+   or the optional container. Give the web process only application database credentials.
+   Run setup tools from the trusted checkout; the container omits migrations.
 6. Sign in as the first administrator and enroll an authenticator. Save the recovery
    codes in a password manager before completing enrollment. Create individual
    accounts and categories through Administration.
@@ -66,38 +64,23 @@ configuration uses `WEBSITES_PORT=3000`; sidecar configuration uses the containe
 port setting. Enable HTTPS-only access and restrict database network access to
 trusted application and deployment paths.
 
-## Security behavior
+## Security and scaling
 
-- Public signup, direct admin-plugin routes, ordinary profile edits, account
-  deletion, and disabling MFA over HTTP are closed.
-- Administrators must enroll MFA before accessing the workspace. Enrollment
-  revokes older password-only sessions. Subsequent sign-ins require an authenticator
-  or single-use recovery code. Keep `BETTER_AUTH_SECRET` backed up securely: MFA
-  secrets and recovery material depend on it.
-- Administrator writes require an active administrator session with MFA enabled.
-  Account and category mutations commit with
-  their audit events. Passwords and MFA secrets are never included in these events.
-- Disabling an account or changing its role/email revokes its sessions. The last
-  enabled administrator and the current administrator's own access are protected.
-- Application responses use security headers and `Cache-Control: no-store`.
-  SvelteKit generates script CSP nonces; inline styles remain permitted for existing
-  components. HTTPS responses include HSTS.
-- Authenticated application writes are limited to 30 per minute per account, with
-  HTTP 429 and `Retry-After`. This bounded limiter is process-local. Before using
-  multiple instances, use a shared limiter/gateway and verify authentication rate
-  limits across instances. Validate client IP handling at the trusted proxy; do
-  not trust arbitrary forwarding headers from public clients.
-- Ticket lists contain up to 50 rows. Newest-first pages use a ticket-number cursor;
-  relevance pages use page numbers. Search can replace previews with highlighted
-  description/comment excerpts. Full conversations are still loaded together.
+See [authentication](auth-integration.md) and [permissions](permissions.md) for MFA,
+session revocation, account protection, and transactional administrator audits.
+
+Responses use `Cache-Control: no-store`, CSP script nonces, and security headers;
+HTTPS adds HSTS. Existing components require inline styles.
+Authenticated writes are limited to 30 per minute per account, returning HTTP 429
+and `Retry-After`. This limiter is process-local: use a shared limiter/gateway
+before scaling to multiple instances. Verify login throttling and trusted-proxy
+client IP handling on the deployed path.
 
 ## Recovery and existing installations
 
-Existing fictional accounts are not deleted or silently reset by migration. Their
-existing password credentials remain valid until explicitly changed. Some older fictional
-records have no credential at all and cannot sign in until a password is explicitly set. Before exposing an old seeded
-installation, replace those passwords individually or provision a fresh database.
-Do not treat changing or removing old seed environment variables as a password reset.
+Migrations preserve existing accounts and credentials. Older fictional accounts
+may lack passwords; use explicit recovery below. Changing old seed environment
+variables does not reset passwords.
 
 Users normally recover MFA using a saved single-use code. If both the authenticator
 and codes are lost, a trusted database operator must verify the person's identity
@@ -159,6 +142,5 @@ pg_restore --no-owner --dbname="$RESTORE_DATABASE_URL" capstone.dump
 Use an empty restore destination, keep dumps private, and never restore over the
 live database. Reapply runtime grants to the restored database as appropriate.
 Local tests cover migration, provisioning, restricted-role behavior, and embedded
-backup recovery. Azure configuration, hosted TLS/proxy behavior, container execution,
-and a hosted restore must be verified in the actual environment; they have not been
-performed by this implementation.
+backup recovery. Verify hosted TLS/proxy behavior, hosting configuration, and restore recovery in
+the actual environment; local tests do not establish deployment readiness.

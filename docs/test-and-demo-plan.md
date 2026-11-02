@@ -12,18 +12,18 @@ TEST_BASE_URL=http://localhost:5173 pnpm exec vitest run tests/http.test.ts
 
 ## Acceptance checks
 
-| Area | Verify |
-| --- | --- |
-| Accounts | Sign-in/out, MFA enrollment, recovery-code single use, session revocation, disabled-account rejection |
-| Creation | Ticket and event saved together; invalid fields and foreign keys rejected |
-| Authorization | Requesters cannot access others' tickets, change priority, or submit internal notes |
-| Staff workflow | Unassigned tickets visible; assignment rejects disabled or ineligible users; metadata edits audited |
-| Conversation | Public replies visible; internal notes excluded from requester responses, previews, counts, activity, and search |
-| Status | Requesters reopen own Resolved tickets; Closed is read-only until permitted reopening |
-| Transactions | Failed event insertion rolls back its ticket change |
-| Administration | Account, category, and role changes persist; unauthorized access rejected; last-admin protection holds |
-| Search | Word order/forms, typos, comments/names, highlights, filters, number redirects, and permission boundaries |
-| Recovery | Restore PostgreSQL into a separate database and verify relationships, records, and sign-in |
+| Area           | Verify                                                                                                           |
+| -------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Accounts       | Sign-in/out, MFA enrollment, recovery-code single use, session revocation, disabled-account rejection            |
+| Creation       | Ticket and event saved together; invalid fields and foreign keys rejected                                        |
+| Authorization  | Requesters cannot access others' tickets, change priority, or submit internal notes                              |
+| Staff workflow | Unassigned tickets visible; assignment rejects disabled or ineligible users; metadata edits audited              |
+| Conversation   | Public replies visible; internal notes excluded from requester responses, previews, counts, activity, and search |
+| Status         | Requesters reopen own Resolved tickets; Closed is read-only until permitted reopening                            |
+| Transactions   | Failed event insertion rolls back its ticket change                                                              |
+| Administration | Account, category, and role changes persist; unauthorized access rejected; last-admin protection holds           |
+| Search         | Word order/forms, typos, comments/names, highlights, filters, number redirects, and permission boundaries        |
+| Recovery       | Restore PostgreSQL into a separate database and verify relationships, records, and sign-in                       |
 
 Manual browser checks: select a suggestion with arrows/Enter, submit a ticket
 number, change sorting and filters, clear recent searches, and use mobile search.

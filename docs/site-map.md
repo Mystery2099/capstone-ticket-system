@@ -3,19 +3,19 @@
 Desktop uses a sidebar, ticket list, and optional reading pane. Phones show one
 primary page at a time. Both layouts share routes and server permissions.
 
-| URL | Purpose |
-| --- | --- |
-| `/login` | Sign in |
-| `/account-security` | MFA enrollment and verification |
-| `/app/tickets` | Workspace; views and search use query parameters |
-| `/app/tickets/new` | New ticket |
-| `/app/tickets/[ticketId]` | Conversation and details |
-| `/app/search/suggest` | Authenticated search suggestions |
-| `/app/settings` | Appearance and settings |
-| `/app/admin/users` | Account administration |
-| `/app/admin/categories` | Category administration |
-| `/app/admin/roles` | Role administration |
-| `/health` | Application health check |
+| URL                       | Purpose                                          |
+| ------------------------- | ------------------------------------------------ |
+| `/login`                  | Sign in                                          |
+| `/account-security`       | MFA enrollment and verification                  |
+| `/app/tickets`            | Workspace; views and search use query parameters |
+| `/app/tickets/new`        | New ticket                                       |
+| `/app/tickets/[ticketId]` | Conversation and details                         |
+| `/app/search/suggest`     | Authenticated search suggestions                 |
+| `/app/settings`           | Appearance and settings                          |
+| `/app/admin/users`        | Account administration                           |
+| `/app/admin/categories`   | Category administration                          |
+| `/app/admin/roles`        | Role administration                              |
+| `/health`                 | Application health check                         |
 
 My Tickets, Assigned to Me, Unassigned, and All Tickets are workspace views.
 Navigation follows saved capabilities; hiding a destination never replaces server

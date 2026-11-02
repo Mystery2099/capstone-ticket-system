@@ -7,17 +7,11 @@ Azure PostgreSQL database. The deployed URL is:
 
 ## Cost and limits
 
-F1 hosting costs zero and includes 60 CPU minutes per day, 1 GiB memory, and
-1 GiB storage. This is CPU time, not 60 minutes of wall-clock availability.
-The app sleeps when idle and may start slowly. Hitting the daily CPU quota can
-make it unavailable until the quota resets. There is no uptime SLA or Always On.
-The database and GitHub Actions/artifact storage have their own billing/allowances.
-No paid App Service upgrade is performed by the workflow.
-
-[Microsoft's free Linux hosting limits](https://azure.microsoft.com/pricing/details/app-service/linux/).
-The hosting resource group has a monthly budget of 5 in the account's billing
-currency, with alerts at 20%, 80%, and 100% to the signed-in Azure account. Budget
-alerts do not stop spending; the existing database is outside this budget.
+F1 has limited daily CPU, memory, and storage, sleeps when idle, and has no uptime
+SLA or Always On. Check [Microsoft's current limits](https://azure.microsoft.com/pricing/details/app-service/linux/).
+Database and GitHub Actions costs/allowances are separate. The workflow does not
+upgrade the plan. The hosting group's monthly budget is 5 in the billing currency,
+with alerts at 20%, 80%, and 100%; alerts do not stop spending or cover the database.
 
 ## How updates work
 
@@ -65,11 +59,8 @@ Normal code deployment does not require changing these rules. Recheck the full
 possible outbound IP set after a hosting-plan/region change or an Azure infrastructure
 change. [App Service outbound IP behavior](https://learn.microsoft.com/azure/app-service/app-service-ip-addresses).
 
-The earlier Container Apps trial was replaced because its outbound IP changed
-on deployment, breaking narrow database firewall rules. Its resources and rules
-should be removed after the F1 deployment is verified. The existing Dockerfile
-remains available for optional container hosting; the workflow no longer publishes
-container images. The GitHub repository stays private.
+The Dockerfile remains available for optional container hosting. The current
+workflow deploys ZIP releases and the GitHub repository stays private.
 
 ## Deployment identity
 
@@ -103,14 +94,11 @@ Reapply `scripts/runtime-grants.sql` after relevant schema changes. See
 MFA recovery, runtime privileges, backup/restore, and hosted acceptance checks.
 Use backward-compatible schema changes: rolling back code does not roll back data.
 
-To redeploy, run the Azure deployment workflow on `main`. To roll back, download
-an earlier `azure-release` artifact and deploy its `release.zip` to the existing
-web app with `az webapp deploy --type zip`, using the hosting group and app name
-above. This works only while that artifact is retained. For older releases, revert
-the relevant changes on `main` to trigger a fresh build, or rebuild the earlier
-revision with its lockfile and deploy the resulting ZIP. Keep secret settings
-stable across deployments. A failed health check
-fails the workflow; it does not automatically restore the previous release.
+To redeploy, run the workflow on `main`. To roll back within the seven-day artifact
+retention window, deploy an earlier `azure-release` artifact's `release.zip` with
+`az webapp deploy --type zip` to the app above. Otherwise, revert the relevant code
+on `main` or rebuild the earlier revision with its lockfile. Keep secrets stable.
+A failed health check fails the workflow without automatically rolling back.
 
 Private runtime recovery settings are in the deployment worktree's
 `.data/azure-deployment/runtime-secrets.json`, file mode 600, excluded from Git and

@@ -1,31 +1,19 @@
-# Requirements Change Log
+# Change log
 
-## Baseline v0.1 — Initial proposal
+## 2026-11-02 — Search
 
-**Date:** 2026-10-30  
-**Status:** Proposed, not yet demonstrated or reviewed  
-**Scope:** Generic ticketing system, requester/agent/admin roles, one assigned agent per ticket, categories, statuses, comments, and event history.
+Added ranked full-text/prefix search, subject typo matching, highlighted snippets,
+ticket-number navigation, suggestions, keyboard selection, recent searches,
+filters, and sorting. Permission checks cover matching and excerpts.
+`0003_search_subject_trigram` adds the subject index and requires Azure to allow-list
+`PG_TRGM`. See [search](search.md) and the [test plan](test-and-demo-plan.md).
 
-## Template for new professor-requested changes
+## 2026-10-30 — Initial proposal
 
-- **Change ID / date:**
-- **Requested by / exact request:**
-- **Initial behavior:**
-- **New expected behavior:**
-- **Impact on schema/API/UI/security:**
-- **Migration plan / data compatibility:**
-- **Tests and evidence:**
-- **Status / approval:**
+Requester, agent, and administrator roles; one assignee per ticket; categories,
+statuses, comments, and event history.
 
-## Search improvements — 2026-11-02
+## Professor-requested changes
 
-Implemented ranked full-text/prefix search across ticket content, names and categories,
-subject typo matching, highlighted snippets, ticket-number navigation, live suggestions,
-keyboard selection, per-account browser recent searches, expanded filters, and result
-sorting. Requester ownership and internal-note visibility apply throughout search.
-Migration `0003_search_subject_trigram` adds `pg_trgm` and its subject index; Azure must
-allow-list the extension before migration. No external search service or search column.
-
-Verification includes type checks, lint, production build, and database tests for
-matching, redirects, suggestions, and permissions. Browser interaction checks remain
-part of the manual acceptance plan.
+Record the date/request, expected behavior, affected schema/UI/permissions,
+migration or recovery plan, verification evidence, and approval status.

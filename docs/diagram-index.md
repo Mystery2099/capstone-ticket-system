@@ -12,4 +12,5 @@ All diagrams are standalone Mermaid source files so we can edit or render them i
 - [Internal note visibility](diagrams/internal-notes-visibility.mmd)
 - [Status update transaction](diagrams/status-update-transaction.mmd)
 
-These are planning diagrams, not verified representations of running code.
+Diagrams are design references and may lag implementation. Use the linked source
+and current documentation to verify behavior.

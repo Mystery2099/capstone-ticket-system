@@ -5,6 +5,7 @@ The Drizzle definitions are the column-level reference:
 - [Auth tables](../../src/lib/server/auth-schema.ts): identity, credentials, sessions, MFA.
 - [Ticket tables](../../src/lib/server/ticket-schema.ts): categories, statuses, tickets,
   comments, ticket events, and security events.
+- [Role tables](../../src/lib/server/role-schema.ts): saved roles and capabilities.
 - [Composed schema](../../src/lib/server/schema.ts): application schema exports.
 
 User IDs and their foreign keys are text. Ticket, category, comment, and event IDs

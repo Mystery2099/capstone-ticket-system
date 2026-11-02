@@ -1,6 +1,9 @@
 # Roles and ticket workflow
 
-## Permissions
+## Built-in defaults
+
+Custom roles can change ticket capabilities. See [saved permissions](permissions.md);
+server checks use granted capabilities rather than role names.
 
 | Action                                      | Requester | Agent | Administrator |
 | ------------------------------------------- | --------- | ----- | ------------- |
@@ -17,9 +20,10 @@
 | Reopen Closed ticket                        | No        | No    | Yes           |
 | Manage users and categories                 | No        | No    | Yes           |
 
-Admins inherit agent permissions. A requester creates tickets at Normal priority; server-side checks reject a requester-supplied priority change or a different requester. Agents see all tickets, including unassigned ones.
+The built-in Administrator role includes agent permissions. A requester creates tickets at Normal priority; server-side checks reject a requester-supplied priority change or a different requester. Agents see all tickets, including unassigned ones.
 
-**Closed is read-only** until an administrator reopens it to Open. Requesters may reopen only their own Resolved tickets. There's no automatic closure.
+**Closed is read-only** until a user with `reopenClosedTickets` reopens it to Open
+(Administrator by default). Requesters may reopen only their own Resolved tickets. There's no automatic closure.
 
 Public comments and internal notes share the ticket conversation but have distinct visibility. Requester endpoints, list previews, searches and history must never include internal note contents. Ticket mutations and corresponding audit metadata belong in one database transaction.
 

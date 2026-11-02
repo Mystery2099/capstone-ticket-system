@@ -32,10 +32,8 @@ only accepts Open. Resolved and Closed receive the matching timestamp. Signed-in
 users retain the baseline ability to create their own tickets and post public
 replies on accessible tickets that are not closed.
 
-Disabled accounts cannot access the app. Closed tickets stay read-only until
-reopened, assignees must be enabled and permitted to receive assignments, and
-categories must be active. Administration requires MFA. The last enabled
-administrator and an administrator's own access remain protected.
+See [workflow rules](roles-and-workflow.md) and [authentication](auth-integration.md)
+for account, MFA, and ticket restrictions.
 
 ## Deployment
 
