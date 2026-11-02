@@ -5,7 +5,7 @@
 
 <p class="sr-only" role="status">Loading tickets</p>
 <div class="rows skeleton-fade" aria-hidden="true">
-	{#each widths as width}
+	{#each widths as width, index (index)}
 		<div class="ticket-row skeleton-row">
 			<span class="avatar row-avatar skeleton"></span>
 			<div class="row-content">

@@ -41,7 +41,7 @@ credentials; the web process should use the restricted login described in the de
 runbook. Production requires an exact HTTPS `ORIGIN`, a strong `BETTER_AUTH_SECRET`,
 and hosted PostgreSQL. `pnpm db:setup` is a migration-only alias.
 
-Run `pnpm check`, `pnpm test`, and `pnpm build` for verification. Tests create fictional
+Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build` for verification. Tests create fictional
 fixtures explicitly in disposable databases; fixtures cannot run outside `NODE_ENV=test`.
 `pnpm test:e2e` starts its own isolated test server. The optional
 `TEST_BASE_URL=http://localhost:5173 pnpm exec vitest run tests/http.test.ts` scenario
@@ -69,3 +69,7 @@ The UI direction is a Gmail-inspired ticket workspace with responsive mobile lay
 Verify hosted HTTPS/proxy configuration and login throttling, apply restricted database
 grants, and complete a backup/restore drill before sharing the deployment. Use a shared
 rate limiter before scaling to multiple application instances.
+
+ESLint checks JavaScript, TypeScript and Svelte files with the recommended rules.
+Use `pnpm lint:fix` for automatic fixes and `pnpm format` for Prettier formatting.
+Generated migrations, build output and local database files are excluded from linting.

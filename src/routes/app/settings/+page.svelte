@@ -36,7 +36,7 @@
 				<p>Remembered in this browser.</p>
 			</div>
 			<fieldset class="appearance-radios" aria-label="Appearance">
-				{#each [{ value: 'system', label: 'Follow system', hint: '(default)' }, { value: 'light', label: 'Light', hint: '' }, { value: 'dark', label: 'Dark', hint: '' }] as option}<label
+				{#each [{ value: 'system', label: 'Follow system', hint: '(default)' }, { value: 'light', label: 'Light', hint: '' }, { value: 'dark', label: 'Dark', hint: '' }] as option (option.value)}<label
 						><input
 							type="radio"
 							name="theme"

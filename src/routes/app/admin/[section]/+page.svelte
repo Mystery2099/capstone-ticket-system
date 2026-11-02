@@ -158,7 +158,10 @@
 		categoryForm.reset({ data: { id, name, active } });
 	}
 	$effect(() => {
+		// Read these selections so the effect resets forms when either changes.
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		selectedUser;
+		// eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		selectedCategory;
 		untrack(() => {
 			revertUser();

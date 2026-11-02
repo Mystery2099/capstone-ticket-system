@@ -44,7 +44,7 @@ test('requester queries exclude other tickets, private notes, and note events', 
 test('guessed ticket numbers do not reveal another requester ticket', async () => {
 	await assert.rejects(
 		() => service.loadTicketWorkspace(people.rosa, new URL('http://localhost/app/tickets'), '1046'),
-		(e: any) => e.status === 404
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 404
 	);
 });
 test('the drafts view fetches no tickets', async () => {
@@ -74,13 +74,13 @@ test('staff can open a ticket for another enabled requester', async () => {
 	assert.equal(event.actorId, 'priya');
 	await assert.rejects(
 		() => service.createTicket(people.priya, form({ ...fields, requesterId: 'nobody' })),
-		(e: any) => e.status === 400
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 	);
 	await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, 'rosa'));
 	try {
 		await assert.rejects(
 			() => service.createTicket(people.priya, form({ ...fields, requesterId: 'rosa' })),
-			(e: any) => e.status === 400
+			(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 		);
 	} finally {
 		await db.update(schema.user).set({ banned: false }).where(eq(schema.user.id, 'rosa'));
@@ -105,11 +105,11 @@ test('staff can assign a ticket when creating it', async () => {
 	});
 	await assert.rejects(
 		() => service.createTicket(people.priya, form({ ...fields, assignedToUserId: 'marcus' })),
-		(e: any) => e.status === 400
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 	);
 	await assert.rejects(
 		() => service.createTicket(people.marcus, form({ ...fields, assignedToUserId: 'priya' })),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 });
 test('requesters cannot open a ticket for someone else', async () => {
@@ -125,7 +125,7 @@ test('requesters cannot open a ticket for someone else', async () => {
 					requesterId: 'rosa'
 				})
 			),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 });
 test('ticket creation persists Normal priority and audit event together', async () => {
@@ -156,27 +156,27 @@ test('requester priority injection and private notes are rejected', async () => 
 					priority: 'high'
 				})
 			),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 	await assert.rejects(
 		() => service.addTicketComment(people.marcus, 1046, form({ body: 'secret', internal: 'true' })),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 	await assert.rejects(
 		() =>
 			service.updateTicketField(people.marcus, 1046, form({ field: 'priority', value: 'high' })),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 });
 test('closed tickets reject replies and edits; only admin reopens', async () => {
 	await assert.rejects(
 		() => service.addTicketComment(people.priya, 1039, form({ body: 'not allowed' })),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 	await assert.rejects(
 		() =>
 			service.updateTicketField(people.priya, 1039, form({ field: 'statusCode', value: 'open' })),
-		(e: any) => e.status === 403
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
 	await service.updateTicketField(
 		people.jordan,
@@ -237,11 +237,11 @@ test('malformed category is a validation error and blank replies fail', async ()
 				people.marcus,
 				form({ subject: 'Test', description: 'Test', categoryId: 'invalid' })
 			),
-		(e: any) => e.status === 400
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 	);
 	await assert.rejects(
 		() => service.addTicketComment(people.priya, 1046, form({ body: '  ' })),
-		(e: any) => e.status === 400
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 	);
 });
 
@@ -254,7 +254,7 @@ test('assignment rejects requesters and disabled agents, and successful changes 
 				1046,
 				form({ field: 'assignedToUserId', value: 'marcus' })
 			),
-		(e: any) => e.status === 400
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 	);
 	await db.update(schema.user).set({ banned: true }).where(eq(schema.user.id, 'priya'));
 	await assert.rejects(
@@ -264,7 +264,7 @@ test('assignment rejects requesters and disabled agents, and successful changes 
 				1046,
 				form({ field: 'assignedToUserId', value: 'priya' })
 			),
-		(e: any) => e.status === 400
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 	);
 	await db.update(schema.user).set({ banned: false }).where(eq(schema.user.id, 'priya'));
 	await service.updateTicketField(
@@ -337,7 +337,7 @@ test('oversized and whitespace-only ticket inputs fail with controlled validatio
 					people.marcus,
 					form({ subject, description: 'Valid description', categoryId: categories[0].id })
 				),
-			(e: any) => e.status === 400
+			(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 		);
 	}
 });
@@ -354,7 +354,7 @@ test('invalid metadata enum and malformed category references fail without chang
 	]) {
 		await assert.rejects(
 			() => service.updateTicketField(people.priya, 1046, form(values)),
-			(e: any) => e.status === 400
+			(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
 		);
 	}
 	const after = await service.loadTicketWorkspace(

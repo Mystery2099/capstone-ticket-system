@@ -88,7 +88,9 @@
 						lose your authenticator.
 					</p>
 					<div class="grid grid-cols-2 gap-2">
-						{#each backupCodes as backupCode}<code class="select-all">{backupCode}</code>{/each}
+						{#each backupCodes as backupCode (backupCode)}<code class="select-all"
+								>{backupCode}</code
+							>{/each}
 					</div>
 					<label class="flex gap-2 items-center"
 						><input type="checkbox" bind:checked={savedCodes} required /> I saved my recovery codes</label

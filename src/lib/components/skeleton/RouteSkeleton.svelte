@@ -34,7 +34,7 @@
 		<header class="admin-header"><h1>Settings</h1></header>
 		<p class="sr-only" role="status">Loading settings</p>
 		<div class="settings-content skeleton-fade" aria-hidden="true">
-			{#each [3, 2] as lines}
+			{#each [3, 2] as lines (lines)}
 				<section class="setting-row">
 					<div>
 						<span class="skeleton mb-2 h-4 w-24"></span>

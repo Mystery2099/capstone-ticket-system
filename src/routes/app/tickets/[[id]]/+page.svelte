@@ -606,7 +606,7 @@
 				class="rows"
 				aria-busy={isRefreshing}
 			>
-				{#each data.tickets as row}<a
+				{#each data.tickets as row (row.id)}<a
 						href={ticketHref(row.ticketNumber)}
 						class="ticket-row"
 						class:selected={highlightedTicketId === row.id}
@@ -797,7 +797,7 @@
 								>Earlier comments and activity hidden</span
 							><button class="text-link" onclick={() => (showAllActivity = true)}>Show all</button>
 						</div>{/if}
-					{#each visibleTimeline as item}{#if item.kind === 'comment'}{@render commentMessage(
+					{#each visibleTimeline as item (`${item.kind}-${item.id}`)}{#if item.kind === 'comment'}{@render commentMessage(
 								item.authorId,
 								item.isInternal,
 								`${date(item.createdAt)}, ${time(item.createdAt)}`,

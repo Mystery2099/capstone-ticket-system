@@ -44,7 +44,7 @@
 		>
 		<div class="sidebar-scroll">
 			<nav aria-label="Tickets">
-				{#each nav as n}
+				{#each nav as n (n.key)}
 					{#snippet viewLink()}
 						<Tooltip.Root>
 							<Tooltip.Trigger>

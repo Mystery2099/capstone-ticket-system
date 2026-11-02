@@ -24,12 +24,12 @@
 			</div>
 		</div>
 	{/if}
-	{#each messages as lines}
+	{#each messages as lines, index (index)}
 		<div class="message">
 			<span class="avatar skeleton"></span>
 			<div class="message-content">
 				<span class="skeleton mb-3 h-3.5 w-32"></span>
-				{#each lines as width}
+				{#each lines as width, index (index)}
 					<span class="skeleton mb-2 h-3" style:width="{width}%"></span>
 				{/each}
 			</div>

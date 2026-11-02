@@ -47,10 +47,9 @@
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
 	let sidebarOpen = $state(data.sidebarOpen);
-	let query = $state('');
+	let query = $derived(page.url.searchParams.get('q') || '');
 	let account = $state(false);
 	let signingOut = $state(false);
-	let categoriesOpen = $state(true);
 	let staff = $derived(data.user.role !== 'requester');
 	// Navigation highlights follow the destination, so clicks register before data arrives.
 	let url = $derived(navigating.to?.url ?? page.url);
@@ -136,9 +135,6 @@
 	let nav = $derived(
 		draftsLink.count || view === 'drafts' ? [...ticketViews, draftsLink] : ticketViews
 	);
-	$effect(() => {
-		query = page.url.searchParams.get('q') || '';
-	});
 	// Crossfades the main pane once a page's data is ready. Opening a new ticket is left out
 	// because its form is already on screen and being typed in. The layer is only named
 	// while transitioning, since a view-transition-name also creates a stacking context.
@@ -161,7 +157,8 @@
 		const p = new URLSearchParams(page.url.searchParams);
 		p.delete('draft');
 		if (p.get('view') === 'drafts') p.delete('view');
-		query.trim() ? p.set('q', query.trim()) : p.delete('q');
+		if (query.trim()) p.set('q', query.trim());
+		else p.delete('q');
 		await goto('/app/tickets?' + p);
 	}
 	async function signOut(): Promise<void> {
@@ -255,7 +252,7 @@
 		<div class={routeLoading.current ? 'hidden' : 'contents'}>{@render children()}</div>
 	</main>
 	<nav class="mobile-nav" aria-label="Mobile navigation">
-		{#each nav.slice(0, 3) as n}<a
+		{#each nav.slice(0, 3) as n (n.key)}<a
 				class:active={view === n.key && url.pathname.startsWith('/app/tickets')}
 				href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
 			>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
