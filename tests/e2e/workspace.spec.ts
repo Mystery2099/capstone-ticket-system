@@ -362,3 +362,10 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 	await expect(page).toHaveURL(/\/login$/);
 });
+
+test('search options remain accessible at the upper mobile breakpoint', async ({ page }) => {
+	await signIn(page, 'marcus.lee@example.test');
+	await page.setViewportSize({ width: 735, height: 900 });
+	await page.getByRole('button', { name: 'Search options', exact: true }).click();
+	await expect(page.getByLabel('Created on or after')).toBeVisible();
+});

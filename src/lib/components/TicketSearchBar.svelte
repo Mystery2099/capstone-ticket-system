@@ -415,7 +415,7 @@
 		flex-direction: row;
 		align-items: center;
 	}
-	@media (max-width: 700px) {
+	@media (max-width: 767px) {
 		.ticket-search {
 			max-width: none;
 			width: 100%;

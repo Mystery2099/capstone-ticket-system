@@ -30,12 +30,15 @@ export class TicketSearchQuery {
 	readonly searchText: string;
 	/** Text for `to_tsquery`, or null when nothing searchable is left. */
 	readonly tsQueryText: string | null;
+	/** Positive terms joined with OR so each field can explain its own part of a match. */
+	private readonly highlightQueryText: string | null;
 	/** Set when the whole search is a ticket number such as `1046` or `#1046`. */
 	readonly ticketNumber: number | null;
 
 	constructor(rawSearchText: string) {
 		this.searchText = rawSearchText.trim().slice(0, MAX_SEARCH_LENGTH);
 		this.tsQueryText = TicketSearchQuery.buildTsQueryText(this.searchText);
+		this.highlightQueryText = TicketSearchQuery.buildTsQueryText(this.searchText, true);
 		const ticketNumberMatch = /^#?(\d{1,15})$/.exec(this.searchText);
 		this.ticketNumber = ticketNumberMatch ? Number(ticketNumberMatch[1]) : null;
 	}
@@ -49,7 +52,7 @@ export class TicketSearchQuery {
 	 * Words match as prefixes, so results appear while a word is still being typed.
 	 * Quoted text must appear as an exact phrase, and a leading `-` excludes a word or phrase.
 	 */
-	private static buildTsQueryText(searchText: string): string | null {
+	private static buildTsQueryText(searchText: string, highlightOnly = false): string | null {
 		const includedTerms: string[] = [];
 		const excludedTerms: string[] = [];
 		for (const tokenMatch of searchText.matchAll(TOKEN_PATTERN)) {
@@ -62,7 +65,9 @@ export class TicketSearchQuery {
 			else includedTerms.push(`(${term})`);
 		}
 		if (!includedTerms.length) return null;
-		return [...includedTerms, ...excludedTerms].join(' & ');
+		return highlightOnly
+			? includedTerms.join(' | ')
+			: [...includedTerms, ...excludedTerms].join(' & ');
 	}
 
 	private tsQuery(): SQL {
@@ -140,23 +145,24 @@ export class TicketSearchQuery {
 		const highlightsByTicketId = new Map<string, TicketSearchHighlight>();
 		if (!this.tsQueryText || !ticketIds.length) return highlightsByTicketId;
 
+		const highlightQuery = sql`to_tsquery('english', ${this.highlightQueryText})`;
 		const requesterName = sql`coalesce((select ${user.name} from ${user} where ${user.id} = ${ticket.requesterId}), '')`;
 		const assigneeName = sql`coalesce((select ${user.name} from ${user} where ${user.id} = ${ticket.assignedToUserId}), '')`;
 		const categoryName = sql`coalesce((select ${category.name} from ${category} where ${category.id} = ${ticket.categoryId}), '')`;
 		const ticketHeadlines = await db
 			.select({
 				id: ticket.id,
-				requesterHeadline: sql<string>`ts_headline('english', ${requesterName}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS})`,
-				assigneeHeadline: sql<string>`ts_headline('english', ${assigneeName}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS})`,
-				categoryHeadline: sql<string>`ts_headline('english', ${categoryName}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS})`,
+				requesterHeadline: sql<string>`ts_headline('english', ${requesterName}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS})`,
+				assigneeHeadline: sql<string>`ts_headline('english', ${assigneeName}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS})`,
+				categoryHeadline: sql<string>`ts_headline('english', ${categoryName}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS})`,
 				subjectHeadline: sql<
 					string | null
-				>`case when to_tsvector('english', ${ticket.subject}) @@ ${this.tsQuery()}
-					then ts_headline('english', ${ticket.subject}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS}) end`,
+				>`case when to_tsvector('english', ${ticket.subject}) @@ ${highlightQuery}
+					then ts_headline('english', ${ticket.subject}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS}) end`,
 				descriptionHeadline: sql<
 					string | null
-				>`case when to_tsvector('english', ${ticket.description}) @@ ${this.tsQuery()}
-					then ts_headline('english', ${ticket.description}, ${this.tsQuery()}, ${SNIPPET_HEADLINE_OPTIONS}) end`
+				>`case when to_tsvector('english', ${ticket.description}) @@ ${highlightQuery}
+					then ts_headline('english', ${ticket.description}, ${highlightQuery}, ${SNIPPET_HEADLINE_OPTIONS}) end`
 			})
 			.from(ticket)
 			.where(inArray(ticket.id, ticketIds));
@@ -164,14 +170,14 @@ export class TicketSearchQuery {
 			.selectDistinctOn([ticketComment.ticketId], {
 				ticketId: ticketComment.ticketId,
 				authorId: ticketComment.authorId,
-				headline: sql<string>`ts_headline('english', ${ticketComment.body}, ${this.tsQuery()}, ${SNIPPET_HEADLINE_OPTIONS})`
+				headline: sql<string>`ts_headline('english', ${ticketComment.body}, ${highlightQuery}, ${SNIPPET_HEADLINE_OPTIONS})`
 			})
 			.from(ticketComment)
 			.where(
 				and(
 					inArray(ticketComment.ticketId, ticketIds),
 					includeInternalNotes ? undefined : eq(ticketComment.isInternal, false),
-					sql`to_tsvector('english', ${ticketComment.body}) @@ ${this.tsQuery()}`
+					sql`to_tsvector('english', ${ticketComment.body}) @@ ${highlightQuery}`
 				)
 			)
 			.orderBy(ticketComment.ticketId, desc(ticketComment.createdAt), desc(ticketComment.id));

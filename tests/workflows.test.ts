@@ -508,3 +508,30 @@ test('renamed assignees explain name matches in suggestions and full results', a
 			.where(eq(schema.user.id, 'jordan'));
 	}
 });
+
+test('search highlights positive terms across fields without including excluded terms', async () => {
+	const workspace = await service.loadTicketWorkspace(
+		people.priya,
+		new URL('http://localhost/app/tickets?q=vpn%20marcus%20-unicorn')
+	);
+	const row = workspace.tickets.find((record) => record.ticketNumber === 1046)!;
+	assert(
+		row.subjectHighlight?.some((segment) => segment.isMatch && segment.text.toLowerCase() === 'vpn')
+	);
+	assert(
+		row.searchMetadataMatches.some(
+			(match) =>
+				match.label === 'Requested by' &&
+				match.segments.some((segment) => segment.isMatch && segment.text === 'Marcus')
+		)
+	);
+	const comments = await service.loadTicketWorkspace(
+		people.marcus,
+		new URL('http://localhost/app/tickets?q=ethernet%20marcus')
+	);
+	assert(
+		comments.tickets
+			.find((record) => record.ticketNumber === 1046)
+			?.previewHighlight?.some((segment) => segment.isMatch && segment.text === 'Ethernet')
+	);
+});
