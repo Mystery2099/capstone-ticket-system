@@ -6,6 +6,40 @@ Azure PostgreSQL server. This is an alternative to the App Service instructions
 in [azure-deployment.md](azure-deployment.md); its database preparation,
 account provisioning, and acceptance checks still apply.
 
+## Current deployment (November 2, 2026)
+
+The app is deployed at
+[capstone-tickets](https://capstone-tickets.thankfulground-fa892d65.canadacentral.azurecontainerapps.io).
+The repository remains private; the built application image is public on GHCR.
+
+- Hosting resource group: `rg-capstone-web`, Canada Central.
+- Environment: `cae-capstone`. Azure provisioned the Express environment variant,
+  which uses the same Consumption billing/free grant. The standard-environment
+  instructions below remain an alternative for a fresh deployment.
+- App: `capstone-tickets`, 0.25 vCPU / 0.5 GiB, minimum zero / maximum one replica.
+- Deployment identity: `id-capstone-github`, with Container Apps Contributor on
+  the hosting resource group only; GitHub environment `azure` accepts `main`.
+- Database login: `capstone_web`, inheriting the restricted `capstone_runtime`
+  role. The existing database and authentication secret are preserved, so use
+  your existing sign-in and authenticator.
+- Azure secrets: `postgres-password` and `auth-secret`; neither value is in GitHub.
+- Database firewall rule: `capstone-web-egress-1`, allowing the observed single
+  outbound address. No all-Azure-services or all-Internet rule was enabled.
+  Outbound addresses can change: if database connectivity fails after a cold
+  start or platform change, inspect the current egress address and update this
+  narrow rule. A guaranteed fixed address requires additional networking/cost.
+
+Private runtime credential recovery data is in the deployment worktree's
+`.data/azure-deployment/runtime-secrets.json` (file mode 600, excluded from Git and
+Docker). Back it up to a password manager; do not copy it into tracked files.
+Azure also holds the runtime secrets. Keep the existing local `.env` private.
+
+[Express pricing and capabilities](https://learn.microsoft.com/azure/container-apps/express-faq)
+use the same free grant as standard Consumption. Express has a smaller supported
+configuration surface: avoid custom revision suffixes and explicit workload
+profile settings when updating this app. Public GHCR pulls work anonymously;
+do not add a registry entry containing only a server and no credentials.
+
 ## Cost and behavior
 
 Container Apps includes 180,000 vCPU-seconds, 360,000 GiB-seconds, and two million
@@ -89,7 +123,10 @@ Keep the authentication secret backed up securely.
 1. In GitHub repository Settings → Environments, create **azure**. Restrict its
    deployment branches to `main`. Required approvals are optional; adding them
    means deployments will wait for approval.
-2. In Microsoft Entra ID → App registrations, create an application for this repo.
+2. Use a user-assigned managed identity (as in the current deployment), or create
+   an application for this repo in Microsoft Entra ID → App registrations.
+   For a managed identity, add its federated credential under the identity's
+   Federated credentials page and use its client ID in GitHub. For an app registration:
    Under Certificates & secrets → Federated credentials, add a GitHub Actions
    credential for owner `Mystery2099`, repository `capstone-ticket-system`, entity
    **Environment**, environment **azure**. Subject must be
@@ -134,5 +171,5 @@ serving; inspect revision status and live logs rather than assuming an outage.
 
 Create a small monthly Azure budget with email alerts, and review Cost Analysis
 and the student credit balance after your first few demos. Alerts do not stop
-spending. No Azure resources, federated identities, or role assignments are
-provisioned by this branch.
+spending. The workflow itself does not create Azure resources, federated identities, or
+role assignments; the current deployment above was provisioned separately.
