@@ -1,6 +1,6 @@
 import type { PersonRole } from './person';
 
-/** Shared by the UI and server. Change a role's capabilities here, never in browser state. */
+/** Capability names shared by the UI and server. Saved role grants live in the database. */
 export type Permission =
 	| 'viewAllTickets'
 	| 'createTicketsForOthers'
@@ -32,7 +32,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<PersonRole, readonly Permission[]
 	admin: [...SUPPORT_PERMISSIONS, 'reopenClosedTickets', 'manageAdministration']
 };
 
-/** Unknown or missing roles have no permissions. */
+/** Request subjects use fresh database grants; bare role names expose built-in defaults only. */
 export type PermissionSubject = { role: string | null; permissions?: readonly Permission[] };
 
 export function hasPermission(
@@ -40,7 +40,7 @@ export function hasPermission(
 	permission: Permission
 ): boolean {
 	if (subject && typeof subject === 'object')
-		return subject.permissions?.includes(permission) ?? hasPermission(subject.role, permission);
+		return subject.permissions?.includes(permission) ?? false;
 	const role = subject;
 	if (!role || !Object.hasOwn(ROLE_PERMISSIONS, role)) return false;
 	return ROLE_PERMISSIONS[role as PersonRole].includes(permission);

@@ -59,14 +59,12 @@ export async function saveRole(
 				.set({ name, permissions })
 				.where(eq(applicationRole.id, id));
 		} else await transaction.insert(applicationRole).values({ id, name, permissions });
-		await transaction
-			.insert(securityEvent)
-			.values({
-				actorId,
-				action: input.id ? 'role.updated' : 'role.created',
-				targetId: id,
-				details: { name, permissions }
-			});
+		await transaction.insert(securityEvent).values({
+			actorId,
+			action: input.id ? 'role.updated' : 'role.created',
+			targetId: id,
+			details: { name, permissions }
+		});
 		return id;
 	});
 }
@@ -107,17 +105,15 @@ export async function deleteRole(actorId: string, roleId: string, replacementRol
 			);
 		}
 		await transaction.delete(applicationRole).where(eq(applicationRole.id, roleId));
-		await transaction
-			.insert(securityEvent)
-			.values({
-				actorId,
-				action: 'role.deleted',
-				targetId: roleId,
-				details: {
-					name: role.name,
-					replacementRoleId,
-					reassignedUserIds: members.map((member) => member.id)
-				}
-			});
+		await transaction.insert(securityEvent).values({
+			actorId,
+			action: 'role.deleted',
+			targetId: roleId,
+			details: {
+				name: role.name,
+				replacementRoleId,
+				reassignedUserIds: members.map((member) => member.id)
+			}
+		});
 	});
 }

@@ -25,7 +25,14 @@ beforeAll(async () => {
 	await migrateDatabase();
 	const { seedTestData } = await import('./fixtures/database');
 	await seedTestData();
-	people = Object.fromEntries((await db.select().from(schema.user)).map((p) => [p.id, p]));
+	const { loadRoles, applyRolePermissions } = await import('../src/lib/server/roles');
+	const roles = await loadRoles();
+	people = Object.fromEntries(
+		(await db.select().from(schema.user)).map((person) => [
+			person.id,
+			applyRolePermissions(person, roles)
+		])
+	);
 });
 afterAll(async () => {
 	await db.$client.close();
@@ -641,14 +648,12 @@ test('managed roles persist permissions, protect administration, and reassign us
 	await assert.rejects(() => deleteRole('jordan', 'admin', 'requester'));
 	await assert.rejects(() => deleteRole('jordan', roleId, ''));
 	assert((await loadRoles()).some((role) => role.id === roleId));
-	await db
-		.insert(schema.session)
-		.values({
-			id: 'role-test-session',
-			token: 'role-test-token',
-			userId: 'rosa',
-			expiresAt: new Date(Date.now() + 60000)
-		});
+	await db.insert(schema.session).values({
+		id: 'role-test-session',
+		token: 'role-test-token',
+		userId: 'rosa',
+		expiresAt: new Date(Date.now() + 60000)
+	});
 	await deleteRole('jordan', roleId, 'requester');
 	const [reassigned] = await db.select().from(schema.user).where(eq(schema.user.id, 'rosa'));
 	assert.equal(reassigned.role, 'requester');
