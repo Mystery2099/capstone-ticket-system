@@ -195,7 +195,7 @@ async function applyFieldChange(
 	}
 	if (field === 'assignedToUserId' && rawValue) {
 		const [assignee] = await transaction.select().from(user).where(eq(user.id, rawValue));
-		requireAssignable(assignee ? applyRolePermissions(assignee, await loadRoles()) : undefined);
+		requireAssignable(assignee ? applyRolePermissions(assignee, await loadRoles(transaction)) : undefined);
 	}
 
 	const previousValue = ticketRecord[field];

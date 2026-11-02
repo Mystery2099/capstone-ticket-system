@@ -5,8 +5,8 @@ import { db } from './db';
 import { applicationRole, securityEvent, session, user } from './schema';
 import { PERMISSION_LABELS, ROLE_PERMISSIONS, type Permission } from '../permissions';
 
-export function loadRoles() {
-	return db.select().from(applicationRole).orderBy(asc(applicationRole.name));
+export function loadRoles(connection: Pick<RoleTransaction, 'select'> = db) {
+	return connection.select().from(applicationRole).orderBy(asc(applicationRole.name));
 }
 
 export function applyRolePermissions<T extends { role: string | null }>(
