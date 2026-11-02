@@ -37,6 +37,7 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 	const assignedToUserId = String(formData.get('assignedToUserId') || '') || null;
 	if (assignedToUserId && !isStaff(actor)) error(403, 'Only support staff can assign tickets.');
 
+	const priority = parseTicketUpdateValue('priority', String(formData.get('priority') ?? 'normal'));
 	const { subject, description, categoryId } = parseFormInput(createTicketSchema, {
 		subject: formData.get('subject'),
 		description: formData.get('description'),
@@ -62,7 +63,7 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 	return db.transaction(async (transaction) => {
 		const [createdTicket] = await transaction
 			.insert(ticket)
-			.values({ subject, description, categoryId, requesterId, assignedToUserId })
+			.values({ subject, description, categoryId, priority, requesterId, assignedToUserId })
 			.returning();
 		await transaction.insert(ticketEvent).values([
 			{

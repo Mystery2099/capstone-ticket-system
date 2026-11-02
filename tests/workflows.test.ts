@@ -111,14 +111,19 @@ test('staff can open a ticket for another enabled requester', async () => {
 		await db.update(schema.user).set({ banned: false }).where(eq(schema.user.id, 'rosa'));
 	}
 });
-test('staff can assign a ticket when creating it', async () => {
+test('staff can assign a ticket and choose priority when creating it', async () => {
 	const [cat] = await db.select().from(schema.category);
 	const fields = { subject: 'Assigned', description: 'Needs an owner', categoryId: cat.id };
 	const t = await service.createTicket(
 		people.priya,
-		form({ ...fields, assignedToUserId: 'priya' })
+		form({ ...fields, assignedToUserId: 'priya', priority: 'high' })
 	);
 	assert.equal(t.assignedToUserId, 'priya');
+	assert.equal(t.priority, 'high');
+	await assert.rejects(
+		() => service.createTicket(people.priya, form({ ...fields, priority: 'urgent' })),
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
+	);
 	const { eq } = await import('drizzle-orm');
 	const events = await db
 		.select()

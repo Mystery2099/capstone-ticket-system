@@ -11,6 +11,7 @@ export type TicketDraftFields = {
 	subject: string;
 	description: string;
 	categoryId: string;
+	priority: string;
 	assignedToUserId: string;
 	requesterId: string;
 };
@@ -20,6 +21,7 @@ export class TicketDraft {
 	subject = $state('');
 	description = $state('');
 	categoryId = $state('');
+	priority = $state('normal');
 	assignedToUserId = $state('');
 	requesterId = $state('');
 
@@ -28,6 +30,7 @@ export class TicketDraft {
 		this.subject = fields.subject ?? '';
 		this.description = fields.description ?? '';
 		this.categoryId = fields.categoryId ?? '';
+		this.priority = fields.priority ?? 'normal';
 		this.assignedToUserId = fields.assignedToUserId ?? '';
 		this.requesterId = fields.requesterId ?? '';
 	}
@@ -37,8 +40,8 @@ export class TicketDraft {
 	}
 
 	toJSON(): TicketDraftFields {
-		const { id, subject, description, categoryId, assignedToUserId, requesterId } = this;
-		return { id, subject, description, categoryId, assignedToUserId, requesterId };
+		const { id, subject, description, categoryId, priority, assignedToUserId, requesterId } = this;
+		return { id, subject, description, categoryId, priority, assignedToUserId, requesterId };
 	}
 }
 

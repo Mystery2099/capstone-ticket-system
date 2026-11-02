@@ -138,6 +138,20 @@
 							disabled={$isCreatingTicket}
 						/>
 					</div>
+					<div class="metadata-control">
+						<span>Priority</span><Combobox
+							name="priority"
+							label="Priority"
+							variant="inline"
+							bind:value={draft.priority}
+							options={[
+								{ value: 'low', label: 'Low' },
+								{ value: 'normal', label: 'Normal' },
+								{ value: 'high', label: 'High' }
+							]}
+							disabled={$isCreatingTicket}
+						/>
+					</div>
 				{/if}
 				<div class="metadata-control">
 					<span>Category</span><Combobox
