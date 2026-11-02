@@ -49,6 +49,7 @@
 	let loadMoreError = $state('');
 	let loadedListKey = '';
 	let resetListOnLoad = false;
+	let listResetVersion = $state(0);
 	let listRequestVersion = 0;
 	let listRequestController: AbortController | undefined;
 	let listKey = $derived.by(() => {
@@ -67,6 +68,7 @@
 			isLoadingMore = false;
 			loadMoreError = '';
 			if (resetListOnLoad || loadedListKey !== currentListKey || !ticketRows.length) {
+				if (resetListOnLoad) listResetVersion++;
 				ticketRows = initialRows;
 				nextPageHref = initialNextPageHref;
 			} else {
@@ -359,8 +361,10 @@
 		resetListOnLoad = true;
 		try {
 			await invalidateAll();
-		} finally {
+		} catch {
 			resetListOnLoad = false;
+			toast.error('Couldn’t refresh tickets.');
+		} finally {
 			isRefreshing = false;
 		}
 	}
@@ -702,7 +706,8 @@
 						<p>Anything you start but don’t finish is saved here.</p>
 						<a href="/app/tickets" class="text-link">Back to tickets</a>
 					</div>{/each}
-			</div>{:else if isListLoading}<TicketRowsSkeleton />{:else}{#key listKey}<VirtualTicketRows
+			</div>{:else if isListLoading}<TicketRowsSkeleton
+			/>{:else}{#key `${listKey}:${listResetVersion}`}<VirtualTicketRows
 					rows={ticketRows}
 					hasMore={!!nextPageHref}
 					loading={isLoadingMore || isRefreshing}
