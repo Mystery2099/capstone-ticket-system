@@ -10,24 +10,24 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import { initials } from '$lib/status';
+	import { getInitials } from '$lib/status';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
 	import { toast } from 'svelte-sonner';
 
 	let { data } = $props();
 
-	const roles = [
+	const roleOptions = [
 		{ value: 'requester', label: 'Requester' },
 		{ value: 'agent', label: 'Agent' },
 		{ value: 'admin', label: 'Administrator' }
 	];
 	const roleLabel = (role: string | null) =>
-		roles.find((r) => r.value === role)?.label ?? 'Requester';
-	const accountStates = [
+		roleOptions.find((roleOption) => roleOption.value === role)?.label ?? 'Requester';
+	const accountStateOptions = [
 		{ value: 'true', label: 'Enabled' },
 		{ value: 'false', label: 'Disabled' }
 	];
-	const categoryStates = [
+	const categoryStateOptions = [
 		{ value: 'true', label: 'Active' },
 		{ value: 'false', label: 'Inactive' }
 	];
@@ -37,71 +37,76 @@
 	let stateFilter = $state('');
 	// Never part of a draft, so a password can't end up in localStorage.
 	let password = $state('');
-	let promotedId = $state<string | null>(null);
-	let addForm = $state<HTMLFormElement>();
+	let promotedDraftId = $state<string | null>(null);
+	let addFormElement = $state<HTMLFormElement>();
 
-	let isUsers = $derived(data.section === 'users');
-	let recordNoun = $derived(isUsers ? 'user' : 'category');
+	let isUsersSection = $derived(data.section === 'users');
+	let recordNoun = $derived(isUsersSection ? 'user' : 'category');
 	let listHref = $derived(page.url.pathname);
 	// The URL holds the open record, so links and the back button work like tickets.
 	let isAddingRecord = $derived(page.url.searchParams.has('new'));
 	let selectedRecordId = $derived(page.url.searchParams.get('id'));
 	let selectedUser = $derived(
-		isUsers ? data.users.find((u) => u.id === selectedRecordId) : undefined
+		isUsersSection ? data.users.find((user) => user.id === selectedRecordId) : undefined
 	);
 	let selectedCategory = $derived(
-		isUsers ? undefined : data.categories.find((c) => c.id === selectedRecordId)
+		isUsersSection
+			? undefined
+			: data.categories.find((category) => category.id === selectedRecordId)
 	);
-	let paneOpen = $derived(isAddingRecord || !!selectedUser || !!selectedCategory);
+	let isPaneOpen = $derived(isAddingRecord || !!selectedUser || !!selectedCategory);
 
 	const adminDrafts = getDrafts();
 	// Shallow routing leaves page.url as it was, so the draft just added is tracked here.
-	let draftId = $derived(page.url.searchParams.get('draft') ?? promotedId);
-	let userDraft = $derived(adminDrafts.users.find(draftId) ?? adminDrafts.users.blank);
+	let draftId = $derived(page.url.searchParams.get('draft') ?? promotedDraftId);
+	let userDraft = $derived(adminDrafts.users.findById(draftId) ?? adminDrafts.users.blankDraft);
 	let categoryDraft = $derived(
-		adminDrafts.categories.find(draftId) ?? adminDrafts.categories.blank
+		adminDrafts.categories.findById(draftId) ?? adminDrafts.categories.blankDraft
 	);
 	$effect(() => {
 		if (!isAddingRecord || navigating.to) return;
-		const store = isUsers ? adminDrafts.users : adminDrafts.categories;
-		const draft = isUsers ? userDraft : categoryDraft;
-		if (draft !== store.blank || !draft.dirty) return;
+		const store = isUsersSection ? adminDrafts.users : adminDrafts.categories;
+		const draft = isUsersSection ? userDraft : categoryDraft;
+		if (draft !== store.blankDraft || !draft.isDirty) return;
 		const url = new URL(page.url);
 		url.searchParams.set('draft', draft.id);
-		promotedId = draft.id;
-		store.promote();
+		promotedDraftId = draft.id;
+		store.promoteBlankDraft();
 		replaceState(url, {});
 	});
 	afterNavigate(() => {
-		promotedId = null;
+		promotedDraftId = null;
 		password = '';
 	});
 
-	const matches = (text: string) => text.toLowerCase().includes(filterText.trim().toLowerCase());
-	let users = $derived(
+	const matchesFilterText = (text: string) =>
+		text.toLowerCase().includes(filterText.trim().toLowerCase());
+	let filteredUsers = $derived(
 		data.users.filter(
-			(u) =>
-				matches(`${u.name} ${u.email}`) &&
-				(!roleFilter || u.role === roleFilter) &&
-				(!stateFilter || String(!u.banned) === stateFilter)
+			(user) =>
+				matchesFilterText(`${user.name} ${user.email}`) &&
+				(!roleFilter || user.role === roleFilter) &&
+				(!stateFilter || String(!user.banned) === stateFilter)
 		)
 	);
-	let categories = $derived(
+	let filteredCategories = $derived(
 		data.categories.filter(
-			(c) => matches(c.name) && (!stateFilter || String(c.active) === stateFilter)
+			(category) =>
+				matchesFilterText(category.name) &&
+				(!stateFilter || String(category.active) === stateFilter)
 		)
 	);
 
-	type Result = { text: string; failed?: boolean; createdId?: string };
+	type FormResultMessage = { text: string; failed?: boolean; createdId?: string };
 
 	/**
 	 * Shared form behavior. Values stay put after submitting, and results become toasts, with
 	 * failures staying until dismissed. Field errors show beside their input instead.
 	 */
-	const formOptions = (onCreated?: () => void) => ({
+	const buildFormOptions = (onCreated?: () => void) => ({
 		resetForm: false,
 		taintedMessage: false,
-		onUpdated({ form }: { form: { message?: Result } }) {
+		onUpdated({ form }: { form: { message?: FormResultMessage } }) {
 			if (!form.message) return;
 			const { text, failed, createdId } = form.message;
 			if (failed) toast.error(text, { duration: Infinity });
@@ -117,32 +122,32 @@
 	// svelte-ignore state_referenced_locally
 	const createUserForm = superForm(
 		data.createUserForm,
-		formOptions(() => adminDrafts.users.discard(userDraft.id))
+		buildFormOptions(() => adminDrafts.users.discardById(userDraft.id))
 	);
-	const { enhance: enhanceCreateUser, submitting: creatingUser } = createUserForm;
+	const { enhance: enhanceCreateUser, submitting: isCreatingUser } = createUserForm;
 	// svelte-ignore state_referenced_locally
 	const createCategoryForm = superForm(
 		data.createCategoryForm,
-		formOptions(() => adminDrafts.categories.discard(categoryDraft.id))
+		buildFormOptions(() => adminDrafts.categories.discardById(categoryDraft.id))
 	);
-	const { enhance: enhanceCreateCategory, submitting: creatingCategory } = createCategoryForm;
+	const { enhance: enhanceCreateCategory, submitting: isCreatingCategory } = createCategoryForm;
 
 	// svelte-ignore state_referenced_locally
-	const userForm = superForm(data.userForm, formOptions());
-	const { form: userFields, enhance: enhanceUser, submitting: savingUser } = userForm;
+	const updateUserForm = superForm(data.updateUserForm, buildFormOptions());
+	const { form: userFields, enhance: enhanceUpdateUser, submitting: isSavingUser } = updateUserForm;
 	// svelte-ignore state_referenced_locally
-	const categoryForm = superForm(data.categoryForm, formOptions());
+	const updateCategoryForm = superForm(data.updateCategoryForm, buildFormOptions());
 	const {
 		form: categoryFields,
-		enhance: enhanceCategory,
-		submitting: savingCategory
-	} = categoryForm;
+		enhance: enhanceUpdateCategory,
+		submitting: isSavingCategory
+	} = updateCategoryForm;
 
 	/** Loads the saved record into its form, for opening it and for Revert. */
 	function revertUser() {
 		if (!selectedUser) return;
 		const { id, name, email, role, banned } = selectedUser;
-		userForm.reset({
+		updateUserForm.reset({
 			data: {
 				id,
 				name,
@@ -155,7 +160,7 @@
 	function revertCategory() {
 		if (!selectedCategory) return;
 		const { id, name, active } = selectedCategory;
-		categoryForm.reset({ data: { id, name, active } });
+		updateCategoryForm.reset({ data: { id, name, active } });
 	}
 	$effect(() => {
 		// Read these selections so the effect resets forms when either changes.
@@ -171,7 +176,7 @@
 
 	const createFormHotkeys = createHotkeysAttachment(
 		[
-			{ hotkey: 'Mod+Enter', callback: () => addForm?.requestSubmit() },
+			{ hotkey: 'Mod+Enter', callback: () => addFormElement?.requestSubmit() },
 			{
 				hotkey: 'Escape',
 				callback: () => {
@@ -179,11 +184,14 @@
 				}
 			}
 		],
-		() => ({ enabled: isAddingRecord && !$creatingUser && !$creatingCategory, ignoreInputs: false })
+		() => ({
+			enabled: isAddingRecord && !$isCreatingUser && !$isCreatingCategory,
+			ignoreInputs: false
+		})
 	);
 </script>
 
-{#snippet toolbar(title: string, subtitle: string)}
+{#snippet detailsToolbar(title: string, subtitle: string)}
 	<div class="reading-toolbar">
 		<Tooltip.Root>
 			<Tooltip.Trigger>
@@ -215,31 +223,31 @@
 	</div>
 {/snippet}
 
-{#snippet footer(
-	submitting: boolean,
-	primary: string,
-	working: string,
-	secondary: { label: string; hint?: string; run: () => void }
+{#snippet formFooter(
+	isSubmitting: boolean,
+	primaryLabel: string,
+	workingLabel: string,
+	secondaryAction: { label: string; hint?: string; run: () => void }
 )}
 	<div class="composer-footer admin-actions">
-		{#if secondary.hint}
-			<span class="muted small compose-hint">{secondary.hint}</span>
+		{#if secondaryAction.hint}
+			<span class="muted small compose-hint">{secondaryAction.hint}</span>
 		{/if}
-		<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={secondary.run}
-			>{secondary.label}</Button
+		<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={secondaryAction.run}
+			>{secondaryAction.label}</Button
 		>
-		<Button type="submit" size="sm" class="rounded-full px-4" disabled={submitting}
-			>{submitting ? working : primary}</Button
+		<Button type="submit" size="sm" class="rounded-full px-4" disabled={isSubmitting}
+			>{isSubmitting ? workingLabel : primaryLabel}</Button
 		>
 	</div>
 {/snippet}
 
-<div class="workspace" class:has-ticket={paneOpen}>
-	<section class="ticket-list" aria-label={isUsers ? 'User list' : 'Category list'}>
+<div class="workspace" class:has-ticket={isPaneOpen}>
+	<section class="ticket-list" aria-label={isUsersSection ? 'User list' : 'Category list'}>
 		<div class="list-top">
 			<h1>
-				{isUsers ? 'Users' : 'Categories'}
-				<span>{isUsers ? users.length : categories.length}</span>
+				{isUsersSection ? 'Users' : 'Categories'}
+				<span>{isUsersSection ? filteredUsers.length : filteredCategories.length}</span>
 			</h1>
 			<Tooltip.Root>
 				<Tooltip.Trigger>
@@ -254,43 +262,43 @@
 		</div>
 		<div class="filters admin-filters">
 			<Input
-				aria-label={`Filter ${isUsers ? 'users' : 'categories'}`}
+				aria-label={`Filter ${isUsersSection ? 'users' : 'categories'}`}
 				placeholder="Filter"
 				bind:value={filterText}
 				class="h-8 min-h-8 min-w-0 flex-1 rounded-lg px-2 font-normal"
 			/>
-			{#if isUsers}
+			{#if isUsersSection}
 				<Combobox
 					label="Filter by role"
 					bind:value={roleFilter}
-					options={[{ value: '', label: 'Any role' }, ...roles]}
+					options={[{ value: '', label: 'Any role' }, ...roleOptions]}
 				/>
 				<Combobox
 					label="Filter by account state"
 					bind:value={stateFilter}
-					options={[{ value: '', label: 'Any state' }, ...accountStates]}
+					options={[{ value: '', label: 'Any state' }, ...accountStateOptions]}
 				/>
 			{:else}
 				<Combobox
 					label="Filter by state"
 					bind:value={stateFilter}
-					options={[{ value: '', label: 'Any state' }, ...categoryStates]}
+					options={[{ value: '', label: 'Any state' }, ...categoryStateOptions]}
 				/>
 			{/if}
 		</div>
 		<div class="rows">
-			{#if isUsers}
-				{#each users as u (u.id)}<a
-						href={`?id=${u.id}`}
+			{#if isUsersSection}
+				{#each filteredUsers as user (user.id)}<a
+						href={`?id=${user.id}`}
 						class="ticket-row"
-						class:selected={selectedUser?.id === u.id}
-						><span class="avatar row-avatar">{initials(u.name)}</span>
+						class:selected={selectedUser?.id === user.id}
+						><span class="avatar row-avatar">{getInitials(user.name)}</span>
 						<div class="row-content">
 							<div class="row-title">
-								<strong>{u.name}</strong><time>{roleLabel(u.role)}</time>
+								<strong>{user.name}</strong><time>{roleLabel(user.role)}</time>
 							</div>
 							<div class="row-meta">
-								<span class="row-preview">{u.email}{u.banned ? ' · Disabled' : ''}</span>
+								<span class="row-preview">{user.email}{user.banned ? ' · Disabled' : ''}</span>
 							</div>
 						</div></a
 					>{:else}<div class="empty">
@@ -299,14 +307,14 @@
 						<p>Try another search or change your filters.</p>
 					</div>{/each}
 			{:else}
-				{#each categories as c (c.id)}<a
-						href={`?id=${c.id}`}
+				{#each filteredCategories as category (category.id)}<a
+						href={`?id=${category.id}`}
 						class="ticket-row"
-						class:selected={selectedCategory?.id === c.id}
+						class:selected={selectedCategory?.id === category.id}
 						><div class="row-content">
-							<div class="row-title"><strong>{c.name}</strong></div>
+							<div class="row-title"><strong>{category.name}</strong></div>
 							<div class="row-meta">
-								<span class="row-preview">{c.active ? 'Active' : 'Inactive'}</span>
+								<span class="row-preview">{category.active ? 'Active' : 'Inactive'}</span>
 							</div>
 						</div></a
 					>{:else}<div class="empty">
@@ -318,12 +326,12 @@
 		</div>
 	</section>
 
-	<section class="reading-pane" aria-label={isUsers ? 'User details' : 'Category details'}>
-		{#if isAddingRecord && isUsers}
-			{@render toolbar('Add user', 'Accounts are created here, not by public sign-up')}
+	<section class="reading-pane" aria-label={isUsersSection ? 'User details' : 'Category details'}>
+		{#if isAddingRecord && isUsersSection}
+			{@render detailsToolbar('Add user', 'Accounts are created here, not by public sign-up')}
 			{#key userDraft.id}
 				<form
-					bind:this={addForm}
+					bind:this={addFormElement}
 					{@attach createFormHotkeys}
 					class="compose"
 					method="POST"
@@ -367,33 +375,33 @@
 									name="role"
 									label="Role"
 									bind:value={userDraft.role}
-									options={roles}
+									options={roleOptions}
 								/>
 							</div>
 						</div>
 					</div>
-					{@render footer($creatingUser, 'Create account', 'Creating…', {
+					{@render formFooter($isCreatingUser, 'Create account', 'Creating…', {
 						label: 'Discard',
 						hint: 'Esc to close · Ctrl/Cmd+Enter to create',
 						run: () => {
-							adminDrafts.users.discard(userDraft.id);
+							adminDrafts.users.discardById(userDraft.id);
 							void goto(listHref);
 						}
 					})}
 				</form>
 			{/key}
 		{:else if isAddingRecord}
-			{@render toolbar(
+			{@render detailsToolbar(
 				'Add category',
 				'New categories are active and available on new tickets straight away'
 			)}
 			{#key categoryDraft.id}
 				<form
-					bind:this={addForm}
+					bind:this={addFormElement}
 					{@attach createFormHotkeys}
 					class="compose"
 					method="POST"
-					action="?/category"
+					action="?/saveCategory"
 					use:enhanceCreateCategory
 				>
 					<input type="hidden" name="id" value="" />
@@ -409,22 +417,22 @@
 							maxlength={80}
 						/>
 					</div>
-					{@render footer($creatingCategory, 'Add category', 'Adding…', {
+					{@render formFooter($isCreatingCategory, 'Add category', 'Adding…', {
 						label: 'Discard',
 						hint: 'Esc to close · Ctrl/Cmd+Enter to create',
 						run: () => {
-							adminDrafts.categories.discard(categoryDraft.id);
+							adminDrafts.categories.discardById(categoryDraft.id);
 							void goto(listHref);
 						}
 					})}
 				</form>
 			{/key}
 		{:else if selectedUser}
-			{@render toolbar(
+			{@render detailsToolbar(
 				selectedUser.name,
 				`${selectedUser.email} · ${roleLabel(selectedUser.role)}`
 			)}
-			<form class="compose" method="POST" action="?/user" use:enhanceUser>
+			<form class="compose" method="POST" action="?/updateUser" use:enhanceUpdateUser>
 				<input type="hidden" name="id" value={$userFields.id} />
 				<div class="conversation-scroll admin-form">
 					<div class="ticket-metadata">
@@ -436,7 +444,7 @@
 									() => $userFields.role,
 									(role) => ($userFields.role = role as typeof $userFields.role)
 								}
-								options={roles}
+								options={roleOptions}
 							/>
 						</div>
 						<div class="metadata-control">
@@ -445,14 +453,14 @@
 								label="Account"
 								bind:value={
 									() => String($userFields.enabled),
-									(state) => ($userFields.enabled = state === 'true')
+									(selectedState) => ($userFields.enabled = selectedState === 'true')
 								}
-								options={accountStates}
+								options={accountStateOptions}
 							/>
 						</div>
 					</div>
 					<FormField
-						form={userForm}
+						form={updateUserForm}
 						name="name"
 						label="Display name"
 						bind:value={$userFields.name}
@@ -460,7 +468,7 @@
 						maxlength={100}
 					/>
 					<FormField
-						form={userForm}
+						form={updateUserForm}
 						name="email"
 						label="Email"
 						type="email"
@@ -472,11 +480,14 @@
 						Disabled accounts can’t sign in. Their tickets and comments are kept.
 					</p>
 				</div>
-				{@render footer($savingUser, 'Save', 'Saving…', { label: 'Revert', run: revertUser })}
+				{@render formFooter($isSavingUser, 'Save', 'Saving…', { label: 'Revert', run: revertUser })}
 			</form>
 		{:else if selectedCategory}
-			{@render toolbar(selectedCategory.name, selectedCategory.active ? 'Active' : 'Inactive')}
-			<form class="compose" method="POST" action="?/category" use:enhanceCategory>
+			{@render detailsToolbar(
+				selectedCategory.name,
+				selectedCategory.active ? 'Active' : 'Inactive'
+			)}
+			<form class="compose" method="POST" action="?/saveCategory" use:enhanceUpdateCategory>
 				<input type="hidden" name="id" value={$categoryFields.id} />
 				<div class="conversation-scroll admin-form">
 					<div class="ticket-metadata">
@@ -486,14 +497,14 @@
 								label="State"
 								bind:value={
 									() => String($categoryFields.active),
-									(state) => ($categoryFields.active = state === 'true')
+									(selectedState) => ($categoryFields.active = selectedState === 'true')
 								}
-								options={categoryStates}
+								options={categoryStateOptions}
 							/>
 						</div>
 					</div>
 					<FormField
-						form={categoryForm}
+						form={updateCategoryForm}
 						name="name"
 						label="Category name"
 						bind:value={$categoryFields.name}
@@ -504,7 +515,7 @@
 						Inactive categories stay on existing tickets but can’t be chosen for new ones.
 					</p>
 				</div>
-				{@render footer($savingCategory, 'Save', 'Saving…', {
+				{@render formFooter($isSavingCategory, 'Save', 'Saving…', {
 					label: 'Revert',
 					run: revertCategory
 				})}
@@ -512,7 +523,7 @@
 		{:else}
 			<div class="reading-empty">
 				<span class="empty-icon"><Inbox size={35} /></span>
-				<h2>{isUsers ? 'Choose a user' : 'Choose a category'}</h2>
+				<h2>{isUsersSection ? 'Choose a user' : 'Choose a category'}</h2>
 				<p>Select one from the list to edit it,<br />or add a new one.</p>
 			</div>
 		{/if}

@@ -1,9 +1,9 @@
 <!--
-	Placeholder for a ticket's comments and composer. Set `heading` when the ticket
+	Placeholder for a ticket's comments and composer. Set `showHeading` when the ticket
 	isn't in the current list, so even its subject and details are still unknown.
 -->
 <script lang="ts">
-	let { heading = false }: { heading?: boolean } = $props();
+	let { showHeading = false }: { showHeading?: boolean } = $props();
 	const messages = [
 		[92, 78, 46],
 		[84, 60]
@@ -12,7 +12,7 @@
 
 <p class="sr-only" role="status">Loading conversation</p>
 <div class="skeleton-fade" aria-hidden="true">
-	{#if heading}
+	{#if showHeading}
 		<div class="ticket-heading">
 			<span class="skeleton mb-3 h-6 w-3/4"></span>
 			<span class="skeleton mb-3 h-3.5 w-14"></span>

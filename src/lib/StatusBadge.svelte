@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { statuses, type Status } from './status';
+	import { TICKET_STATUSES, type Status } from './status';
 	let { status }: { status: string } = $props();
-	let item = $derived(statuses[status as Status] || statuses.open);
+	let statusDefinition = $derived(TICKET_STATUSES[status as Status] || TICKET_STATUSES.open);
 </script>
 
-<span class="status {status}"><span aria-hidden="true">{item.symbol}</span> {item.label}</span>
+<span class="status {status}"
+	><span aria-hidden="true">{statusDefinition.symbol}</span> {statusDefinition.label}</span
+>

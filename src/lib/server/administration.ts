@@ -12,28 +12,28 @@ export async function createManagedUser(
 	input: AdminCreateUserInput
 ): Promise<string> {
 	const passwordHash = await hashPassword(input.password);
-	return db.transaction(async (tx) => {
-		const id = randomUUID();
-		await tx.insert(user).values({
-			id,
+	return db.transaction(async (transaction) => {
+		const userId = randomUUID();
+		await transaction.insert(user).values({
+			id: userId,
 			name: input.name,
 			email: input.email,
 			role: input.role,
 			banned: false,
 			emailVerified: false
 		});
-		await tx.insert(account).values({
+		await transaction.insert(account).values({
 			id: randomUUID(),
-			accountId: id,
+			accountId: userId,
 			providerId: 'credential',
-			userId: id,
+			userId,
 			password: passwordHash,
 			updatedAt: new Date()
 		});
-		await tx
+		await transaction
 			.insert(securityEvent)
-			.values({ actorId, action: 'user.created', targetId: id, details: { role: input.role } });
-		return id;
+			.values({ actorId, action: 'user.created', targetId: userId, details: { role: input.role } });
+		return userId;
 	});
 }
 
@@ -44,41 +44,47 @@ export async function updateManagedUser(
 	const { id, name, email, role, enabled } = input;
 	if (id === actorId && (role !== 'admin' || !enabled))
 		error(400, 'You cannot remove your own administrator access.');
-	await db.transaction(async (tx) => {
-		await tx.execute(sql`SELECT id FROM "user" WHERE role = 'admin' ORDER BY id FOR UPDATE`);
-		const [previous] = await tx.select().from(user).where(eq(user.id, id)).for('update');
-		if (!previous) error(404, 'Account not found.');
+	await db.transaction(async (transaction) => {
+		await transaction.execute(
+			sql`SELECT id FROM "user" WHERE role = 'admin' ORDER BY id FOR UPDATE`
+		);
+		const [previousUser] = await transaction
+			.select()
+			.from(user)
+			.where(eq(user.id, id))
+			.for('update');
+		if (!previousUser) error(404, 'Account not found.');
 		if (!enabled || role !== 'admin') {
-			const administrators = await tx
+			const enabledAdministrators = await transaction
 				.select({ id: user.id })
 				.from(user)
 				.where(and(eq(user.role, 'admin'), eq(user.banned, false)));
-			if (administrators.length === 1 && administrators[0].id === id)
+			if (enabledAdministrators.length === 1 && enabledAdministrators[0].id === id)
 				error(400, 'Keep at least one enabled administrator.');
 		}
-		await tx
+		await transaction
 			.update(user)
 			.set({
 				name,
 				email,
 				role,
 				banned: !enabled,
-				emailVerified: email === previous.email ? previous.emailVerified : false,
+				emailVerified: email === previousUser.email ? previousUser.emailVerified : false,
 				updatedAt: new Date()
 			})
 			.where(eq(user.id, id));
-		if (!enabled || role !== previous.role || email !== previous.email)
-			await tx.delete(session).where(eq(session.userId, id));
-		await tx.insert(securityEvent).values({
+		if (!enabled || role !== previousUser.role || email !== previousUser.email)
+			await transaction.delete(session).where(eq(session.userId, id));
+		await transaction.insert(securityEvent).values({
 			actorId,
 			action: 'user.updated',
 			targetId: id,
 			details: {
 				before: {
-					name: previous.name,
-					email: previous.email,
-					role: previous.role,
-					enabled: !previous.banned
+					name: previousUser.name,
+					email: previousUser.email,
+					role: previousUser.role,
+					enabled: !previousUser.banned
 				},
 				after: { name, email, role, enabled }
 			}
@@ -90,35 +96,41 @@ export async function saveManagedCategory(
 	actorId: string,
 	input: AdminCategoryInput
 ): Promise<string> {
-	return db.transaction(async (tx) => {
-		let targetId = input.id;
-		if (targetId) {
-			const [previous] = await tx
+	return db.transaction(async (transaction) => {
+		let categoryId = input.id;
+		if (categoryId) {
+			const [previousCategory] = await transaction
 				.select()
 				.from(category)
-				.where(eq(category.id, targetId))
+				.where(eq(category.id, categoryId))
 				.for('update');
-			if (!previous) error(404, 'Category not found.');
-			await tx
+			if (!previousCategory) error(404, 'Category not found.');
+			await transaction
 				.update(category)
 				.set({ name: input.name, active: input.active, updatedAt: new Date() })
-				.where(eq(category.id, targetId));
-			await tx.insert(securityEvent).values({
+				.where(eq(category.id, categoryId));
+			await transaction.insert(securityEvent).values({
 				actorId,
 				action: 'category.updated',
-				targetId,
+				targetId: categoryId,
 				details: {
-					before: { name: previous.name, active: previous.active },
+					before: { name: previousCategory.name, active: previousCategory.active },
 					after: { name: input.name, active: input.active }
 				}
 			});
 		} else {
-			const [created] = await tx.insert(category).values({ name: input.name }).returning();
-			targetId = created.id;
-			await tx
-				.insert(securityEvent)
-				.values({ actorId, action: 'category.created', targetId, details: { name: input.name } });
+			const [createdCategory] = await transaction
+				.insert(category)
+				.values({ name: input.name })
+				.returning();
+			categoryId = createdCategory.id;
+			await transaction.insert(securityEvent).values({
+				actorId,
+				action: 'category.createdCategory',
+				targetId: categoryId,
+				details: { name: input.name }
+			});
 		}
-		return targetId;
+		return categoryId;
 	});
 }

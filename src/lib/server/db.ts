@@ -5,12 +5,12 @@ import { drizzle as localDrizzle } from 'drizzle-orm/pglite';
 import { drizzle as remoteDrizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
-import { databaseConfig } from './database-config';
-const globals = globalThis as unknown as {
-	ticketDb?: ReturnType<typeof localDrizzle<typeof schema>>;
+import { resolveDatabaseConfig } from './database-config';
+const databaseGlobals = globalThis as unknown as {
+	ticketDatabase?: ReturnType<typeof localDrizzle<typeof schema>>;
 };
-function connect() {
-	const config = databaseConfig(process.env);
+function connectDatabase() {
+	const config = resolveDatabaseConfig(process.env);
 	if (config.kind !== 'local') {
 		const client =
 			config.kind === 'url' ? postgres(config.url, { max: 5 }) : postgres(config.options);
@@ -24,20 +24,22 @@ function connect() {
 
 type Database = ReturnType<typeof localDrizzle<typeof schema>>;
 export const db = new Proxy({} as Database, {
-	get(_target, key) {
-		const connection = (globals.ticketDb ??= connect());
-		const value = Reflect.get(connection, key, connection);
-		return typeof value === 'function' && key !== '$client' ? value.bind(connection) : value;
+	get(_target, propertyKey) {
+		const connection = (databaseGlobals.ticketDatabase ??= connectDatabase());
+		const propertyValue = Reflect.get(connection, propertyKey, connection);
+		return typeof propertyValue === 'function' && propertyKey !== '$client'
+			? propertyValue.bind(connection)
+			: propertyValue;
 	}
 });
 
 export async function closeDatabase(): Promise<void> {
-	if (!globals.ticketDb) return;
-	const client = globals.ticketDb.$client as unknown as {
+	if (!databaseGlobals.ticketDatabase) return;
+	const client = databaseGlobals.ticketDatabase.$client as unknown as {
 		close?: () => Promise<void>;
 		end?: () => Promise<void>;
 	};
 	if (client.close) await client.close();
 	else await client.end?.();
-	globals.ticketDb = undefined;
+	databaseGlobals.ticketDatabase = undefined;
 }

@@ -1,34 +1,34 @@
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
-import { statuses } from '../status';
+import { TICKET_STATUSES } from '../status';
 
-type Status = keyof typeof statuses;
+type Status = keyof typeof TICKET_STATUSES;
 
 /**
  * Shared Zod schemas for server actions. Every schema keeps the friendly,
  * user-facing error wording that the handrolled helpers used, so actions can
- * surface the first issue verbatim (see parseForm) without duplication.
+ * surface the first issue verbatim (see parseFormInput) without duplication.
  */
-const requiredText = (label: string, max: number) =>
-	`${label} is required and must be ${max} characters or fewer.`;
+const buildRequiredTextMessage = (fieldLabel: string, maximumLength: number) =>
+	`${fieldLabel} is required and must be ${maximumLength} characters or fewer.`;
 
-/** Non-empty, trimmed text of at most `max` characters. */
-export const boundedText = (label: string, max: number) =>
+/** Non-empty, trimmed text of at most `maximumLength` characters. */
+export const boundedTextSchema = (fieldLabel: string, maximumLength: number) =>
 	z
-		.string(requiredText(label, max))
+		.string(buildRequiredTextMessage(fieldLabel, maximumLength))
 		.trim()
-		.min(1, requiredText(label, max))
-		.max(max, requiredText(label, max));
+		.min(1, buildRequiredTextMessage(fieldLabel, maximumLength))
+		.max(maximumLength, buildRequiredTextMessage(fieldLabel, maximumLength));
 
 /** RFC 9562 UUID string (category ids are UUID columns; user ids are not). */
-export const uuid = (message: string) => z.uuid(message).trim();
+export const uuidSchema = (message: string) => z.uuid(message).trim();
 
 /** Parse arbitrary input against a schema, rejecting invalid input with a friendly 400. */
-export function parseForm<Schema extends z.ZodType>(
+export function parseFormInput<Schema extends z.ZodType>(
 	schema: Schema,
-	data: unknown
+	input: unknown
 ): z.output<Schema> {
-	const result = schema.safeParse(data);
+	const result = schema.safeParse(input);
 	if (!result.success) error(400, result.error.issues[0]?.message || 'Invalid input.');
 	return result.data;
 }
@@ -36,14 +36,14 @@ export function parseForm<Schema extends z.ZodType>(
 // ---------------------------------------------------------------- tickets ---
 
 export const createTicketSchema = z.object({
-	subject: boundedText('Subject', 180),
-	description: boundedText('Description', 4000),
-	categoryId: uuid('Choose an active category.')
+	subject: boundedTextSchema('Subject', 180),
+	description: boundedTextSchema('Description', 4000),
+	categoryId: uuidSchema('Choose an active category.')
 });
 export type CreateTicketInput = z.output<typeof createTicketSchema>;
 
 export const commentSchema = z.object({
-	body: boundedText('Message', 10000)
+	body: boundedTextSchema('Message', 10000)
 });
 export type CommentInput = z.output<typeof commentSchema>;
 
@@ -66,12 +66,12 @@ export const ticketUpdateFields = [
 ] as const;
 export type TicketUpdateField = (typeof ticketUpdateFields)[number];
 
-const statusValues = Object.keys(statuses) as [Status, ...Status[]];
+const statusCodes = Object.keys(TICKET_STATUSES) as [Status, ...Status[]];
 
 export const ticketUpdateValueSchemas = {
-	statusCode: z.enum(statusValues, 'Invalid status.'),
+	statusCode: z.enum(statusCodes, 'Invalid status.'),
 	priority: z.enum(['low', 'normal', 'high'], 'Invalid priority.'),
-	categoryId: uuid('Choose an active category.'),
+	categoryId: uuidSchema('Choose an active category.'),
 	assignedToUserId: z.string()
 } as const satisfies Record<TicketUpdateField, z.ZodType>;
 
@@ -82,7 +82,7 @@ export const ticketUpdateFieldSchema = z.enum(ticketUpdateFields, 'Invalid field
  * against permissions (closed/read-only rules) before the value is parsed.
  */
 export function parseTicketUpdateField(field: string): TicketUpdateField {
-	return parseForm(z.object({ field: ticketUpdateFieldSchema }), { field }).field;
+	return parseFormInput(z.object({ field: ticketUpdateFieldSchema }), { field }).field;
 }
 
 /** Validate a metadata update value against the schema for its known field. */
@@ -117,17 +117,17 @@ export const roleSchema = z.enum(['requester', 'agent', 'admin'], 'Choose a vali
 
 /** Trimmed, lower-cased email enforced before any address format check. */
 const adminEmailSchema = z
-	.string(requiredText('Email', 254))
+	.string(buildRequiredTextMessage('Email', 254))
 	.trim()
-	.min(1, requiredText('Email', 254))
-	.max(254, requiredText('Email', 254))
+	.min(1, buildRequiredTextMessage('Email', 254))
+	.max(254, buildRequiredTextMessage('Email', 254))
 	.pipe(z.email('Enter a valid email address.'))
-	.transform((v) => v.toLowerCase());
+	.transform((email) => email.toLowerCase());
 
-const displayNameSchema = boundedText('Display name', 100);
+const displayNameSchema = boundedTextSchema('Display name', 100);
 
-const passwordSchema = boundedText('Password', 128).refine(
-	(v) => v.length >= 12,
+const passwordSchema = boundedTextSchema('Password', 128).refine(
+	(password) => password.length >= 12,
 	'Use a password with at least 12 characters.'
 );
 
@@ -152,8 +152,8 @@ export type AdminUpdateUserInput = z.output<typeof adminUpdateUserSchema>;
 
 /** Category create/edit: name always; id only when the form targets a row. */
 export const adminCategorySchema = z.object({
-	name: boundedText('Category name', 80),
-	id: uuid('Invalid category identifier.').or(z.literal('')),
+	name: boundedTextSchema('Category name', 80),
+	id: uuidSchema('Invalid category identifier.').or(z.literal('')),
 	active: z.boolean()
 });
 export type AdminCategoryInput = z.output<typeof adminCategorySchema>;

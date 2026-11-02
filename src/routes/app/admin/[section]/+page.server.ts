@@ -17,16 +17,16 @@ import {
 } from '$lib/server/validation';
 import type { Actions, PageServerLoad } from './$types';
 
-const createUserSchema = zod4(adminCreateUserSchema);
-const updateUserSchema = zod4(adminUpdateUserSchema);
-const categorySchema = zod4(adminCategorySchema);
+const createUserFormSchema = zod4(adminCreateUserSchema);
+const updateUserFormSchema = zod4(adminUpdateUserSchema);
+const categoryFormSchema = zod4(adminCategorySchema);
 
 /**
  * Returns the signed-in administrator. Every load and action here calls this first.
  *
  * @throws 403 when the signed-in person isn't an administrator
  */
-function requireAdmin(currentUser: App.Locals['user']): Person {
+function requireAdministrator(currentUser: App.Locals['user']): Person {
 	const person = requireUser(currentUser);
 	if (person.role !== 'admin' || !person.twoFactorEnabled)
 		error(403, 'Administrator access required.');
@@ -34,14 +34,14 @@ function requireAdmin(currentUser: App.Locals['user']): Person {
 }
 
 function requireFreshAdministrator(locals: App.Locals): Person {
-	const actor = requireAdmin(locals.user);
+	const actor = requireAdministrator(locals.user);
 	if (!locals.sessionCreatedAt || Date.now() - locals.sessionCreatedAt.getTime() > 15 * 60 * 1000)
 		error(403, 'Sign out and sign in again before changing accounts or categories.');
 	return actor;
 }
 
 export const load: PageServerLoad = async ({ locals, params }) => {
-	requireAdmin(locals.user);
+	requireAdministrator(locals.user);
 	if (!['users', 'categories'].includes(params.section)) error(404);
 	return {
 		section: params.section,
@@ -56,26 +56,30 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			.from(user)
 			.orderBy(asc(user.name)),
 		categories: await db.select().from(category).orderBy(asc(category.name)),
-		createUserForm: await superValidate(createUserSchema, { id: 'create-user' }),
-		userForm: await superValidate(updateUserSchema, { id: 'user' }),
-		createCategoryForm: await superValidate(categorySchema, { id: 'create-category' }),
-		categoryForm: await superValidate(categorySchema, { id: 'category' })
+		createUserForm: await superValidate(createUserFormSchema, { id: 'create-user' }),
+		updateUserForm: await superValidate(updateUserFormSchema, { id: 'user' }),
+		createCategoryForm: await superValidate(categoryFormSchema, { id: 'create-category' }),
+		updateCategoryForm: await superValidate(categoryFormSchema, { id: 'category' })
 	};
 };
-const uniqueViolation = (e: unknown) =>
-	(e as { cause?: { code?: string } }).cause?.code === '23505' ||
-	(e as { code?: string }).code === '23505';
+const isUniqueViolation = (caughtError: unknown) =>
+	(caughtError as { cause?: { code?: string } }).cause?.code === '23505' ||
+	(caughtError as { code?: string }).code === '23505';
 
 /** Turns an expected failure into a message on the form, and rethrows anything else. */
-function failure<T extends Record<string, unknown>>(form: SuperValidated<T>, e: unknown) {
-	if (isHttpError(e)) return message(form, { text: e.body.message, failed: true }, { status: 400 });
-	throw e;
+function buildFailureMessage<T extends Record<string, unknown>>(
+	form: SuperValidated<T>,
+	caughtError: unknown
+) {
+	if (isHttpError(caughtError))
+		return message(form, { text: caughtError.body.message, failed: true }, { status: 400 });
+	throw caughtError;
 }
 
 export const actions: Actions = {
 	createUser: async ({ locals, request }) => {
 		const actor = requireFreshAdministrator(locals);
-		const form = await superValidate(request, createUserSchema);
+		const form = await superValidate(request, createUserFormSchema);
 		const { name, email, password, role } = form.data;
 		// The password is only needed here, so it doesn't travel back in the response.
 		form.data.password = '';
@@ -83,41 +87,41 @@ export const actions: Actions = {
 		try {
 			const createdId = await createManagedUser(actor.id, { name, email, password, role });
 			return message(form, { text: 'User created.', createdId });
-		} catch (e) {
-			if (uniqueViolation(e))
+		} catch (caughtError) {
+			if (isUniqueViolation(caughtError))
 				return setError(form, 'email', 'Another account already uses this email.');
-			return failure(form, e);
+			return buildFailureMessage(form, caughtError);
 		}
 	},
-	user: async ({ locals, request }) => {
+	updateUser: async ({ locals, request }) => {
 		const actor = requireFreshAdministrator(locals);
-		const form = await superValidate(request, updateUserSchema);
+		const form = await superValidate(request, updateUserFormSchema);
 		if (!form.valid) return fail(400, { form });
 		const { id, name, email, role, enabled } = form.data;
 		try {
 			await updateManagedUser(actor.id, { id, name, email, role, enabled });
 			return message(form, { text: 'User updated.' });
-		} catch (e) {
-			if (uniqueViolation(e))
+		} catch (caughtError) {
+			if (isUniqueViolation(caughtError))
 				return setError(form, 'email', 'Another account already uses this email.');
-			return failure(form, e);
+			return buildFailureMessage(form, caughtError);
 		}
 	},
-	category: async ({ locals, request }) => {
+	saveCategory: async ({ locals, request }) => {
 		const actor = requireFreshAdministrator(locals);
-		const form = await superValidate(request, categorySchema);
+		const form = await superValidate(request, categoryFormSchema);
 		if (!form.valid) return fail(400, { form });
 		const { id, name, active } = form.data;
 		try {
-			const savedId = await saveManagedCategory(actor.id, { id, name, active });
+			const savedCategoryId = await saveManagedCategory(actor.id, { id, name, active });
 			return message(form, {
 				text: id ? 'Category saved.' : 'Category added.',
-				...(!id ? { createdId: savedId } : {})
+				...(!id ? { createdId: savedCategoryId } : {})
 			});
-		} catch (e) {
-			if (uniqueViolation(e))
+		} catch (caughtError) {
+			if (isUniqueViolation(caughtError))
 				return setError(form, 'name', 'A category with that name already exists.');
-			return failure(form, e);
+			return buildFailureMessage(form, caughtError);
 		}
 	}
 };

@@ -3,5 +3,5 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = ({ locals }) => {
 	if (locals.user?.twoFactorEnabled) redirect(303, '/app/tickets');
-	return { enrollment: !!locals.user };
+	return { isEnrolling: !!locals.user };
 };

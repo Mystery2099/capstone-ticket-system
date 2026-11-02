@@ -13,15 +13,15 @@ export async function createFirstAdministrator(
 ): Promise<void> {
 	const input = adminCreateUserSchema.parse({ name, email, password, role: 'admin' });
 	const passwordHash = await hashPassword(input.password);
-	await db.transaction(async (tx) => {
+	await db.transaction(async (transaction) => {
 		// Serialize concurrent bootstrap commands before checking for existing accounts.
-		await tx.execute(sql`LOCK TABLE "user" IN EXCLUSIVE MODE`);
-		if ((await tx.select({ id: user.id }).from(user).limit(1)).length)
+		await transaction.execute(sql`LOCK TABLE "user" IN EXCLUSIVE MODE`);
+		if ((await transaction.select({ id: user.id }).from(user).limit(1)).length)
 			throw new Error(
 				'Administrator setup requires a database with no accounts. Existing accounts were not changed.'
 			);
 		const userId = randomUUID();
-		await tx.insert(user).values({
+		await transaction.insert(user).values({
 			id: userId,
 			name: input.name,
 			email: input.email,
@@ -29,7 +29,7 @@ export async function createFirstAdministrator(
 			emailVerified: false,
 			banned: false
 		});
-		await tx.insert(account).values({
+		await transaction.insert(account).values({
 			id: randomUUID(),
 			accountId: userId,
 			providerId: 'credential',
@@ -37,7 +37,7 @@ export async function createFirstAdministrator(
 			password: passwordHash,
 			updatedAt: new Date()
 		});
-		await tx.insert(securityEvent).values({
+		await transaction.insert(securityEvent).values({
 			actorId: null,
 			action: 'operator.administrator_bootstrapped',
 			targetId: userId,

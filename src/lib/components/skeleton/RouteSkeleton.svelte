@@ -25,7 +25,7 @@
 		</section>
 		<section class="reading-pane" aria-label="Ticket conversation">
 			{#if kind === 'ticket'}
-				<div class="conversation-scroll"><ConversationSkeleton heading /></div>
+				<div class="conversation-scroll"><ConversationSkeleton showHeading /></div>
 			{/if}
 		</section>
 	</div>

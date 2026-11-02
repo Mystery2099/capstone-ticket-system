@@ -1,11 +1,11 @@
-export const statuses = {
+export const TICKET_STATUSES = {
 	open: { label: 'Open', symbol: '○' },
 	in_progress: { label: 'In progress', symbol: '◐' },
 	on_hold: { label: 'On hold', symbol: 'Ⅱ' },
 	resolved: { label: 'Resolved', symbol: '✓' },
 	closed: { label: 'Closed', symbol: '●' }
 } as const;
-export type Status = keyof typeof statuses;
+export type Status = keyof typeof TICKET_STATUSES;
 
 /** Statuses that count as open: anything not resolved or closed. */
 export const OPEN_STATUSES: readonly Status[] = ['open', 'in_progress', 'on_hold'];
@@ -19,7 +19,7 @@ export const TicketEventType = {
 } as const;
 
 /** The first letters of up to two names, for avatars. */
-export function initials(name: string): string {
+export function getInitials(name: string): string {
 	return name
 		.split(' ')
 		.map((word) => word[0])

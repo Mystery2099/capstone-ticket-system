@@ -5,7 +5,7 @@ import { admin, twoFactor } from 'better-auth/plugins';
 import { db } from './db';
 import { eq } from 'drizzle-orm';
 import { session } from './schema';
-import { ac, adminPaths, roles } from './auth-roles';
+import { accessControl, adminPaths, roles } from './auth-roles';
 import { validateProductionAuth } from './security';
 if (!building) validateProductionAuth(process.env);
 export const auth = betterAuth({
@@ -15,11 +15,11 @@ export const auth = betterAuth({
 	databaseHooks: {
 		user: {
 			update: {
-				after: async (updated) => {
+				after: async (updatedUser) => {
 					// Enrollment rotates the current session afterwards. Remove all older
 					// password-only sessions so they cannot inherit the enrolled flag.
-					if (updated.twoFactorEnabled)
-						await db.delete(session).where(eq(session.userId, updated.id));
+					if (updatedUser.twoFactorEnabled)
+						await db.delete(session).where(eq(session.userId, updatedUser.id));
 				}
 			}
 		}
@@ -29,7 +29,7 @@ export const auth = betterAuth({
 		admin({
 			adminRoles: ['admin'],
 			defaultRole: 'requester',
-			ac,
+			ac: accessControl,
 			roles
 		})
 	],

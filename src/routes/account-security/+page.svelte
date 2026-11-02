@@ -6,71 +6,74 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	let { data } = $props();
 	let password = $state('');
-	let code = $state('');
-	let recovery = $state(false);
-	let secret = $state('');
+	let verificationCode = $state('');
+	let isUsingRecoveryCode = $state(false);
+	let totpSecret = $state('');
 	let backupCodes = $state<string[]>([]);
-	let savedCodes = $state(false);
-	let busy = $state(false);
-	let problem = $state('');
+	let hasSavedBackupCodes = $state(false);
+	let isSubmitting = $state(false);
+	let errorMessage = $state('');
 
-	function verificationError(status: number): string {
+	function buildVerificationErrorMessage(status: number): string {
 		if (status === 429) return 'Too many attempts. Please wait and try again.';
 		if (status === 0) return 'Could not connect. Please try again.';
 		if (status >= 500) return 'Verification is temporarily unavailable. Please try again.';
 		return 'Verification failed. Check your password or code and try again.';
 	}
 
-	async function submit(event: SubmitEvent): Promise<void> {
+	async function handleSubmit(event: SubmitEvent): Promise<void> {
 		event.preventDefault();
-		busy = true;
-		problem = '';
+		isSubmitting = true;
+		errorMessage = '';
 		try {
-			if (data.enrollment && !secret) {
+			if (data.isEnrolling && !totpSecret) {
 				const result = await authClient.twoFactor.enable({ password });
 				if (result.error) {
-					problem = verificationError(result.error.status);
+					errorMessage = buildVerificationErrorMessage(result.error.status);
 					return;
 				}
 				if (result.data.method !== 'totp') {
-					problem = 'Authenticator setup is temporarily unavailable. Please try again.';
+					errorMessage = 'Authenticator setup is temporarily unavailable. Please try again.';
 					return;
 				}
 				password = '';
-				secret = new URL(result.data.totpURI).searchParams.get('secret') || '';
+				totpSecret = new URL(result.data.totpURI).searchParams.get('secret') || '';
 				backupCodes = result.data.backupCodes;
 				return;
 			}
-			const result = recovery
-				? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: false })
-				: await authClient.twoFactor.verifyTotp({ code, trustDevice: false });
+			const result = isUsingRecoveryCode
+				? await authClient.twoFactor.verifyBackupCode({
+						code: verificationCode,
+						trustDevice: false
+					})
+				: await authClient.twoFactor.verifyTotp({ code: verificationCode, trustDevice: false });
 			if (result.error) {
-				problem = verificationError(result.error.status);
+				errorMessage = buildVerificationErrorMessage(result.error.status);
 				return;
 			}
-			code = '';
-			secret = '';
+			verificationCode = '';
+			totpSecret = '';
 			backupCodes = [];
 			await invalidateAll();
 			await goto('/app/tickets');
 		} catch {
-			problem = 'Could not connect. Please try again.';
+			errorMessage = 'Could not connect. Please try again.';
 		} finally {
-			busy = false;
+			isSubmitting = false;
 		}
 	}
 </script>
 
 <div class="login-page">
 	<section class="login-card max-w-lg">
-		<h1>{data.enrollment ? 'Set up your authenticator' : 'Verify your sign-in'}</h1>
+		<h1>{data.isEnrolling ? 'Set up your authenticator' : 'Verify your sign-in'}</h1>
 		<p class="my-4">
-			{data.enrollment
+			{data.isEnrolling
 				? 'Administrators must use two-factor authentication before opening the workspace.'
 				: 'Enter a code from your authenticator, or use one of your saved recovery codes.'}
 		</p>
-		<form onsubmit={submit} class="flex flex-col gap-4">
-			{#if data.enrollment && !secret}
+		<form onsubmit={handleSubmit} class="flex flex-col gap-4">
+			{#if data.isEnrolling && !totpSecret}
 				<Label for="security-password">Current password</Label>
 				<Input
 					id="security-password"
@@ -80,9 +83,9 @@
 					required
 				/>
 			{:else}
-				{#if secret}
+				{#if totpSecret}
 					<p>Add a time-based account in your authenticator using this setup key:</p>
-					<code class="break-all select-all">{secret}</code>
+					<code class="break-all select-all">{totpSecret}</code>
 					<p>
 						Save these single-use recovery codes in a password manager. They let you sign in if you
 						lose your authenticator.
@@ -93,23 +96,35 @@
 							>{/each}
 					</div>
 					<label class="flex gap-2 items-center"
-						><input type="checkbox" bind:checked={savedCodes} required /> I saved my recovery codes</label
+						><input type="checkbox" bind:checked={hasSavedBackupCodes} required /> I saved my recovery
+						codes</label
 					>
 				{/if}
-				<Label for="security-code">{recovery ? 'Recovery code' : 'Authenticator code'}</Label>
-				<Input id="security-code" autocomplete="one-time-code" bind:value={code} required />
-				{#if !data.enrollment}<button
+				<Label for="security-code"
+					>{isUsingRecoveryCode ? 'Recovery code' : 'Authenticator code'}</Label
+				>
+				<Input
+					id="security-code"
+					autocomplete="one-time-code"
+					bind:value={verificationCode}
+					required
+				/>
+				{#if !data.isEnrolling}<button
 						class="text-link"
 						type="button"
 						onclick={() => {
-							recovery = !recovery;
-							code = '';
-						}}>{recovery ? 'Use authenticator' : 'Use a recovery code'}</button
+							isUsingRecoveryCode = !isUsingRecoveryCode;
+							verificationCode = '';
+						}}>{isUsingRecoveryCode ? 'Use authenticator' : 'Use a recovery code'}</button
 					>{/if}
 			{/if}
-			{#if problem}<p class="error" role="alert">{problem}</p>{/if}
-			<Button type="submit" disabled={busy || (!!secret && !savedCodes)}
-				>{busy ? 'Verifying…' : data.enrollment && !secret ? 'Start setup' : 'Verify'}</Button
+			{#if errorMessage}<p class="error" role="alert">{errorMessage}</p>{/if}
+			<Button type="submit" disabled={isSubmitting || (!!totpSecret && !hasSavedBackupCodes)}
+				>{isSubmitting
+					? 'Verifying…'
+					: data.isEnrolling && !totpSecret
+						? 'Start setup'
+						: 'Verify'}</Button
 			>
 			<a href="/login" class="text-link">Back to sign in</a>
 		</form>

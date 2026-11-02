@@ -4,19 +4,19 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { onMount } from 'svelte';
 	onMount(() => {
-		const apply = () => {
-			const theme = localStorage.getItem('ticket-theme') || 'system';
+		const applyStoredTheme = () => {
+			const storedTheme = localStorage.getItem('ticket-theme') || 'system';
 			document.documentElement.dataset.theme =
-				theme === 'system'
+				storedTheme === 'system'
 					? matchMedia('(prefers-color-scheme: dark)').matches
 						? 'dark'
 						: 'light'
-					: theme;
+					: storedTheme;
 		};
-		apply();
-		const media = matchMedia('(prefers-color-scheme: dark)');
-		media.addEventListener('change', apply);
-		return () => media.removeEventListener('change', apply);
+		applyStoredTheme();
+		const darkModeQuery = matchMedia('(prefers-color-scheme: dark)');
+		darkModeQuery.addEventListener('change', applyStoredTheme);
+		return () => darkModeQuery.removeEventListener('change', applyStoredTheme);
 	});
 	let { children } = $props();
 </script>

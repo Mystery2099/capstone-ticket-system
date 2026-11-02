@@ -27,18 +27,18 @@
 	} from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import StatusBadge from '$lib/StatusBadge.svelte';
-	import { statuses, initials, TicketEventType } from '$lib/status';
+	import { TICKET_STATUSES, getInitials, TicketEventType } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import { toast } from 'svelte-sonner';
-	import { delayed } from '$lib/delayed.svelte';
+	import { createDelayedFlag } from '$lib/delayed.svelte';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
 	let { data, form } = $props();
 
 	/** Events the conversation already shows as a message, so the timeline skips them. */
-	const CONVERSATION_EVENTS: string[] = [
+	const CONVERSATION_EVENT_TYPES: string[] = [
 		TicketEventType.CREATED,
 		TicketEventType.REPLY,
 		TicketEventType.INTERNAL_NOTE
@@ -63,7 +63,7 @@
 		},
 		onResult({ result }) {
 			if (result.type === 'redirect' && submittedDraftId) {
-				ticketDrafts.discard(submittedDraftId);
+				ticketDrafts.discardById(submittedDraftId);
 				toast.success('Ticket created.');
 			}
 		},
@@ -76,8 +76,8 @@
 	});
 	const {
 		enhance: enhanceCreate,
-		submitting: creatingTicket,
-		delayed: createDelayed,
+		submitting: isCreatingTicket,
+		delayed: isCreateDelayed,
 		errors: createErrors
 	} = createForm;
 
@@ -99,19 +99,19 @@
 	const {
 		form: replyFields,
 		enhance: enhanceReply,
-		submitting: sendingComment,
-		delayed: replyDelayed,
+		submitting: isSendingComment,
+		delayed: isReplyDelayed,
 		errors: replyErrors
 	} = replyForm;
 	// The editor is read-only while posting, so the optimistic message can use its values.
-	let sendingMessage = $derived(
-		$sendingComment && $replyFields.body.trim()
+	let optimisticMessage = $derived(
+		$isSendingComment && $replyFields.body.trim()
 			? { body: $replyFields.body, isInternal: isInternalNote }
 			: null
 	);
 	const allDrafts = getDrafts();
 	const ticketDrafts = allDrafts.tickets;
-	let composeForm = $state<HTMLFormElement>();
+	let composeFormElement = $state<HTMLFormElement>();
 	let isStaffUser = $derived(data.user.role !== 'requester');
 
 	// The list already holds every ticket field except its comments and events, so a
@@ -120,35 +120,35 @@
 	let targetTicketId = $derived(navigationTarget?.params?.id);
 	let isOpeningNewTicket = $derived(targetTicketId === 'new');
 	// Leaving the form takes effect at once, so the pane never lags behind a click.
-	let isComposing = $derived(isOpeningNewTicket || (data.isNew && !navigationTarget));
+	let isComposing = $derived(isOpeningNewTicket || (data.isNewTicket && !navigationTarget));
 	// Shallow routing leaves page.url as it was, so the draft just added to the URL is tracked here.
-	let promotedId = $state<string | null>(null);
+	let promotedDraftId = $state<string | null>(null);
 	let draftId = $derived(
 		navigationTarget
 			? navigationTarget.url.searchParams.get('draft')
-			: (page.url.searchParams.get('draft') ?? promotedId)
+			: (page.url.searchParams.get('draft') ?? promotedDraftId)
 	);
-	let activeDraft = $derived(ticketDrafts.find(draftId) ?? ticketDrafts.blank);
+	let activeDraft = $derived(ticketDrafts.findById(draftId) ?? ticketDrafts.blankDraft);
 	// The list's URL params, without the draft that happens to be open.
-	let listParams = $derived.by(() => {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.delete('draft');
-		return params;
+	let listSearchParams = $derived.by(() => {
+		const searchParams = new URLSearchParams(page.url.searchParams);
+		searchParams.delete('draft');
+		return searchParams;
 	});
-	let listSearch = $derived(listParams.size ? '?' + listParams : '');
+	let listQueryString = $derived(listSearchParams.size ? '?' + listSearchParams : '');
 	// Waits for navigation to land, because that would replace the URL set here.
 	$effect(() => {
 		if (
 			!isComposing ||
 			navigationTarget ||
-			activeDraft !== ticketDrafts.blank ||
-			!activeDraft.dirty
+			activeDraft !== ticketDrafts.blankDraft ||
+			!activeDraft.isDirty
 		)
 			return;
 		const url = new URL(page.url);
 		url.searchParams.set('draft', activeDraft.id);
-		promotedId = activeDraft.id;
-		ticketDrafts.promote();
+		promotedDraftId = activeDraft.id;
+		ticketDrafts.promoteBlankDraft();
 		replaceState(url, {});
 	});
 	let isListChanging = $derived(
@@ -159,25 +159,25 @@
 			? data.tickets.find((row) => String(row.ticketNumber) === targetTicketId)
 			: undefined
 	);
-	let slowNavigation = delayed(() => !!navigationTarget && !isOpeningNewTicket);
+	let slowNavigation = createDelayedFlag(() => !!navigationTarget && !isOpeningNewTicket);
 	let isListLoading = $derived(slowNavigation.current && isListChanging);
 	let isPaneLoading = $derived(slowNavigation.current && !!targetTicketId);
-	let ticket = $derived(isPaneLoading ? (targetTicketRow ?? null) : data.selected);
+	let ticket = $derived(isPaneLoading ? (targetTicketRow ?? null) : data.selectedTicket);
 	let highlightedTicketId = $derived(
-		isComposing ? undefined : navigationTarget ? targetTicketRow?.id : data.selected?.id
+		isComposing ? undefined : navigationTarget ? targetTicketRow?.id : data.selectedTicket?.id
 	);
 	let hasTicket = $derived(
 		isComposing || (navigationTarget && !targetTicketId ? false : !!ticket || isPaneLoading)
 	);
-	let listHref = $derived('/app/tickets' + listSearch);
-	let isClosed = $derived(ticket?.statusCode === 'closed');
+	let listHref = $derived('/app/tickets' + listQueryString);
+	let isTicketClosed = $derived(ticket?.statusCode === 'closed');
 	let requesters = $derived(
 		data.people
 			.filter((candidate) => !candidate.banned)
-			.sort((a, b) => a.name.localeCompare(b.name))
+			.sort((firstPerson, secondPerson) => firstPerson.name.localeCompare(secondPerson.name))
 	);
 	let assignees = $derived(requesters.filter((candidate) => candidate.role !== 'requester'));
-	const statusOptions = Object.entries(statuses).map(([value, status]) => ({
+	const statusOptions = Object.entries(TICKET_STATUSES).map(([value, status]) => ({
 		value,
 		label: status.label
 	}));
@@ -189,29 +189,31 @@
 	let categoryOptions = $derived(
 		data.categories.map(({ id, name, active }) => ({ value: id, label: name, active }))
 	);
-	const personOption = (p: (typeof requesters)[number]) => ({
-		value: p.id,
-		label: p.name + (p.id === data.user.id ? ' (you)' : '')
+	const toPersonOption = (person: (typeof requesters)[number]) => ({
+		value: person.id,
+		label: person.name + (person.id === data.user.id ? ' (you)' : '')
 	});
-	const personName = (id: string | null) =>
+	const getPersonName = (id: string | null) =>
 		data.people.find((candidate) => candidate.id === id)?.name || 'Support team';
-	const personRole = (id: string) =>
+	const getPersonRole = (id: string) =>
 		data.people.find((candidate) => candidate.id === id)?.role || 'agent';
-	const categoryName = (id: string) =>
-		data.categories.find((item) => item.id === id)?.name || 'Category';
-	const date = (d: Date | string) =>
-		new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-	const time = (d: Date | string) =>
-		new Date(d).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+	const getCategoryName = (id: string) =>
+		data.categories.find((category) => category.id === id)?.name || 'Category';
+	const formatDate = (timestamp: Date | string) =>
+		new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+	const formatTime = (timestamp: Date | string) =>
+		new Date(timestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 	let activeView = $derived(
 		isListChanging
 			? navigationTarget?.url.searchParams.get('view') || (isStaffUser ? 'open' : 'mine')
 			: data.view
 	);
-	let targetParams = $derived((isListChanging ? navigationTarget?.url : page.url)?.searchParams);
-	let openCategory = $derived(
+	let targetSearchParams = $derived(
+		(isListChanging ? navigationTarget?.url : page.url)?.searchParams
+	);
+	let activeCategory = $derived(
 		activeView === 'open'
-			? data.categories.find((item) => item.id === targetParams?.get('category'))
+			? data.categories.find((category) => category.id === targetSearchParams?.get('category'))
 			: undefined
 	);
 	let viewTitle = $derived(
@@ -226,56 +228,59 @@
 			} as Record<string, string>
 		)[activeView] || 'All tickets'
 	);
-	let showingDrafts = $derived(activeView === 'drafts');
+	let isShowingDrafts = $derived(activeView === 'drafts');
 	// Every kind of draft lives in this one list, each opening back in its own form.
 	let draftRows = $derived([
-		...ticketDrafts.saved.map((item) => ({
-			id: item.id,
-			title: item.subject.trim() || 'No subject',
-			preview: item.description.trim() || 'Nothing written yet',
+		...ticketDrafts.dirtyDrafts.map((draft) => ({
+			id: draft.id,
+			title: draft.subject.trim() || 'No subject',
+			preview: draft.description.trim() || 'Nothing written yet',
 			type: 'Ticket draft',
-			avatar: initials(personName(item.requesterId)),
-			href: `/app/tickets/new?view=drafts&draft=${item.id}`
+			avatar: getInitials(getPersonName(draft.requesterId)),
+			href: `/app/tickets/new?view=drafts&draft=${draft.id}`
 		})),
-		...allDrafts.users.saved.map((item) => ({
-			id: item.id,
-			title: item.name.trim() || 'No name',
-			preview: item.email.trim() || 'No email yet',
+		...allDrafts.users.dirtyDrafts.map((draft) => ({
+			id: draft.id,
+			title: draft.name.trim() || 'No name',
+			preview: draft.email.trim() || 'No email yet',
 			type: 'User draft',
-			avatar: item.name.trim() ? initials(item.name.trim()) : '?',
-			href: `/app/admin/users?new&draft=${item.id}`
+			avatar: draft.name.trim() ? getInitials(draft.name.trim()) : '?',
+			href: `/app/admin/users?new&draft=${draft.id}`
 		})),
-		...allDrafts.categories.saved.map((item) => ({
-			id: item.id,
-			title: item.name.trim(),
+		...allDrafts.categories.dirtyDrafts.map((draft) => ({
+			id: draft.id,
+			title: draft.name.trim(),
 			preview: 'New category',
 			type: 'Category draft',
 			avatar: '',
-			href: `/app/admin/categories?new&draft=${item.id}`
+			href: `/app/admin/categories?new&draft=${draft.id}`
 		}))
 	]);
-	let listHeading = $derived(openCategory ? `Open · ${openCategory.name}` : viewTitle);
+	let listHeading = $derived(activeCategory ? `Open · ${activeCategory.name}` : viewTitle);
 	let ticketIndex = $derived(data.tickets.findIndex((row) => row.id === ticket?.id));
 	let conversationTimeline = $derived(
 		[
 			...data.comments.map((comment) => ({ ...comment, kind: 'comment' as const })),
 			...data.events
-				.filter((event) => !CONVERSATION_EVENTS.includes(event.eventType))
+				.filter((event) => !CONVERSATION_EVENT_TYPES.includes(event.eventType))
 				.map((event) => ({ ...event, kind: 'event' as const }))
-		].sort((a, b) => +new Date(a.createdAt) - +new Date(b.createdAt))
+		].sort(
+			(firstEntry, secondEntry) =>
+				+new Date(firstEntry.createdAt) - +new Date(secondEntry.createdAt)
+		)
 	);
 	let visibleTimeline = $derived(
 		showAllActivity ? conversationTimeline : conversationTimeline.slice(-4)
 	);
-	function ticketHref(n: number) {
-		return `/app/tickets/${n}${listSearch}`;
+	function buildTicketHref(ticketNumber: number) {
+		return `/app/tickets/${ticketNumber}${listQueryString}`;
 	}
-	async function applyListFilter(key: string, value: string) {
-		const params = new URLSearchParams(listParams);
-		params.delete('before');
-		if (value) params.set(key, value);
-		else params.delete(key);
-		await goto('/app/tickets?' + params);
+	async function applyListFilter(filterName: string, filterValue: string) {
+		const searchParams = new URLSearchParams(listSearchParams);
+		searchParams.delete('before');
+		if (filterValue) searchParams.set(filterName, filterValue);
+		else searchParams.delete(filterName);
+		await goto('/app/tickets?' + searchParams);
 	}
 	async function refreshTickets() {
 		isRefreshing = true;
@@ -301,7 +306,7 @@
 		isInternalNote = false;
 		showAllActivity = false;
 		showTicketDetails = false;
-		promotedId = null;
+		promotedDraftId = null;
 	});
 	beforeNavigate(({ cancel }) => {
 		// New-ticket drafts need no warning, because they're saved in this browser.
@@ -311,7 +316,7 @@
 
 	const createFormHotkeys = createHotkeysAttachment(
 		[
-			{ hotkey: 'Mod+Enter', callback: () => composeForm?.requestSubmit() },
+			{ hotkey: 'Mod+Enter', callback: () => composeFormElement?.requestSubmit() },
 			{
 				hotkey: 'Escape',
 				callback: () => {
@@ -319,22 +324,22 @@
 				}
 			}
 		],
-		() => ({ enabled: isComposing && !$creatingTicket, ignoreInputs: false })
+		() => ({ enabled: isComposing && !$isCreatingTicket, ignoreInputs: false })
 	);
 </script>
 
 <svelte:window
-	onbeforeunload={(e) => {
+	onbeforeunload={(event) => {
 		if ($replyFields.body.trim()) {
-			e.preventDefault();
-			e.returnValue = '';
+			event.preventDefault();
+			event.returnValue = '';
 		}
 	}}
 />
 
-{#snippet compose()}
+{#snippet composeTicketForm()}
 	<form
-		bind:this={composeForm}
+		bind:this={composeFormElement}
 		{@attach createFormHotkeys}
 		class="compose"
 		method="POST"
@@ -367,7 +372,7 @@
 					bind:value={activeDraft.subject}
 					required
 					maxlength={180}
-					readonly={$creatingTicket}
+					readonly={$isCreatingTicket}
 				/>
 				{#if $createErrors.subject}<p id="subject-error" class="error" role="alert">
 						{$createErrors.subject.join(' ')}
@@ -401,8 +406,8 @@
 								name="requesterId"
 								label="Requester"
 								bind:value={activeDraft.requesterId}
-								options={requesters.map(personOption)}
-								disabled={$creatingTicket}
+								options={requesters.map(toPersonOption)}
+								disabled={$isCreatingTicket}
 							/>
 						</div>
 						<div class="metadata-control">
@@ -410,8 +415,8 @@
 								name="assignedToUserId"
 								label="Assignee"
 								bind:value={activeDraft.assignedToUserId}
-								options={[{ value: '', label: 'Unassigned' }, ...assignees.map(personOption)]}
-								disabled={$creatingTicket}
+								options={[{ value: '', label: 'Unassigned' }, ...assignees.map(toPersonOption)]}
+								disabled={$isCreatingTicket}
 							/>
 						</div>
 					{/if}
@@ -422,7 +427,7 @@
 							placeholder="Choose"
 							bind:value={activeDraft.categoryId}
 							options={categoryOptions.filter((option) => option.active)}
-							disabled={$creatingTicket}
+							disabled={$isCreatingTicket}
 							required
 						/>
 					</div>
@@ -439,7 +444,7 @@
 					required
 					maxlength={4000}
 					rows={8}
-					readonly={$creatingTicket}></textarea>
+					readonly={$isCreatingTicket}></textarea>
 				{#if $createErrors.description}<p id="description-error" class="error" role="alert">
 						{$createErrors.description.join(' ')}
 					</p>{/if}
@@ -449,9 +454,9 @@
 				<div class="composer-footer">
 					<span
 						class="muted small"
-						class:compose-hint={!$creatingTicket && activeDraft.description.length <= 3600}
-						>{$creatingTicket
-							? $createDelayed
+						class:compose-hint={!$isCreatingTicket && activeDraft.description.length <= 3600}
+						>{$isCreatingTicket
+							? $isCreateDelayed
 								? 'Still creating ticket…'
 								: 'Creating ticket…'
 							: activeDraft.description.length > 3600
@@ -463,9 +468,9 @@
 							variant="ghost"
 							size="sm"
 							class="rounded-full px-4"
-							disabled={$creatingTicket}
+							disabled={$isCreatingTicket}
 							onclick={() => {
-								ticketDrafts.discard(activeDraft.id);
+								ticketDrafts.discardById(activeDraft.id);
 								void goto(listHref);
 							}}>Discard</Button
 						>
@@ -473,8 +478,8 @@
 							type="submit"
 							size="sm"
 							class="rounded-full px-4 whitespace-nowrap"
-							disabled={$creatingTicket}
-							><Send size={15} />{$creatingTicket ? 'Creating…' : 'Create ticket'}</Button
+							disabled={$isCreatingTicket}
+							><Send size={15} />{$isCreatingTicket ? 'Creating…' : 'Create ticket'}</Button
 						>
 					</span>
 				</div>
@@ -485,30 +490,30 @@
 {#snippet commentMessage(
 	authorId: string,
 	isInternal: boolean,
-	when: string,
-	text: string,
+	timestampLabel: string,
+	messageText: string,
 	isSending = false
 )}
 	<article class="message" class:internal-note={isInternal} class:sending={isSending}>
-		<span class="avatar">{initials(personName(authorId))}</span>
+		<span class="avatar">{getInitials(getPersonName(authorId))}</span>
 		<div class="message-content">
 			<div class="message-heading">
-				<strong>{personName(authorId)}</strong><span class="role-tag"
-					>{personRole(authorId) === 'requester'
+				<strong>{getPersonName(authorId)}</strong><span class="role-tag"
+					>{getPersonRole(authorId) === 'requester'
 						? 'Requester'
-						: personRole(authorId) === 'admin'
+						: getPersonRole(authorId) === 'admin'
 							? 'Administrator'
 							: 'Agent'}</span
-				><time>{when}</time>
+				><time>{timestampLabel}</time>
 			</div>
 			{#if isInternal}<p class="private-label">
 					<LockKeyhole size={13} /> Internal note · only visible to support team
 				</p>{/if}
-			<p class="message-body">{text}</p>
+			<p class="message-body">{messageText}</p>
 		</div>
 	</article>
 {/snippet}
-{#snippet updateSelect(
+{#snippet ticketFieldSelect(
 	field: string,
 	label: string,
 	value: string,
@@ -533,7 +538,7 @@
 			{options}
 			value={pendingFieldValues[field] ?? value}
 			class={field === 'statusCode' ? 'status ' + (pendingFieldValues[field] ?? value) : ''}
-			disabled={isClosed || isPaneLoading}
+			disabled={isTicketClosed || isPaneLoading}
 			submitOnSelect
 		/>
 	</form>
@@ -543,9 +548,9 @@
 		<div class="list-top">
 			<h1>
 				{listHeading}{#if !isListLoading}
-					<span>{showingDrafts ? draftRows.length : data.tickets.length}</span>{/if}
+					<span>{isShowingDrafts ? draftRows.length : data.tickets.length}</span>{/if}
 			</h1>
-			{#if !showingDrafts}<Tooltip.Root>
+			{#if !isShowingDrafts}<Tooltip.Root>
 					<Tooltip.Trigger onclick={refreshTickets}>
 						{#snippet child({ props })}
 							<button
@@ -559,7 +564,7 @@
 					<Tooltip.Content side="bottom" sideOffset={6}>Refresh tickets</Tooltip.Content>
 				</Tooltip.Root>{/if}
 		</div>
-		{#if !showingDrafts}<div class="filters">
+		{#if !isShowingDrafts}<div class="filters">
 				<Combobox
 					label="Filter by status"
 					placeholder="Status"
@@ -582,7 +587,7 @@
 					onchange={(value) => applyListFilter('category', value)}
 				/>
 			</div>{/if}
-		{#if showingDrafts}<div class="rows">
+		{#if isShowingDrafts}<div class="rows">
 				{#each draftRows as row (row.id)}<a
 						href={row.href}
 						class="ticket-row"
@@ -607,23 +612,23 @@
 				aria-busy={isRefreshing}
 			>
 				{#each data.tickets as row (row.id)}<a
-						href={ticketHref(row.ticketNumber)}
+						href={buildTicketHref(row.ticketNumber)}
 						class="ticket-row"
 						class:selected={highlightedTicketId === row.id}
-						><span class="avatar row-avatar">{initials(personName(row.requesterId))}</span>
+						><span class="avatar row-avatar">{getInitials(getPersonName(row.requesterId))}</span>
 						<div class="row-content">
 							<div class="row-title">
 								{#if row.priority === 'high'}<ChevronsUp class="high" size={17} />{/if}<strong
 									>{row.subject}</strong
 								><time
 									>{new Date(row.updatedAt).toDateString() === new Date().toDateString()
-										? time(row.updatedAt)
-										: date(row.updatedAt)}</time
+										? formatTime(row.updatedAt)
+										: formatDate(row.updatedAt)}</time
 								>
 							</div>
 							<div class="row-meta">
 								<StatusBadge status={row.statusCode} /><span class="row-requester"
-									>{personName(row.requesterId)} · #{row.ticketNumber}</span
+									>{getPersonName(row.requesterId)} · #{row.ticketNumber}</span
 								><span class="row-preview"
 									>— {row.previewAuthor ? row.previewAuthor + ': ' : ''}{row.preview}</span
 								>
@@ -646,10 +651,10 @@
 			</div>{/if}
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">
-		{#if isComposing}{#key activeDraft.id}{@render compose()}{/key}{:else if isPaneLoading && !ticket}<div
+		{#if isComposing}{#key activeDraft.id}{@render composeTicketForm()}{/key}{:else if isPaneLoading && !ticket}<div
 				class="conversation-scroll"
 			>
-				<ConversationSkeleton heading />
+				<ConversationSkeleton showHeading />
 			</div>{:else if ticket}<div class="reading-toolbar">
 				<Tooltip.Root>
 					<Tooltip.Trigger>
@@ -676,10 +681,10 @@
 							>
 							<Tooltip.Content side="bottom" sideOffset={6}>Copy ticket number</Tooltip.Content>
 						</Tooltip.Root>
-						· Opened by {personName(ticket.requesterId)} · {date(ticket.createdAt)}, {time(
+						· Opened by {getPersonName(ticket.requesterId)} · {formatDate(ticket.createdAt)}, {formatTime(
 							ticket.createdAt
 						)} · Updated
-						{date(ticket.updatedAt)}, {time(ticket.updatedAt)}
+						{formatDate(ticket.updatedAt)}, {formatTime(ticket.updatedAt)}
 					</p>
 				</div>
 				{#if ticketIndex >= 0}<span class="toolbar-position muted small"
@@ -693,7 +698,7 @@
 								aria-label="Previous ticket"
 								aria-disabled={ticketIndex <= 0}
 								href={ticketIndex > 0
-									? ticketHref(data.tickets[ticketIndex - 1].ticketNumber)
+									? buildTicketHref(data.tickets[ticketIndex - 1].ticketNumber)
 									: undefined}><ChevronLeft size={20} /></a
 							>
 						{/snippet}
@@ -708,7 +713,7 @@
 								aria-label="Next ticket"
 								aria-disabled={ticketIndex < 0 || ticketIndex >= data.tickets.length - 1}
 								href={ticketIndex >= 0 && ticketIndex < data.tickets.length - 1
-									? ticketHref(data.tickets[ticketIndex + 1].ticketNumber)
+									? buildTicketHref(data.tickets[ticketIndex + 1].ticketNumber)
 									: undefined}><ChevronRight size={20} /></a
 							>
 						{/snippet}
@@ -733,15 +738,15 @@
 						>{showTicketDetails ? 'Hide details' : 'Show details'} <span>⌄</span></button
 					>
 					<div class="ticket-metadata" class:expanded={showTicketDetails}>
-						{#if isStaffUser && !isClosed}{@render updateSelect(
+						{#if isStaffUser && !isTicketClosed}{@render ticketFieldSelect(
 								'statusCode',
 								'Status',
 								ticket.statusCode,
-								Object.entries(statuses).map(([value, s]) => ({
+								Object.entries(TICKET_STATUSES).map(([value, status]) => ({
 									value,
-									label: s.symbol + ' ' + s.label
+									label: status.symbol + ' ' + status.label
 								}))
-							)}{@render updateSelect(
+							)}{@render ticketFieldSelect(
 								'priority',
 								'Priority',
 								ticket.priority,
@@ -749,7 +754,7 @@
 									value,
 									label: (value === 'high' ? '⌃ ' : '') + value[0].toUpperCase() + value.slice(1)
 								}))
-							)}{@render updateSelect(
+							)}{@render ticketFieldSelect(
 								'assignedToUserId',
 								'Assignee',
 								ticket.assignedToUserId || '',
@@ -757,13 +762,13 @@
 									{ value: '', label: 'Unassigned' },
 									...assignees.map((person) => ({ value: person.id, label: person.name }))
 								]
-							)}{@render updateSelect(
+							)}{@render ticketFieldSelect(
 								'categoryId',
 								'Category',
 								ticket.categoryId,
 								data.categories
-									.filter((item) => item.active || item.id === ticket.categoryId)
-									.map((item) => ({ value: item.id, label: item.name }))
+									.filter((category) => category.active || category.id === ticket.categoryId)
+									.map((category) => ({ value: category.id, label: category.name }))
 							)}{:else}<StatusBadge status={ticket.statusCode} /><span class="metadata-pill"
 								>Priority <strong>{ticket.priority}</strong></span
 							><span class="metadata-pill"
@@ -771,21 +776,21 @@
 									>{isPaneLoading
 										? '…'
 										: ticket.assignedToUserId
-											? personName(ticket.assignedToUserId)
+											? getPersonName(ticket.assignedToUserId)
 											: 'Unassigned'}</strong
 								></span
 							><span class="metadata-pill"
-								>Category <strong>{categoryName(ticket.categoryId)}</strong></span
+								>Category <strong>{getCategoryName(ticket.categoryId)}</strong></span
 							>{/if}
 					</div>
 				</div>
 				<article class="message">
-					<span class="avatar">{initials(personName(ticket.requesterId))}</span>
+					<span class="avatar">{getInitials(getPersonName(ticket.requesterId))}</span>
 					<div class="message-content">
 						<div class="message-heading">
-							<strong>{personName(ticket.requesterId)}</strong><span class="role-tag"
+							<strong>{getPersonName(ticket.requesterId)}</strong><span class="role-tag"
 								>Requester</span
-							><time>{date(ticket.createdAt)}, {time(ticket.createdAt)}</time>
+							><time>{formatDate(ticket.createdAt)}, {formatTime(ticket.createdAt)}</time>
 						</div>
 						<p class="message-caption">Opened this ticket</p>
 						<p class="message-body">{ticket.description}</p>
@@ -797,56 +802,60 @@
 								>Earlier comments and activity hidden</span
 							><button class="text-link" onclick={() => (showAllActivity = true)}>Show all</button>
 						</div>{/if}
-					{#each visibleTimeline as item (`${item.kind}-${item.id}`)}{#if item.kind === 'comment'}{@render commentMessage(
-								item.authorId,
-								item.isInternal,
-								`${date(item.createdAt)}, ${time(item.createdAt)}`,
-								item.body
+					{#each visibleTimeline as timelineEntry (`${timelineEntry.kind}-${timelineEntry.id}`)}{#if timelineEntry.kind === 'comment'}{@render commentMessage(
+								timelineEntry.authorId,
+								timelineEntry.isInternal,
+								`${formatDate(timelineEntry.createdAt)}, ${formatTime(timelineEntry.createdAt)}`,
+								timelineEntry.body
 							)}{:else}<div class="activity">
 								<span class="activity-icon"><ArrowRightLeft size={15} /></span>
 								<p>
-									<strong>{personName(item.actorId)}</strong>
-									{item.eventType === 'status'
+									<strong>{getPersonName(timelineEntry.actorId)}</strong>
+									{timelineEntry.eventType === 'status'
 										? 'changed status'
-										: `changed ${{ assignedToUserId: 'assignee', categoryId: 'category', priority: 'priority' }[item.eventType] || item.eventType}`}
+										: `changed ${{ assignedToUserId: 'assignee', categoryId: 'category', priority: 'priority' }[timelineEntry.eventType] || timelineEntry.eventType}`}
 									from
 									<span
-										>{item.eventType === 'status'
-											? statuses[item.details.from as keyof typeof statuses]?.label ||
-												item.details.from
-											: item.eventType === 'assignedToUserId'
-												? item.details.from
-													? personName(item.details.from as string)
+										>{timelineEntry.eventType === 'status'
+											? TICKET_STATUSES[timelineEntry.details.from as keyof typeof TICKET_STATUSES]
+													?.label || timelineEntry.details.from
+											: timelineEntry.eventType === 'assignedToUserId'
+												? timelineEntry.details.from
+													? getPersonName(timelineEntry.details.from as string)
 													: 'Unassigned'
-												: item.eventType === 'categoryId'
-													? categoryName(item.details.from as string)
-													: item.details.from || 'Unassigned'}</span
+												: timelineEntry.eventType === 'categoryId'
+													? getCategoryName(timelineEntry.details.from as string)
+													: timelineEntry.details.from || 'Unassigned'}</span
 									>
-									to {#if item.eventType === 'status'}<StatusBadge
-											status={String(item.details.to)}
+									to {#if timelineEntry.eventType === 'status'}<StatusBadge
+											status={String(timelineEntry.details.to)}
 										/>{:else}<strong
-											>{item.eventType === 'assignedToUserId'
-												? item.details.to
-													? personName(item.details.to as string)
+											>{timelineEntry.eventType === 'assignedToUserId'
+												? timelineEntry.details.to
+													? getPersonName(timelineEntry.details.to as string)
 													: 'Unassigned'
-												: item.eventType === 'categoryId'
-													? categoryName(item.details.to as string)
-													: item.details.to || 'Unassigned'}</strong
+												: timelineEntry.eventType === 'categoryId'
+													? getCategoryName(timelineEntry.details.to as string)
+													: timelineEntry.details.to || 'Unassigned'}</strong
 										>{/if}
-									<span class="muted">· {date(item.createdAt)}, {time(item.createdAt)}</span>
+									<span class="muted"
+										>· {formatDate(timelineEntry.createdAt)}, {formatTime(
+											timelineEntry.createdAt
+										)}</span
+									>
 								</p>
 							</div>{/if}{/each}
-					{#if sendingMessage}{@render commentMessage(
+					{#if optimisticMessage}{@render commentMessage(
 							data.user.id,
-							sendingMessage.isInternal,
+							optimisticMessage.isInternal,
 							'Sending…',
-							sendingMessage.body,
+							optimisticMessage.body,
 							true
 						)}{/if}
-					{#if !isClosed}<form
+					{#if !isTicketClosed}<form
 							class="composer"
 							class:note-mode={isInternalNote}
-							aria-busy={$sendingComment}
+							aria-busy={$isSendingComment}
 							method="POST"
 							action="?/reply"
 							use:enhanceReply
@@ -855,13 +864,13 @@
 								<button
 									type="button"
 									class:chosen={!isInternalNote}
-									disabled={$sendingComment}
+									disabled={$isSendingComment}
 									onclick={() => (isInternalNote = false)}
 									><MessageSquare size={16} /> Comment</button
 								>{#if isStaffUser}<button
 										type="button"
 										class:chosen={isInternalNote}
-										disabled={$sendingComment}
+										disabled={$isSendingComment}
 										onclick={() => (isInternalNote = true)}
 										><LockKeyhole size={16} /> Internal note</button
 									>{/if}
@@ -878,7 +887,7 @@
 								required
 								maxlength={10000}
 								rows={4}
-								readonly={$sendingComment}></textarea>
+								readonly={$isSendingComment}></textarea>
 							{#if $replyErrors.body}<p id="reply-error" class="error" role="alert">
 									{$replyErrors.body.join(' ')}
 								</p>{/if}
@@ -891,9 +900,9 @@
 									type="submit"
 									size="sm"
 									class="rounded-full px-4 whitespace-nowrap"
-									disabled={$sendingComment || !$replyFields.body.trim()}
-									><Send size={15} />{$sendingComment
-										? $replyDelayed
+									disabled={$isSendingComment || !$replyFields.body.trim()}
+									><Send size={15} />{$isSendingComment
+										? $isReplyDelayed
 											? 'Still sending…'
 											: 'Sending…'
 										: isInternalNote
@@ -912,7 +921,7 @@
 								</p>
 							</div>
 						</div>{/if}
-					{#if (ticket.statusCode === 'resolved' && (isStaffUser || ticket.requesterId === data.user.id)) || (isClosed && data.user.role === 'admin')}<form
+					{#if (ticket.statusCode === 'resolved' && (isStaffUser || ticket.requesterId === data.user.id)) || (isTicketClosed && data.user.role === 'admin')}<form
 							method="POST"
 							action="?/update"
 							use:enhance={() => {
@@ -941,9 +950,9 @@
 				<h2>Your workspace, in order.</h2>
 				<p>Select a ticket to read the conversation<br />and keep things moving.</p>
 				{#if !isListLoading}<span class="small muted"
-						>{openCategory
-							? `${data.tickets.length} open ${openCategory.name} tickets`
-							: showingDrafts
+						>{activeCategory
+							? `${data.tickets.length} open ${activeCategory.name} tickets`
+							: isShowingDrafts
 								? `${draftRows.length} drafts`
 								: `${data.tickets.length} tickets · ${viewTitle}`}</span
 					>{/if}

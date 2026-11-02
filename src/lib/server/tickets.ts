@@ -5,7 +5,7 @@ import { db } from './db';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
 import {
 	createTicketSchema,
-	parseForm,
+	parseFormInput,
 	parseTicketNumber,
 	parseTicketUpdateField,
 	parseTicketUpdateValue,
@@ -19,7 +19,7 @@ const TICKET_PAGE_SIZE = 50;
 export type Person = typeof user.$inferSelect;
 type Ticket = typeof ticket.$inferSelect;
 type Category = typeof category.$inferSelect;
-type Comment = typeof ticketComment.$inferSelect;
+type TicketComment = typeof ticketComment.$inferSelect;
 type TicketEvent = typeof ticketEvent.$inferSelect;
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -42,12 +42,12 @@ export function requireUser(person: Person | null): Person {
  *
  * @throws 404 rather than 403, so requesters can't tell which ticket numbers exist
  */
-export function requireTicketAccess(actor: Person, record: Ticket): void {
-	if (!isStaff(actor) && record.requesterId !== actor.id) error(404, 'Ticket not found.');
+export function requireTicketAccess(actor: Person, ticketRecord: Ticket): void {
+	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) error(404, 'Ticket not found.');
 }
 
 /** Builds the WHERE conditions for a view, its filters and the search box. */
-function buildListConditions(
+function buildTicketListConditions(
 	actor: Person,
 	url: URL,
 	view: string,
@@ -70,22 +70,23 @@ function buildListConditions(
 	for (const [parameter, column] of filters) {
 		const value = url.searchParams.get(parameter);
 		if (!value) continue;
-		if (parameter === 'category' && !categories.some((item) => item.id === value)) continue;
+		if (parameter === 'category' && !categories.some((candidate) => candidate.id === value))
+			continue;
 		conditions.push(eq(column, value));
 	}
 
-	const search = url.searchParams.get('q')?.slice(0, MAX_SEARCH_LENGTH);
-	if (search) {
-		const lowerSearch = search.toLowerCase();
-		const matchingPeople = people
-			.filter((person) => person.name.toLowerCase().includes(lowerSearch))
+	const searchText = url.searchParams.get('q')?.slice(0, MAX_SEARCH_LENGTH);
+	if (searchText) {
+		const lowerCaseSearchText = searchText.toLowerCase();
+		const matchingPersonIds = people
+			.filter((person) => person.name.toLowerCase().includes(lowerCaseSearchText))
 			.map((person) => person.id);
 		conditions.push(
 			or(
-				ilike(ticket.subject, `%${search}%`),
-				ilike(ticket.description, `%${search}%`),
-				sql`cast(${ticket.ticketNumber} as text) = ${search.replace('#', '')}`,
-				matchingPeople.length ? inArray(ticket.requesterId, matchingPeople) : sql`false`
+				ilike(ticket.subject, `%${searchText}%`),
+				ilike(ticket.description, `%${searchText}%`),
+				sql`cast(${ticket.ticketNumber} as text) = ${searchText.replace('#', '')}`,
+				matchingPersonIds.length ? inArray(ticket.requesterId, matchingPersonIds) : sql`false`
 			)
 		);
 	}
@@ -96,20 +97,23 @@ function buildListConditions(
 async function loadConversation(
 	actor: Person,
 	ticketNumber: string
-): Promise<{ record: Ticket; comments: Comment[]; events: TicketEvent[] }> {
-	const number = parseTicketNumber(Number(ticketNumber));
-	const [record] = await db.select().from(ticket).where(eq(ticket.ticketNumber, number));
-	if (!record) error(404, 'Ticket not found.');
-	requireTicketAccess(actor, record);
+): Promise<{ ticketRecord: Ticket; comments: TicketComment[]; events: TicketEvent[] }> {
+	const parsedTicketNumber = parseTicketNumber(Number(ticketNumber));
+	const [ticketRecord] = await db
+		.select()
+		.from(ticket)
+		.where(eq(ticket.ticketNumber, parsedTicketNumber));
+	if (!ticketRecord) error(404, 'Ticket not found.');
+	requireTicketAccess(actor, ticketRecord);
 
-	const staffOnly = isStaff(actor);
+	const canViewInternalContent = isStaff(actor);
 	const comments = await db
 		.select()
 		.from(ticketComment)
 		.where(
 			and(
-				eq(ticketComment.ticketId, record.id),
-				...(staffOnly ? [] : [eq(ticketComment.isInternal, false)])
+				eq(ticketComment.ticketId, ticketRecord.id),
+				...(canViewInternalContent ? [] : [eq(ticketComment.isInternal, false)])
 			)
 		)
 		.orderBy(asc(ticketComment.createdAt));
@@ -118,30 +122,33 @@ async function loadConversation(
 		.from(ticketEvent)
 		.where(
 			and(
-				eq(ticketEvent.ticketId, record.id),
-				...(staffOnly ? [] : [sql`${ticketEvent.eventType} <> ${TicketEventType.INTERNAL_NOTE}`])
+				eq(ticketEvent.ticketId, ticketRecord.id),
+				...(canViewInternalContent
+					? []
+					: [sql`${ticketEvent.eventType} <> ${TicketEventType.INTERNAL_NOTE}`])
 			)
 		)
 		.orderBy(asc(ticketEvent.createdAt));
-	return { record, comments, events };
+	return { ticketRecord, comments, events };
 }
 
 /**
  * Loads everything the ticket screen needs: the filtered list, plus the open ticket if any.
  *
- * @param id the ticket number from the URL, or `new` for the compose pane
+ * @param routeTicketId the ticket number from the URL, or `new` for the compose pane
  * @throws 404 when the ticket doesn't exist or the actor may not see it
  */
-export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) {
+export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId?: string) {
 	const categories = await db.select().from(category).orderBy(asc(category.name));
 	const people = await db
 		.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
 		.from(user);
 	const view = url.searchParams.get('view') || (isStaff(actor) ? 'open' : 'mine');
-	const conditions = buildListConditions(actor, url, view, categories, people);
+	const conditions = buildTicketListConditions(actor, url, view, categories, people);
 
-	const before = url.searchParams.get('before');
-	if (before) conditions.push(lt(ticket.ticketNumber, parseTicketNumber(Number(before))));
+	const beforeTicketNumber = url.searchParams.get('before');
+	if (beforeTicketNumber)
+		conditions.push(lt(ticket.ticketNumber, parseTicketNumber(Number(beforeTicketNumber))));
 	// Drafts live in the browser, so that view has no tickets to fetch.
 	const matchingTickets =
 		view === 'drafts'
@@ -154,14 +161,14 @@ export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) 
 					.limit(TICKET_PAGE_SIZE + 1);
 	const hasMoreTickets = matchingTickets.length > TICKET_PAGE_SIZE;
 	const tickets = matchingTickets.slice(0, TICKET_PAGE_SIZE);
-	const nextPage = new URL(url);
-	nextPage.pathname = '/app/tickets';
+	const nextPageUrl = new URL(url);
+	nextPageUrl.pathname = '/app/tickets';
 	if (tickets.length)
-		nextPage.searchParams.set('before', String(tickets[tickets.length - 1].ticketNumber));
-	const firstPage = new URL(url);
-	firstPage.pathname = '/app/tickets';
-	firstPage.searchParams.delete('before');
-	const publicComments = tickets.length
+		nextPageUrl.searchParams.set('before', String(tickets[tickets.length - 1].ticketNumber));
+	const firstPageUrl = new URL(url);
+	firstPageUrl.pathname = '/app/tickets';
+	firstPageUrl.searchParams.delete('before');
+	const latestPublicComments = tickets.length
 		? await db
 				.selectDistinctOn([ticketComment.ticketId])
 				.from(ticketComment)
@@ -169,34 +176,40 @@ export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) 
 					and(
 						inArray(
 							ticketComment.ticketId,
-							tickets.map((item) => item.id)
+							tickets.map((ticketRecord) => ticketRecord.id)
 						),
 						eq(ticketComment.isInternal, false)
 					)
 				)
 				.orderBy(ticketComment.ticketId, desc(ticketComment.createdAt), desc(ticketComment.id))
 		: [];
-	const rows = tickets.map((item) => {
-		const latest = publicComments.find((comment) => comment.ticketId === item.id);
-		const author = people.find((person) => person.id === latest?.authorId);
+	const ticketRows = tickets.map((ticketRecord) => {
+		const latestPublicComment = latestPublicComments.find(
+			(comment) => comment.ticketId === ticketRecord.id
+		);
+		const latestCommentAuthor = people.find(
+			(person) => person.id === latestPublicComment?.authorId
+		);
 		return {
-			...item,
-			preview: latest?.body || item.description,
-			previewAuthor: latest ? author?.name.split(' ')[0] || 'Support team' : null
+			...ticketRecord,
+			preview: latestPublicComment?.body || ticketRecord.description,
+			previewAuthor: latestPublicComment
+				? latestCommentAuthor?.name.split(' ')[0] || 'Support team'
+				: null
 		};
 	});
 
-	let selected: Ticket | null = null;
-	let comments: Comment[] = [];
+	let selectedTicket: Ticket | null = null;
+	let comments: TicketComment[] = [];
 	let events: TicketEvent[] = [];
-	if (id && id !== 'new') {
-		const conversation = await loadConversation(actor, id);
-		selected = conversation.record;
+	if (routeTicketId && routeTicketId !== 'new') {
+		const conversation = await loadConversation(actor, routeTicketId);
+		selectedTicket = conversation.ticketRecord;
 		comments = conversation.comments;
 		events = conversation.events;
 	}
 
-	const assigneeId = selected?.assignedToUserId;
+	const assigneeId = selectedTicket?.assignedToUserId;
 	const visiblePeople = isStaff(actor)
 		? people
 		: people.filter(
@@ -206,16 +219,16 @@ export async function loadTicketWorkspace(actor: Person, url: URL, id?: string) 
 					person.id === assigneeId
 			);
 	return {
-		tickets: rows,
-		nextPageHref: hasMoreTickets ? nextPage.pathname + nextPage.search : null,
-		firstPageHref: before ? firstPage.pathname + firstPage.search : null,
+		tickets: ticketRows,
+		nextPageHref: hasMoreTickets ? nextPageUrl.pathname + nextPageUrl.search : null,
+		firstPageHref: beforeTicketNumber ? firstPageUrl.pathname + firstPageUrl.search : null,
 		categories,
 		people: visiblePeople,
-		selected,
+		selectedTicket,
 		comments,
 		events,
 		view,
-		isNew: id === 'new'
+		isNewTicket: routeTicketId === 'new'
 	};
 }
 
@@ -236,7 +249,7 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 	const assignedToUserId = String(formData.get('assignedToUserId') || '') || null;
 	if (assignedToUserId && !isStaff(actor)) error(403, 'Only support staff can assign tickets.');
 
-	const { subject, description, categoryId } = parseForm(createTicketSchema, {
+	const { subject, description, categoryId } = parseFormInput(createTicketSchema, {
 		subject: formData.get('subject'),
 		description: formData.get('description'),
 		categoryId: formData.get('categoryId')
@@ -258,18 +271,23 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 		requireAssignable(assignee);
 	}
 
-	return db.transaction(async (tx) => {
-		const [created] = await tx
+	return db.transaction(async (transaction) => {
+		const [createdTicket] = await transaction
 			.insert(ticket)
 			.values({ subject, description, categoryId, requesterId, assignedToUserId })
 			.returning();
-		await tx.insert(ticketEvent).values([
-			{ ticketId: created.id, actorId: actor.id, eventType: TicketEventType.CREATED, details: {} },
+		await transaction.insert(ticketEvent).values([
+			{
+				ticketId: createdTicket.id,
+				actorId: actor.id,
+				eventType: TicketEventType.CREATED,
+				details: {}
+			},
 			// Logged like a later assignment, so it shows up in the ticket's activity.
 			...(assignedToUserId
 				? [
 						{
-							ticketId: created.id,
+							ticketId: createdTicket.id,
 							actorId: actor.id,
 							eventType: 'assignedToUserId',
 							details: { from: null, to: assignedToUserId }
@@ -277,7 +295,7 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 					]
 				: [])
 		]);
-		return created;
+		return createdTicket;
 	});
 }
 
@@ -289,81 +307,85 @@ function requireAssignable(person: Person | undefined): void {
 
 /** Writes a comment and its activity event, once the ticket is locked. */
 async function insertComment(
-	tx: Transaction,
+	transaction: Transaction,
 	actor: Person,
-	record: Ticket,
+	ticketRecord: Ticket,
 	formData: FormData
 ): Promise<void> {
-	if (record.statusCode === 'closed') error(403, 'Closed tickets are read-only.');
+	if (ticketRecord.statusCode === 'closed') error(403, 'Closed tickets are read-only.');
 	const isInternal = formData.get('internal') === 'true';
 	if (isInternal && !isStaff(actor)) error(403, 'Internal notes are for the support team.');
-	const { body } = parseForm(commentSchema, { body: formData.get('body') });
+	const { body } = parseFormInput(commentSchema, { body: formData.get('body') });
 
-	await tx
+	await transaction
 		.insert(ticketComment)
-		.values({ ticketId: record.id, authorId: actor.id, body, isInternal });
-	await tx.insert(ticketEvent).values({
-		ticketId: record.id,
+		.values({ ticketId: ticketRecord.id, authorId: actor.id, body, isInternal });
+	await transaction.insert(ticketEvent).values({
+		ticketId: ticketRecord.id,
 		actorId: actor.id,
 		eventType: isInternal ? TicketEventType.INTERNAL_NOTE : TicketEventType.REPLY,
 		details: {}
 	});
-	await tx.update(ticket).set({ updatedAt: new Date() }).where(eq(ticket.id, record.id));
+	await transaction
+		.update(ticket)
+		.set({ updatedAt: new Date() })
+		.where(eq(ticket.id, ticketRecord.id));
 }
 
 /** Validates and writes a field change and its activity event, once the ticket is locked. */
 async function applyFieldChange(
-	tx: Transaction,
+	transaction: Transaction,
 	actor: Person,
-	record: Ticket,
+	ticketRecord: Ticket,
 	formData: FormData
 ): Promise<void> {
 	const field = parseTicketUpdateField(String(formData.get('field')));
-	const value = String(formData.get('value') || '');
+	const rawValue = String(formData.get('value') || '');
 
 	// Permission checks keep precedence over value validation.
 	const isReopening =
 		field === 'statusCode' &&
-		value === 'open' &&
-		(record.statusCode === 'resolved' || record.statusCode === 'closed');
-	if (record.statusCode === 'closed' && !(actor.role === 'admin' && isReopening))
+		rawValue === 'open' &&
+		(ticketRecord.statusCode === 'resolved' || ticketRecord.statusCode === 'closed');
+	if (ticketRecord.statusCode === 'closed' && !(actor.role === 'admin' && isReopening))
 		error(403, 'Only an administrator can reopen a Closed ticket.');
-	const isOwnResolvedReopen =
-		isReopening && record.statusCode === 'resolved' && record.requesterId === actor.id;
-	if (!isStaff(actor) && !isOwnResolvedReopen) error(403, 'You cannot change this ticket.');
+	const isReopeningOwnResolvedTicket =
+		isReopening && ticketRecord.statusCode === 'resolved' && ticketRecord.requesterId === actor.id;
+	if (!isStaff(actor) && !isReopeningOwnResolvedTicket)
+		error(403, 'You cannot change this ticket.');
 
-	const validatedValue = parseTicketUpdateValue(field, value);
+	const validatedValue = parseTicketUpdateValue(field, rawValue);
 	if (field === 'categoryId') {
-		const [activeCategory] = await tx
+		const [activeCategory] = await transaction
 			.select()
 			.from(category)
 			.where(and(eq(category.id, validatedValue), eq(category.active, true)));
 		if (!activeCategory) error(400, 'Choose an active category.');
 	}
-	if (field === 'assignedToUserId' && value) {
-		const [assignee] = await tx.select().from(user).where(eq(user.id, value));
+	if (field === 'assignedToUserId' && rawValue) {
+		const [assignee] = await transaction.select().from(user).where(eq(user.id, rawValue));
 		requireAssignable(assignee);
 	}
 
-	const previous = record[field];
-	const next = validatedValue || null;
-	if (previous === next) return;
-	const statusDates =
+	const previousValue = ticketRecord[field];
+	const nextValue = validatedValue || null;
+	if (previousValue === nextValue) return;
+	const statusTimestamps =
 		field === 'statusCode'
 			? {
-					resolvedAt: value === 'resolved' ? new Date() : null,
-					closedAt: value === 'closed' ? new Date() : null
+					resolvedAt: rawValue === 'resolved' ? new Date() : null,
+					closedAt: rawValue === 'closed' ? new Date() : null
 				}
 			: {};
-	await tx
+	await transaction
 		.update(ticket)
-		.set({ [field]: next, updatedAt: new Date(), ...statusDates })
-		.where(eq(ticket.id, record.id));
-	await tx.insert(ticketEvent).values({
-		ticketId: record.id,
+		.set({ [field]: nextValue, updatedAt: new Date(), ...statusTimestamps })
+		.where(eq(ticket.id, ticketRecord.id));
+	await transaction.insert(ticketEvent).values({
+		ticketId: ticketRecord.id,
 		actorId: actor.id,
 		eventType: field === 'statusCode' ? TicketEventType.STATUS : field,
-		details: { from: previous, to: next }
+		details: { from: previousValue, to: nextValue }
 	});
 }
 
@@ -372,22 +394,22 @@ async function applyFieldChange(
  *
  * @throws 404 when the ticket doesn't exist or the actor may not see it
  */
-async function withLockedTicket(
+async function runWithLockedTicket(
 	actor: Person,
 	ticketNumber: number,
-	applyChange: (tx: Transaction, record: Ticket) => Promise<void>
+	applyChange: (transaction: Transaction, ticketRecord: Ticket) => Promise<void>
 ): Promise<void> {
 	// Malformed or out-of-range numbers simply mean the ticket does not exist.
 	parseTicketNumber(ticketNumber);
-	return db.transaction(async (tx) => {
-		const [record] = await tx
+	return db.transaction(async (transaction) => {
+		const [ticketRecord] = await transaction
 			.select()
 			.from(ticket)
 			.where(eq(ticket.ticketNumber, ticketNumber))
 			.for('update');
-		if (!record) error(404, 'Ticket not found.');
-		requireTicketAccess(actor, record);
-		return applyChange(tx, record);
+		if (!ticketRecord) error(404, 'Ticket not found.');
+		requireTicketAccess(actor, ticketRecord);
+		return applyChange(transaction, ticketRecord);
 	});
 }
 
@@ -401,8 +423,8 @@ export async function addTicketComment(
 	ticketNumber: number,
 	formData: FormData
 ): Promise<void> {
-	return withLockedTicket(actor, ticketNumber, (tx, record) =>
-		insertComment(tx, actor, record, formData)
+	return runWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
+		insertComment(transaction, actor, ticketRecord, formData)
 	);
 }
 
@@ -417,7 +439,7 @@ export async function updateTicketField(
 	ticketNumber: number,
 	formData: FormData
 ): Promise<void> {
-	return withLockedTicket(actor, ticketNumber, (tx, record) =>
-		applyFieldChange(tx, actor, record, formData)
+	return runWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
+		applyFieldChange(transaction, actor, ticketRecord, formData)
 	);
 }

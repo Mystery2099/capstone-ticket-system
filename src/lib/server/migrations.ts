@@ -3,14 +3,14 @@ import { migrate as migratePostgres } from 'drizzle-orm/postgres-js/migrator';
 import type { Sql } from 'postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { db } from './db';
-import { databaseConfig } from './database-config';
+import { resolveDatabaseConfig } from './database-config';
 
 /** Explicit deployment operation. Never called by the web server. */
 export async function migrateDatabase(): Promise<void> {
-	const options = { migrationsFolder: './drizzle' };
-	if (databaseConfig(process.env).kind === 'local') {
-		await migrateLocal(db, options);
+	const migrationOptions = { migrationsFolder: './drizzle' };
+	if (resolveDatabaseConfig(process.env).kind === 'local') {
+		await migrateLocal(db, migrationOptions);
 	} else {
-		await migratePostgres(drizzle(db.$client as unknown as Sql), options);
+		await migratePostgres(drizzle(db.$client as unknown as Sql), migrationOptions);
 	}
 }

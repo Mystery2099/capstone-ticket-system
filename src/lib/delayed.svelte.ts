@@ -1,21 +1,21 @@
 /**
- * Mirrors `active`, but only turns on after it has stayed true for `ms`.
+ * Mirrors `isActive`, but only turns on after it has stayed true for `delayMilliseconds`.
  * Loading views use this so quick navigations never flash a placeholder.
  * Call during component setup, since it registers an effect.
  */
-export function delayed(active: () => boolean, ms = 120) {
-	let settled = $state(false);
+export function createDelayedFlag(isActive: () => boolean, delayMilliseconds = 120) {
+	let isSettled = $state(false);
 	$effect(() => {
-		if (!active()) {
-			settled = false;
+		if (!isActive()) {
+			isSettled = false;
 			return;
 		}
-		const timer = setTimeout(() => (settled = true), ms);
-		return () => clearTimeout(timer);
+		const settleTimeout = setTimeout(() => (isSettled = true), delayMilliseconds);
+		return () => clearTimeout(settleTimeout);
 	});
 	return {
 		get current() {
-			return settled;
+			return isSettled;
 		}
 	};
 }

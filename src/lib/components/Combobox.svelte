@@ -35,25 +35,25 @@
 		onchange
 	}: Props = $props();
 
-	let open = $state(false);
-	let trigger = $state<HTMLButtonElement | null>(null);
-	let list = $state<HTMLElement | null>(null);
-	let showSearch = $derived(options.length >= 5);
-	let selected = $derived(options.find((option) => option.value === value)?.label);
+	let isOpen = $state(false);
+	let triggerElement = $state<HTMLButtonElement | null>(null);
+	let listElement = $state<HTMLElement | null>(null);
+	let isSearchVisible = $derived(options.length >= 5);
+	let selectedLabel = $derived(options.find((option) => option.value === value)?.label);
 
-	async function choose(next: string) {
-		open = false;
-		if (next === value) return;
-		value = next;
-		onchange?.(next);
+	async function selectOption(nextValue: string) {
+		isOpen = false;
+		if (nextValue === value) return;
+		value = nextValue;
+		onchange?.(nextValue);
 		// The form input has to hold the new value before the form submits.
 		await tick();
-		if (submitOnSelect) trigger?.form?.requestSubmit();
+		if (submitOnSelect) triggerElement?.form?.requestSubmit();
 	}
 
 	// Plain label matching. The default fuzzy score would also match against internal ids.
-	const matchLabel = (_value: string, search: string, keywords?: string[]) =>
-		keywords?.[0].toLowerCase().includes(search.trim().toLowerCase()) ? 1 : 0;
+	const matchOptionLabel = (_value: string, searchText: string, keywords?: string[]) =>
+		keywords?.[0].toLowerCase().includes(searchText.trim().toLowerCase()) ? 1 : 0;
 </script>
 
 {#if name}
@@ -69,31 +69,31 @@
 		oninput={(event) => (event.currentTarget.value = value)}
 	/>
 {/if}
-<Popover.Root bind:open>
+<Popover.Root bind:open={isOpen}>
 	<Popover.Trigger
-		bind:ref={trigger}
+		bind:ref={triggerElement}
 		class={cn('combobox-trigger', className)}
 		aria-label={label}
 		{disabled}
 	>
-		<span>{selected ?? placeholder}</span><ChevronDown size={16} />
+		<span>{selectedLabel ?? placeholder}</span><ChevronDown size={16} />
 	</Popover.Trigger>
 	<Popover.Content
 		align="start"
 		class="w-(--bits-popover-anchor-width) min-w-52 gap-0 p-0"
 		onOpenAutoFocus={(event) => {
 			// Without a search box, the list needs focus for the arrow keys to reach it.
-			if (showSearch) return;
+			if (isSearchVisible) return;
 			event.preventDefault();
-			list?.focus();
+			listElement?.focus();
 		}}
 		onCloseAutoFocus={(event) => {
 			event.preventDefault();
-			trigger?.focus();
+			triggerElement?.focus();
 		}}
 	>
-		<Command.Root bind:ref={list} filter={matchLabel} tabindex={-1}>
-			{#if showSearch}
+		<Command.Root bind:ref={listElement} filter={matchOptionLabel} tabindex={-1}>
+			{#if isSearchVisible}
 				<Command.Input
 					placeholder={`Search ${label.toLowerCase()}…`}
 					aria-label={`Search ${label}`}
@@ -107,7 +107,7 @@
 							value={option.value || option.label}
 							keywords={[option.label]}
 							data-checked={option.value === value}
-							onSelect={() => choose(option.value)}>{option.label}</Command.Item
+							onSelect={() => selectOption(option.value)}>{option.label}</Command.Item
 						>
 					{/each}
 				</Command.Group>

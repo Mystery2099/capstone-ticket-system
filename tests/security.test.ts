@@ -25,11 +25,11 @@ describe('production safeguards', () => {
 
 	it('isolates accounts, expires limits, and bounds bucket storage', () => {
 		const limiter = new RequestLimiter(1, 1000, 2);
-		expect(limiter.check('alice', 0)).toBe(0);
-		expect(limiter.check('alice', 1)).toBe(1);
-		expect(limiter.check('bob', 1)).toBe(0);
-		expect(limiter.check('charlie', 2)).toBeGreaterThan(0);
-		expect(limiter.check('charlie', 1001)).toBe(0);
+		expect(limiter.recordRequest('alice', 0)).toBe(0);
+		expect(limiter.recordRequest('alice', 1)).toBe(1);
+		expect(limiter.recordRequest('bob', 1)).toBe(0);
+		expect(limiter.recordRequest('charlie', 2)).toBeGreaterThan(0);
+		expect(limiter.recordRequest('charlie', 1001)).toBe(0);
 	});
 
 	it('prevents caching and framing, with HSTS only over HTTPS', () => {

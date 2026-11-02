@@ -93,7 +93,7 @@ test.skipIf(!base)(
 		r = await action('/app/tickets/1039?/reply', { body: 'Closed ticket injection' }, agent);
 		assert.equal(r.status, 403);
 		r = await action(
-			'/app/admin/users?/user',
+			'/app/admin/users?/updateUser',
 			{
 				id: 'priya',
 				name: 'Priya Raman',
@@ -107,7 +107,7 @@ test.skipIf(!base)(
 		// Disable a seeded account briefly, then restore it even if an assertion fails.
 		try {
 			r = await action(
-				'/app/admin/users?/user',
+				'/app/admin/users?/updateUser',
 				{
 					id: 'priya',
 					name: 'Priya Raman',
@@ -128,7 +128,7 @@ test.skipIf(!base)(
 			assert(r.status >= 400, 'Disabled account cannot create a session');
 		} finally {
 			await action(
-				'/app/admin/users?/user',
+				'/app/admin/users?/updateUser',
 				{
 					id: 'priya',
 					name: 'Priya Raman',

@@ -15,8 +15,10 @@ import {
 // References the generated Better Auth user model.
 import { user } from './auth-schema';
 
-const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
-const updatedAt = () => timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
+const createdAtColumn = () =>
+	timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
+const updatedAtColumn = () =>
+	timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
 
 export const category = pgTable(
 	'category',
@@ -24,12 +26,12 @@ export const category = pgTable(
 		id: uuid('id').defaultRandom().primaryKey(),
 		name: text('name').notNull(),
 		active: boolean('active').notNull().default(true),
-		createdAt: createdAt(),
-		updatedAt: updatedAt()
+		createdAt: createdAtColumn(),
+		updatedAt: updatedAtColumn()
 	},
-	(t) => [
-		uniqueIndex('category_name_ci_unique').on(sql`lower(${t.name})`),
-		check('category_name_not_blank', sql`length(trim(${t.name})) > 0`)
+	(table) => [
+		uniqueIndex('category_name_ci_unique').on(sql`lower(${table.name})`),
+		check('category_name_not_blank', sql`length(trim(${table.name})) > 0`)
 	]
 );
 
@@ -60,19 +62,19 @@ export const ticket = pgTable(
 		priority: text('priority').notNull().default('normal'),
 		subject: text('subject').notNull(),
 		description: text('description').notNull(),
-		createdAt: createdAt(),
-		updatedAt: updatedAt(),
+		createdAt: createdAtColumn(),
+		updatedAt: updatedAtColumn(),
 		resolvedAt: timestamp('resolved_at', { withTimezone: true }),
 		closedAt: timestamp('closed_at', { withTimezone: true })
 	},
-	(t) => [
-		uniqueIndex('ticket_number_unique').on(t.ticketNumber),
-		index('ticket_requester_created_idx').on(t.requesterId, t.createdAt),
-		index('ticket_assignee_created_idx').on(t.assignedToUserId, t.createdAt),
-		index('ticket_status_created_idx').on(t.statusCode, t.createdAt),
-		check('ticket_priority_valid', sql`${t.priority} in ('low', 'normal', 'high')`),
-		check('ticket_subject_not_blank', sql`length(trim(${t.subject})) > 0`),
-		check('ticket_description_not_blank', sql`length(trim(${t.description})) > 0`)
+	(table) => [
+		uniqueIndex('ticket_number_unique').on(table.ticketNumber),
+		index('ticket_requester_created_idx').on(table.requesterId, table.createdAt),
+		index('ticket_assignee_created_idx').on(table.assignedToUserId, table.createdAt),
+		index('ticket_status_created_idx').on(table.statusCode, table.createdAt),
+		check('ticket_priority_valid', sql`${table.priority} in ('low', 'normal', 'high')`),
+		check('ticket_subject_not_blank', sql`length(trim(${table.subject})) > 0`),
+		check('ticket_description_not_blank', sql`length(trim(${table.description})) > 0`)
 	]
 );
 
@@ -88,11 +90,11 @@ export const ticketComment = pgTable(
 			.references(() => user.id, { onDelete: 'restrict' }),
 		body: text('body').notNull(),
 		isInternal: boolean('is_internal').notNull().default(false),
-		createdAt: createdAt()
+		createdAt: createdAtColumn()
 	},
-	(t) => [
-		index('ticket_comment_ticket_created_idx').on(t.ticketId, t.createdAt),
-		check('ticket_comment_body_not_blank', sql`length(trim(${t.body})) > 0`)
+	(table) => [
+		index('ticket_comment_ticket_created_idx').on(table.ticketId, table.createdAt),
+		check('ticket_comment_body_not_blank', sql`length(trim(${table.body})) > 0`)
 	]
 );
 
@@ -106,9 +108,9 @@ export const ticketEvent = pgTable(
 		actorId: text('actor_id').references(() => user.id, { onDelete: 'restrict' }),
 		eventType: text('event_type').notNull(),
 		details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
-		createdAt: createdAt()
+		createdAt: createdAtColumn()
 	},
-	(t) => [index('ticket_event_ticket_created_idx').on(t.ticketId, t.createdAt)]
+	(table) => [index('ticket_event_ticket_created_idx').on(table.ticketId, table.createdAt)]
 );
 
 /** Security events are separate from ticket conversations and contain no credentials. */
@@ -120,7 +122,7 @@ export const securityEvent = pgTable(
 		action: text('action').notNull(),
 		targetId: text('target_id').notNull(),
 		details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
-		createdAt: createdAt()
+		createdAt: createdAtColumn()
 	},
 	(table) => [index('security_event_created_idx').on(table.createdAt)]
 );

@@ -188,7 +188,7 @@ test('closed tickets reject replies and edits; only admin reopens', async () => 
 		new URL('http://localhost/app/tickets'),
 		'1039'
 	);
-	assert.equal(r.selected?.statusCode, 'open');
+	assert.equal(r.selectedTicket?.statusCode, 'open');
 });
 test('requester can reopen own resolved ticket', async () => {
 	await service.updateTicketField(
@@ -206,7 +206,7 @@ test('requester can reopen own resolved ticket', async () => {
 		new URL('http://localhost/app/tickets'),
 		'1046'
 	);
-	assert.equal(r.selected?.statusCode, 'open');
+	assert.equal(r.selectedTicket?.statusCode, 'open');
 });
 test('failed foreign key rolls back ticket and audit rows', async () => {
 	const { sql } = await import('drizzle-orm');
@@ -277,14 +277,14 @@ test('assignment rejects requesters and disabled agents, and successful changes 
 		new URL('http://localhost/app/tickets'),
 		'1046'
 	);
-	assert.equal(r.selected?.assignedToUserId, 'jordan');
+	assert.equal(r.selectedTicket?.assignedToUserId, 'jordan');
 	assert(r.events.some((e) => e.eventType === 'assignedToUserId' && e.details.to === 'jordan'));
 });
 test('status mutation rolls back if its activity insert fails', async () => {
 	const { sql } = await import('drizzle-orm');
 	const before = (
 		await service.loadTicketWorkspace(people.priya, new URL('http://localhost/app/tickets'), '1046')
-	).selected!.statusCode;
+	).selectedTicket!.statusCode;
 	await db.execute(
 		sql`CREATE FUNCTION reject_test_event() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'test audit failure'; END $$`
 	);
@@ -302,7 +302,7 @@ test('status mutation rolls back if its activity insert fails', async () => {
 					new URL('http://localhost/app/tickets'),
 					'1046'
 				)
-			).selected!.statusCode,
+			).selectedTicket!.statusCode,
 			before
 		);
 	} finally {
@@ -362,8 +362,8 @@ test('invalid metadata enum and malformed category references fail without chang
 		new URL('http://localhost/app/tickets'),
 		'1046'
 	);
-	assert.equal(after.selected?.priority, before.selected?.priority);
-	assert.equal(after.selected?.statusCode, before.selected?.statusCode);
+	assert.equal(after.selectedTicket?.priority, before.selectedTicket?.priority);
+	assert.equal(after.selectedTicket?.statusCode, before.selectedTicket?.statusCode);
 });
 
 test('ticket pages use a cursor and previews exclude newer private notes', async () => {

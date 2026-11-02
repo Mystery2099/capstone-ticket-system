@@ -5,7 +5,7 @@ import { eq } from 'drizzle-orm';
 import { applySecurityHeaders, RequestLimiter } from '$lib/server/security';
 import { redirect } from '@sveltejs/kit';
 import type { Handle } from '@sveltejs/kit';
-const writes = new RequestLimiter(30, 60000);
+const writeRequestLimiter = new RequestLimiter(30, 60000);
 
 export const handle: Handle = async ({ event, resolve }) => {
 	if (building) return resolve(event);
@@ -26,12 +26,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	)
 		redirect(303, '/account-security');
 	if (event.locals.user && event.request.method === 'POST') {
-		const retryAfter = writes.check(event.locals.user.id);
-		if (retryAfter)
+		const retryAfterSeconds = writeRequestLimiter.recordRequest(event.locals.user.id);
+		if (retryAfterSeconds)
 			return applySecurityHeaders(
 				new Response('Too many requests. Please try again shortly.', {
 					status: 429,
-					headers: { 'Retry-After': String(retryAfter) }
+					headers: { 'Retry-After': String(retryAfterSeconds) }
 				}),
 				event.url.protocol === 'https:'
 			);

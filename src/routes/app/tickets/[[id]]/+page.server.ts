@@ -11,51 +11,54 @@ import {
 } from '$lib/server/tickets';
 import type { Actions, PageServerLoad } from './$types';
 
-const createSchema = zod4(createTicketSchema);
-const replySchema = zod4(commentSchema);
+const createTicketFormSchema = zod4(createTicketSchema);
+const replyFormSchema = zod4(commentSchema);
 
 export const load: PageServerLoad = async ({ locals, url, params }) => {
 	const actor = requireUser(locals.user);
 	const [workspace, createForm, replyForm] = await Promise.all([
 		loadTicketWorkspace(actor, url, params.id),
-		superValidate(createSchema, { id: 'ticket-create' }),
-		superValidate(replySchema, { id: 'ticket-reply' })
+		superValidate(createTicketFormSchema, { id: 'ticket-create' }),
+		superValidate(replyFormSchema, { id: 'ticket-reply' })
 	]);
 	return { ...workspace, createForm, replyForm };
 };
 
 /** Keep field errors and domain failures in the same Superforms response. */
-function formFailure<T extends Record<string, unknown>>(form: SuperValidated<T>, e: unknown) {
-	if (!isHttpError(e)) throw e;
-	form.message = { text: e.body.message, failed: true };
-	return fail(e.status, { form });
+function buildFormFailure<T extends Record<string, unknown>>(
+	form: SuperValidated<T>,
+	caughtError: unknown
+) {
+	if (!isHttpError(caughtError)) throw caughtError;
+	form.message = { text: caughtError.body.message, failed: true };
+	return fail(caughtError.status, { form });
 }
 
 export const actions: Actions = {
 	create: async ({ locals, request }) => {
 		const actor = requireUser(locals.user);
-		const data = await request.formData();
-		const form = await superValidate(data, createSchema, { id: 'ticket-create' });
-		let created;
+		const formData = await request.formData();
+		const form = await superValidate(formData, createTicketFormSchema, { id: 'ticket-create' });
+		let createdTicket;
 		try {
 			// The service checks permissions before input errors, including forged
 			// requester/assignee fields that do not belong to the public input schema.
-			created = await createTicket(actor, data);
-		} catch (e) {
-			return formFailure(form, e);
+			createdTicket = await createTicket(actor, formData);
+		} catch (caughtError) {
+			return buildFormFailure(form, caughtError);
 		}
-		const view = created.requesterId === actor.id ? 'mine' : 'open';
-		redirect(303, `/app/tickets/${created.ticketNumber}?view=${view}`);
+		const redirectView = createdTicket.requesterId === actor.id ? 'mine' : 'open';
+		redirect(303, `/app/tickets/${createdTicket.ticketNumber}?redirectView=${redirectView}`);
 	},
 	reply: async ({ locals, request, params }) => {
 		const actor = requireUser(locals.user);
-		const data = await request.formData();
-		const form = await superValidate(data, replySchema, { id: 'ticket-reply' });
+		const formData = await request.formData();
+		const form = await superValidate(formData, replyFormSchema, { id: 'ticket-reply' });
 		try {
-			await addTicketComment(actor, Number(params.id), data);
+			await addTicketComment(actor, Number(params.id), formData);
 			return message(form, { text: 'Comment posted.' });
-		} catch (e) {
-			return formFailure(form, e);
+		} catch (caughtError) {
+			return buildFormFailure(form, caughtError);
 		}
 	},
 	update: async ({ locals, request, params }) => {
@@ -66,9 +69,10 @@ export const actions: Actions = {
 				await request.formData()
 			);
 			return { success: 'Ticket updated.' };
-		} catch (e) {
-			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-			throw e;
+		} catch (caughtError) {
+			if (isHttpError(caughtError))
+				return fail(caughtError.status, { error: caughtError.body.message });
+			throw caughtError;
 		}
 	}
 };

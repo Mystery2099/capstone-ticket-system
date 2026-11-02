@@ -2,28 +2,28 @@
 	import { signOutSession } from '$lib/auth-client';
 	import { onMount } from 'svelte';
 	import { LogOut } from '@lucide/svelte';
-	import { initials } from '$lib/status';
+	import { getInitials } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
 	let { data } = $props();
 	let theme = $state('system'),
-		signingOut = $state(false);
-	function applyTheme(value: string) {
-		theme = value;
-		localStorage.setItem('ticket-theme', value);
+		isSigningOut = $state(false);
+	function applyTheme(selectedTheme: string) {
+		theme = selectedTheme;
+		localStorage.setItem('ticket-theme', selectedTheme);
 		document.documentElement.dataset.theme =
-			value === 'system'
+			selectedTheme === 'system'
 				? matchMedia('(prefers-color-scheme: dark)').matches
 					? 'dark'
 					: 'light'
-				: value;
+				: selectedTheme;
 	}
 	onMount(() => {
 		theme = localStorage.getItem('ticket-theme') || 'system';
 	});
 	async function signOut(): Promise<void> {
-		signingOut = true;
+		isSigningOut = true;
 		await signOutSession();
-		signingOut = false;
+		isSigningOut = false;
 	}
 </script>
 
@@ -54,7 +54,7 @@
 			</div>
 			<div>
 				<div class="settings-account">
-					<span class="avatar">{initials(data.user.name)}</span>
+					<span class="avatar">{getInitials(data.user.name)}</span>
 					<div>
 						<strong>{data.user.name}</strong>
 						<p>
@@ -69,10 +69,10 @@
 					variant="outline"
 					class="rounded-full h-9 px-5 mt-5"
 					onclick={signOut}
-					disabled={signingOut}
+					disabled={isSigningOut}
 				>
 					<LogOut size={16} />
-					{signingOut ? 'Signing out…' : 'Sign out'}
+					{isSigningOut ? 'Signing out…' : 'Sign out'}
 				</Button>
 			</div>
 		</section>

@@ -1,8 +1,8 @@
 import { createContext } from 'svelte';
 
-const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const generateDraftId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-type TicketFields = {
+type TicketDraftFields = {
 	id: string;
 	subject: string;
 	description: string;
@@ -19,8 +19,8 @@ export class TicketDraft {
 	assignedToUserId = $state('');
 	requesterId = $state('');
 
-	constructor(fields: Partial<TicketFields>) {
-		this.id = fields.id ?? newId();
+	constructor(fields: Partial<TicketDraftFields>) {
+		this.id = fields.id ?? generateDraftId();
 		this.subject = fields.subject ?? '';
 		this.description = fields.description ?? '';
 		this.categoryId = fields.categoryId ?? '';
@@ -28,17 +28,17 @@ export class TicketDraft {
 		this.requesterId = fields.requesterId ?? '';
 	}
 
-	get dirty() {
+	get isDirty() {
 		return !!(this.subject.trim() || this.description.trim());
 	}
 
-	toJSON(): TicketFields {
+	toJSON(): TicketDraftFields {
 		const { id, subject, description, categoryId, assignedToUserId, requesterId } = this;
 		return { id, subject, description, categoryId, assignedToUserId, requesterId };
 	}
 }
 
-type UserFields = { id: string; name: string; email: string; role: string };
+type UserDraftFields = { id: string; name: string; email: string; role: string };
 
 /** A user being added. The initial password is left out so it never reaches localStorage. */
 export class UserDraft {
@@ -47,107 +47,109 @@ export class UserDraft {
 	email = $state('');
 	role = $state('requester');
 
-	constructor(fields: Partial<UserFields>) {
-		this.id = fields.id ?? newId();
+	constructor(fields: Partial<UserDraftFields>) {
+		this.id = fields.id ?? generateDraftId();
 		this.name = fields.name ?? '';
 		this.email = fields.email ?? '';
 		this.role = fields.role ?? 'requester';
 	}
 
-	get dirty() {
+	get isDirty() {
 		return !!(this.name.trim() || this.email.trim());
 	}
 
-	toJSON(): UserFields {
+	toJSON(): UserDraftFields {
 		const { id, name, email, role } = this;
 		return { id, name, email, role };
 	}
 }
 
-type CategoryFields = { id: string; name: string };
+type CategoryDraftFields = { id: string; name: string };
 
 export class CategoryDraft {
 	id: string;
 	name = $state('');
 
-	constructor(fields: Partial<CategoryFields>) {
-		this.id = fields.id ?? newId();
+	constructor(fields: Partial<CategoryDraftFields>) {
+		this.id = fields.id ?? generateDraftId();
 		this.name = fields.name ?? '';
 	}
 
-	get dirty() {
+	get isDirty() {
 		return !!this.name.trim();
 	}
 
-	toJSON(): CategoryFields {
+	toJSON(): CategoryDraftFields {
 		const { id, name } = this;
 		return { id, name };
 	}
 }
 
-type Draft<Fields> = { id: string; dirty: boolean; toJSON(): Fields };
+type Draft<Fields> = { id: string; isDirty: boolean; toJSON(): Fields };
 
 /**
- * One kind of unsent work, kept in this browser under one localStorage key. `blank` backs a
- * new form and only joins `items` once something is written, so opening a form and closing
+ * One kind of unsent work, kept in this browser under one localStorage key. `blankDraft` backs a
+ * new form and only joins `drafts` once something is written, so opening a form and closing
  * it again leaves nothing behind.
  */
-export class DraftStore<Fields, D extends Draft<Fields> = Draft<Fields>> {
-	readonly key: string;
-	items = $state<D[]>([]);
-	blank = $state() as D;
-	#create: (fields: Partial<Fields>) => D;
-	#saved = '[]';
+export class DraftStore<Fields, DraftType extends Draft<Fields> = Draft<Fields>> {
+	readonly storageKey: string;
+	drafts = $state<DraftType[]>([]);
+	blankDraft = $state() as DraftType;
+	#createDraft: (fields: Partial<Fields>) => DraftType;
+	#lastSavedJson = '[]';
 
-	constructor(key: string, create: (fields: Partial<Fields>) => D) {
-		this.key = key;
-		this.#create = create;
-		this.blank = create({});
+	constructor(storageKey: string, createDraft: (fields: Partial<Fields>) => DraftType) {
+		this.storageKey = storageKey;
+		this.#createDraft = createDraft;
+		this.blankDraft = createDraft({});
 	}
 
 	/** Drafts with content, which is what the Drafts view shows. */
-	get saved() {
-		return this.items.filter((draft) => draft.dirty);
+	get dirtyDrafts() {
+		return this.drafts.filter((draft) => draft.isDirty);
 	}
 
-	find(id: string | null) {
-		return this.items.find((draft) => draft.id === id);
+	findById(id: string | null) {
+		return this.drafts.find((draft) => draft.id === id);
 	}
 
 	/** Moves the blank draft into the list, once it has content worth keeping. */
-	promote() {
-		this.items.unshift(this.blank);
-		this.blank = this.#create({});
+	promoteBlankDraft() {
+		this.drafts.unshift(this.blankDraft);
+		this.blankDraft = this.#createDraft({});
 	}
 
-	discard(id: string) {
-		if (this.blank.id === id) this.blank = this.#create({});
-		else this.items = this.items.filter((draft) => draft.id !== id);
+	discardById(id: string) {
+		if (this.blankDraft.id === id) this.blankDraft = this.#createDraft({});
+		else this.drafts = this.drafts.filter((draft) => draft.id !== id);
 	}
 
 	serialize() {
-		return JSON.stringify(this.saved);
+		return JSON.stringify(this.dirtyDrafts);
 	}
 
 	/** Reads saved drafts, keeping open ones as they are so unsaved typing isn't replaced. */
 	load() {
-		const raw = localStorage.getItem(this.key);
-		if (!raw || raw === this.#saved) return;
+		const storedJson = localStorage.getItem(this.storageKey);
+		if (!storedJson || storedJson === this.#lastSavedJson) return;
 		try {
-			const saved: (Partial<Fields> & { id: string })[] = JSON.parse(raw);
-			this.items = saved.map((fields) => this.find(fields.id) ?? this.#create(fields));
-			this.#saved = raw;
+			const parsedDrafts: (Partial<Fields> & { id: string })[] = JSON.parse(storedJson);
+			this.drafts = parsedDrafts.map(
+				(fields) => this.findById(fields.id) ?? this.#createDraft(fields)
+			);
+			this.#lastSavedJson = storedJson;
 		} catch {
-			localStorage.removeItem(this.key);
+			localStorage.removeItem(this.storageKey);
 		}
 	}
 
-	save(json = this.serialize()) {
-		if (json === this.#saved) return;
-		this.#saved = json;
+	save(serializedDrafts = this.serialize()) {
+		if (serializedDrafts === this.#lastSavedJson) return;
+		this.#lastSavedJson = serializedDrafts;
 		try {
-			if (json === '[]') localStorage.removeItem(this.key);
-			else localStorage.setItem(this.key, json);
+			if (serializedDrafts === '[]') localStorage.removeItem(this.storageKey);
+			else localStorage.setItem(this.storageKey, serializedDrafts);
 		} catch {
 			// Storage can be full or blocked. The draft still works until this tab closes.
 		}
@@ -156,9 +158,9 @@ export class DraftStore<Fields, D extends Draft<Fields> = Draft<Fields>> {
 
 /** Every kind of draft for one signed-in user. The app layout owns loading and saving. */
 export class Drafts {
-	tickets: DraftStore<TicketFields, TicketDraft>;
-	users: DraftStore<UserFields, UserDraft>;
-	categories: DraftStore<CategoryFields, CategoryDraft>;
+	tickets: DraftStore<TicketDraftFields, TicketDraft>;
+	users: DraftStore<UserDraftFields, UserDraft>;
+	categories: DraftStore<CategoryDraftFields, CategoryDraft>;
 
 	constructor(userId: string, isAdmin: boolean) {
 		this.tickets = new DraftStore(
@@ -166,10 +168,13 @@ export class Drafts {
 			(fields) => new TicketDraft({ requesterId: userId, ...fields })
 		);
 		// Admin drafts stay unloaded for anyone who loses the role, so they can't be reached.
-		this.users = new DraftStore(`user-drafts:${isAdmin ? userId : ''}`, (f) => new UserDraft(f));
+		this.users = new DraftStore(
+			`user-drafts:${isAdmin ? userId : ''}`,
+			(fields) => new UserDraft(fields)
+		);
 		this.categories = new DraftStore(
 			`category-drafts:${isAdmin ? userId : ''}`,
-			(f) => new CategoryDraft(f)
+			(fields) => new CategoryDraft(fields)
 		);
 	}
 
@@ -177,8 +182,8 @@ export class Drafts {
 		return [this.tickets, this.users, this.categories];
 	}
 
-	get count() {
-		return this.stores.reduce((total, store) => total + store.saved.length, 0);
+	get dirtyDraftCount() {
+		return this.stores.reduce((total, store) => total + store.dirtyDrafts.length, 0);
 	}
 }
 

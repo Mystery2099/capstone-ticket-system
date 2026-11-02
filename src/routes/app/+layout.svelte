@@ -2,9 +2,9 @@
 	import { signOutSession } from '$lib/auth-client';
 	import { createHotkey } from '@tanstack/svelte-hotkeys';
 	import { onMount } from 'svelte';
-	let hydrated = $state(false);
+	let isHydrated = $state(false);
 	onMount(() => {
-		hydrated = true;
+		isHydrated = true;
 	});
 	import { navigating, page } from '$app/state';
 	import { goto, onNavigate } from '$app/navigation';
@@ -22,13 +22,13 @@
 		Settings,
 		LogOut
 	} from '@lucide/svelte';
-	import { initials } from '$lib/status';
+	import { getInitials } from '$lib/status';
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import SidebarToggle from '$lib/components/SidebarToggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import { delayed } from '$lib/delayed.svelte';
-	import { motionMs } from '$lib/motion';
+	import { createDelayedFlag } from '$lib/delayed.svelte';
+	import { resolveMotionDuration } from '$lib/motion';
 	import { Drafts, setDrafts } from '$lib/ticket-draft.svelte';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
@@ -40,36 +40,41 @@
 	onMount(() => drafts.stores.forEach((store) => store.load()));
 	// Debounced so typing costs one write after a pause, not one per keystroke.
 	$effect(() => {
-		const saved = drafts.stores.map((store) => store.serialize());
-		const timer = setTimeout(() => drafts.stores.forEach((s, i) => s.save(saved[i])), 300);
-		return () => clearTimeout(timer);
+		const serializedDrafts = drafts.stores.map((store) => store.serialize());
+		const saveTimeout = setTimeout(
+			() => drafts.stores.forEach((store, index) => store.save(serializedDrafts[index])),
+			300
+		);
+		return () => clearTimeout(saveTimeout);
 	});
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
-	let sidebarOpen = $state(data.sidebarOpen);
-	let query = $derived(page.url.searchParams.get('q') || '');
-	let account = $state(false);
-	let signingOut = $state(false);
-	let staff = $derived(data.user.role !== 'requester');
+	let isSidebarOpen = $state(data.isSidebarOpen);
+	let searchQuery = $derived(page.url.searchParams.get('q') || '');
+	let isAccountMenuOpen = $state(false);
+	let isSigningOut = $state(false);
+	let isStaffUser = $derived(data.user.role !== 'requester');
 	// Navigation highlights follow the destination, so clicks register before data arrives.
-	let url = $derived(navigating.to?.url ?? page.url);
-	let view = $derived(url.searchParams.get('view') || (staff ? 'open' : 'mine'));
+	let activeUrl = $derived(navigating.to?.url ?? page.url);
+	let activeView = $derived(activeUrl.searchParams.get('view') || (isStaffUser ? 'open' : 'mine'));
 	// A sidebar category is a narrowed All open, so only one of the two is highlighted.
-	let openCategory = $derived(view === 'open' ? url.searchParams.get('category') : null);
+	let activeCategoryId = $derived(
+		activeView === 'open' ? activeUrl.searchParams.get('category') : null
+	);
 	// Moves within the ticket screen are handled by that page, which can reuse its list data.
-	let routeTarget = $derived.by((): RouteSkeletonKind | null => {
-		const to = navigating.to;
-		if (!to || to.url.pathname === page.url.pathname) return null;
-		const path = to.url.pathname;
-		if (path.startsWith('/app/tickets'))
-			return page.route.id === to.route.id
+	let targetRouteSkeleton = $derived.by((): RouteSkeletonKind | null => {
+		const destination = navigating.to;
+		if (!destination || destination.url.pathname === page.url.pathname) return null;
+		const targetPath = destination.url.pathname;
+		if (targetPath.startsWith('/app/tickets'))
+			return page.route.id === destination.route.id
 				? null
-				: /\/(\d+|new)$/.test(path)
+				: /\/(\d+|new)$/.test(targetPath)
 					? 'ticket'
 					: 'tickets';
-		if (path === '/app/admin/users') return 'users';
-		if (path === '/app/admin/categories') return 'categories';
-		return path === '/app/settings' ? 'settings' : null;
+		if (targetPath === '/app/admin/users') return 'users';
+		if (targetPath === '/app/admin/categories') return 'categories';
+		return targetPath === '/app/settings' ? 'settings' : null;
 	});
 	// Stays on the current list, and always starts a fresh ticket rather than an open draft.
 	let newTicketHref = $derived.by(() => {
@@ -78,93 +83,99 @@
 		params.delete('draft');
 		return `/app/tickets/new${params.size ? '?' + params : ''}`;
 	});
-	let routeLoading = delayed(() => routeTarget !== null);
-	let lastRouteTarget = $state<RouteSkeletonKind>('tickets');
+	let slowRouteNavigation = createDelayedFlag(() => targetRouteSkeleton !== null);
+	let lastTargetRouteSkeleton = $state<RouteSkeletonKind>('tickets');
 	$effect(() => {
-		if (routeTarget) lastRouteTarget = routeTarget;
+		if (targetRouteSkeleton) lastTargetRouteSkeleton = targetRouteSkeleton;
 	});
-	let requests = $derived({
+	let myRequestsView = $derived({
 		key: 'mine',
 		label: 'My requests',
 		hint: 'Tickets you opened, in any status',
-		count: data.counts.mine
+		count: data.ticketCounts.mine
 	});
-	let draftsLink = $derived({
+	let draftsView = $derived({
 		key: 'drafts',
 		label: 'Drafts',
 		hint: 'Unfinished work, saved in this browser',
 		icon: FilePen,
-		count: drafts.count
+		count: drafts.dirtyDraftCount
 	});
 	let ticketViews = $derived(
-		staff
+		isStaffUser
 			? [
 					{
 						key: 'queue',
 						label: 'Assigned to me',
 						hint: 'Unresolved tickets assigned to you',
 						icon: UserRound,
-						count: data.counts.queue
+						count: data.ticketCounts.queue
 					},
 					{
 						key: 'unassigned',
 						label: 'Unassigned',
 						hint: 'Unresolved tickets with no assignee',
 						icon: UserRoundPlus,
-						count: data.counts.unassigned
+						count: data.ticketCounts.unassigned
 					},
 					{
 						key: 'open',
 						label: 'All open',
 						hint: 'Every ticket that isn’t resolved or closed',
 						icon: Inbox,
-						count: data.counts.open
+						count: data.ticketCounts.open
 					},
 					{
 						key: 'all',
 						label: 'All tickets',
 						hint: 'Every ticket, including resolved and closed',
 						icon: Layers,
-						count: data.counts.all
+						count: data.ticketCounts.all
 					},
-					{ ...requests, icon: UserRound }
+					{ ...myRequestsView, icon: UserRound }
 				]
-			: [{ ...requests, icon: Inbox }]
+			: [{ ...myRequestsView, icon: Inbox }]
 	);
 	// Stays while its view is open, so emptying it doesn't pull the page out from under you.
-	let nav = $derived(
-		draftsLink.count || view === 'drafts' ? [...ticketViews, draftsLink] : ticketViews
+	let navigationViews = $derived(
+		draftsView.count || activeView === 'drafts' ? [...ticketViews, draftsView] : ticketViews
 	);
 	// Crossfades the main pane once a page's data is ready. Opening a new ticket is left out
 	// because its form is already on screen and being typed in. The layer is only named
 	// while transitioning, since a view-transition-name also creates a stacking context.
 	onNavigate(({ from, to, complete }) => {
-		const sameUrl = from?.url.href === to?.url.href;
-		const writing = to?.params?.id === 'new';
-		if (!document.startViewTransition || prefersReducedMotion.current || sameUrl || writing) return;
-		const root = document.documentElement;
-		root.classList.add('page-transition');
+		const isSameUrl = from?.url.href === to?.url.href;
+		const isOpeningNewTicket = to?.params?.id === 'new';
+		if (
+			!document.startViewTransition ||
+			prefersReducedMotion.current ||
+			isSameUrl ||
+			isOpeningNewTicket
+		)
+			return;
+		const rootElement = document.documentElement;
+		rootElement.classList.add('page-transition');
 		return new Promise<void>((resolve) => {
 			const transition = document.startViewTransition(async () => {
 				resolve();
 				await complete.catch(() => {});
 			});
-			transition.finished.finally(() => root.classList.remove('page-transition'));
+			transition.finished.finally(() => rootElement.classList.remove('page-transition'));
 		});
 	});
-	async function search(e: SubmitEvent) {
-		e.preventDefault();
-		const p = new URLSearchParams(page.url.searchParams);
-		p.delete('draft');
-		if (p.get('view') === 'drafts') p.delete('view');
-		if (query.trim()) p.set('q', query.trim());
-		else p.delete('q');
-		await goto('/app/tickets?' + p);
+	async function submitSearch(event: SubmitEvent) {
+		event.preventDefault();
+		const searchParams = new URLSearchParams(page.url.searchParams);
+		searchParams.delete('draft');
+		if (searchParams.get('view') === 'drafts') searchParams.delete('view');
+		if (searchQuery.trim()) searchParams.set('q', searchQuery.trim());
+		else searchParams.delete('q');
+		await goto('/app/tickets?' + searchParams);
 	}
 	async function signOut(): Promise<void> {
-		signingOut = true;
+		isSigningOut = true;
 		await signOutSession();
-		signingOut = false;
+		isSigningOut = false;
 	}
 
 	createHotkey(
@@ -178,31 +189,31 @@
 
 <svelte:window
 	onpagehide={() => drafts.stores.forEach((store) => store.save())}
-	onstorage={(e) => drafts.stores.find((store) => store.key === e.key)?.load()}
+	onstorage={(event) => drafts.stores.find((store) => store.storageKey === event.key)?.load()}
 />
 
 <Sidebar.Provider
-	bind:open={sidebarOpen}
-	data-hydrated={hydrated}
-	class={sidebarOpen ? 'app-shell' : 'app-shell rail'}
+	bind:open={isSidebarOpen}
+	data-hydrated={isHydrated}
+	class={isSidebarOpen ? 'app-shell' : 'app-shell rail'}
 >
 	<header class="topbar">
 		<SidebarToggle /><a class="brand" href="/app/tickets"
 			><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
 		>
-		<form class="search-bar" onsubmit={search}>
+		<form class="search-bar" onsubmit={submitSearch}>
 			<Search size={23} /><input
 				aria-label="Search tickets"
 				placeholder="Search tickets, people, #number"
-				bind:value={query}
+				bind:value={searchQuery}
 			/><kbd>/</kbd><Tooltip.Root>
 				<Tooltip.Trigger
 					onclick={() => {
-						const field = document.querySelector<HTMLSelectElement>(
+						const statusFilterTrigger = document.querySelector<HTMLSelectElement>(
 							'[aria-label="Filter by status"]'
 						);
-						if (field) field.focus();
-						else goto('/app/tickets?view=' + view);
+						if (statusFilterTrigger) statusFilterTrigger.focus();
+						else goto('/app/tickets?view=' + activeView);
 					}}
 				>
 					{#snippet child({ props })}
@@ -216,45 +227,49 @@
 		</form>
 		<div class="account-wrap">
 			<Tooltip.Root>
-				<Tooltip.Trigger onclick={() => (account = !account)}>
+				<Tooltip.Trigger onclick={() => (isAccountMenuOpen = !isAccountMenuOpen)}>
 					{#snippet child({ props })}
 						<button {...props} class="avatar" aria-label="Account menu"
-							>{initials(data.user.name)}</button
+							>{getInitials(data.user.name)}</button
 						>
 					{/snippet}
 				</Tooltip.Trigger>
 				<Tooltip.Content side="bottom" sideOffset={6}>Account menu</Tooltip.Content>
-			</Tooltip.Root>{#if account}<div
+			</Tooltip.Root>{#if isAccountMenuOpen}<div
 					class="account-menu"
-					transition:scale={{ start: 0.96, duration: motionMs(120) }}
+					transition:scale={{ start: 0.96, duration: resolveMotionDuration(120) }}
 				>
 					<strong>{data.user.name}</strong><small>{data.user.role}</small><a
 						href="/app/settings"
-						onclick={() => (account = false)}>Appearance & settings</a
-					><button onclick={signOut} disabled={signingOut}
-						><LogOut size={16} /> {signingOut ? 'Signing out…' : 'Sign out'}</button
+						onclick={() => (isAccountMenuOpen = false)}>Appearance & settings</a
+					><button onclick={signOut} disabled={isSigningOut}
+						><LogOut size={16} /> {isSigningOut ? 'Signing out…' : 'Sign out'}</button
 					>
 				</div>{/if}
 		</div>
 	</header>
 	<AppSidebar
-		{nav}
-		openByCategory={data.openByCategory}
+		{navigationViews}
+		openTicketCountsByCategory={data.openTicketCountsByCategory}
 		isAdmin={data.user.role === 'admin'}
-		{url}
-		{view}
-		{openCategory}
+		{activeUrl}
+		{activeView}
+		{activeCategoryId}
 		{newTicketHref}
 	/>
 	<main>
-		{#if routeLoading.current}<RouteSkeleton kind={routeTarget ?? lastRouteTarget} />{/if}
+		{#if slowRouteNavigation.current}<RouteSkeleton
+				kind={targetRouteSkeleton ?? lastTargetRouteSkeleton}
+			/>{/if}
 		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
-		<div class={routeLoading.current ? 'hidden' : 'contents'}>{@render children()}</div>
+		<div class={slowRouteNavigation.current ? 'hidden' : 'contents'}>{@render children()}</div>
 	</main>
 	<nav class="mobile-nav" aria-label="Mobile navigation">
-		{#each nav.slice(0, 3) as n (n.key)}<a
-				class:active={view === n.key && url.pathname.startsWith('/app/tickets')}
-				href={'/app/tickets?view=' + n.key}><span><n.icon size={23} /></span>{n.label}</a
+		{#each navigationViews.slice(0, 3) as navigationView (navigationView.key)}<a
+				class:active={activeView === navigationView.key &&
+					activeUrl.pathname.startsWith('/app/tickets')}
+				href={'/app/tickets?view=' + navigationView.key}
+				><span><navigationView.icon size={23} /></span>{navigationView.label}</a
 			>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
 	</nav>
 </Sidebar.Provider>

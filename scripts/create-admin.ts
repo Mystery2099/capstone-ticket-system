@@ -3,21 +3,21 @@ import { parseArgs } from 'node:util';
 import { createFirstAdministrator } from '../src/lib/server/bootstrap';
 import { closeDatabase } from '../src/lib/server/db';
 
-const { values } = parseArgs({
+const { values: commandOptions } = parseArgs({
 	options: {
 		name: { type: 'string' },
 		email: { type: 'string' },
 		'password-file': { type: 'string' }
 	}
 });
-if (!values.name || !values.email || !values['password-file']) {
+if (!commandOptions.name || !commandOptions.email || !commandOptions['password-file']) {
 	throw new Error(
 		'Usage: pnpm admin:create --name "Your name" --email you@example.com --password-file /path/to/private/password-file'
 	);
 }
 try {
-	const password = (await readFile(values['password-file'], 'utf8')).replace(/\r?\n$/, '');
-	await createFirstAdministrator(values.name, values.email, password);
+	const password = (await readFile(commandOptions['password-file'], 'utf8')).replace(/\r?\n$/, '');
+	await createFirstAdministrator(commandOptions.name, commandOptions.email, password);
 	console.log('First administrator created. Sign in and complete authenticator setup.');
 } catch {
 	console.error(
