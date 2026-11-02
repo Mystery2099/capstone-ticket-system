@@ -184,6 +184,9 @@ importers:
       '@tanstack/svelte-hotkeys':
         specifier: ^0.18.0
         version: 0.18.0(svelte@5.57.3(@typescript-eslint/types@8.72.1))
+      '@tanstack/svelte-virtual':
+        specifier: ^3.13.50
+        version: 3.13.50(svelte@5.57.3(@typescript-eslint/types@8.72.1))
       better-auth:
         specifier: ^1.7.14
         version: 1.7.14(@sveltejs/kit@2.70.3(@sveltejs/vite-plugin-svelte@6.2.4(svelte@5.57.3(@typescript-eslint/types@8.72.1))(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)))(svelte@5.57.3(@typescript-eslint/types@8.72.1))(typescript@5.9.3)(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)))(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@electric-sql/pglite@0.3.14)(kysely@0.29.7)(postgres@3.4.9))(svelte@5.57.3(@typescript-eslint/types@8.72.1))(vitest@4.1.12(@types/node@26.6.6)(vite@7.3.7(@types/node@26.6.6)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.15)))
@@ -193,6 +196,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      devalue:
+        specifier: ^6.0.3
+        version: 6.0.3
       dotenv:
         specifier: ^18.0.9
         version: 18.0.9
@@ -1334,6 +1340,14 @@ packages:
     peerDependencies:
       svelte: ^5.40.0
 
+  '@tanstack/svelte-virtual@3.13.50':
+    resolution: {integrity: sha512-msRag/Da+WH+km/dFSbLJSKpzbrOhhrLItzeRuRsApOFdkFzUXjZpODl1nQYjZ4m095Ea0Q+ue4cnOhpI86awg==}
+    peerDependencies:
+      svelte: ^3.48.0 || ^4.0.0 || ^5.0.0
+
+  '@tanstack/virtual-core@3.19.9':
+    resolution: {integrity: sha512-Syiaf3w69dFyYv4o2mqJ1/2VtBJTNq5Hu5cVXfnzOuJKFpUojukQR13ZW+5NvdMJM7GFHeNPmveMNhoIubiFyA==}
+
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
 
@@ -1696,6 +1710,10 @@ packages:
 
   devalue@5.9.4:
     resolution: {integrity: sha512-sPAT4pztbu6586/hrhOnMKS17IJrvg12mXiSPSS3W5qDeN2RGgvZ0diZCm31dBbnevfVmujNO3IM2wrS4Y2Rhg==}
+
+  devalue@6.0.3:
+    resolution: {integrity: sha512-3woMEITftG1wKeO/4d/QXH1DVKctTSZg3jNGPpjp9hNr5Hos8MCFF5McTML5ZtgKDObm2R591B0spRp2IVernA==}
+    engines: {node: '>=18'}
 
   dijkstrajs@1.0.3:
     resolution: {integrity: sha512-qiSlmBq9+BCdCA/L46dw8Uy93mloxsPSbwnm5yrKn2vMPiy8KyAskTF6zuV/j5BMsmOGZDPs7KjU+mjb670kfA==}
@@ -3488,6 +3506,13 @@ snapshots:
       '@tanstack/hotkeys': 0.20.0
       svelte: 5.57.3(@typescript-eslint/types@8.72.1)
 
+  '@tanstack/svelte-virtual@3.13.50(svelte@5.57.3(@typescript-eslint/types@8.72.1))':
+    dependencies:
+      '@tanstack/virtual-core': 3.19.9
+      svelte: 5.57.3(@typescript-eslint/types@8.72.1)
+
+  '@tanstack/virtual-core@3.19.9': {}
+
   '@types/chai@5.2.3':
     dependencies:
       '@types/deep-eql': 4.0.2
@@ -3853,6 +3878,8 @@ snapshots:
   detect-libc@2.1.2: {}
 
   devalue@5.9.4: {}
+
+  devalue@6.0.3: {}
 
   dijkstrajs@1.0.3: {}
 
