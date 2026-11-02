@@ -48,7 +48,7 @@ export const actions: Actions = {
 			return buildFormFailure(form, caughtError);
 		}
 		const redirectView = createdTicket.requesterId === actor.id ? 'mine' : 'open';
-		redirect(303, `/app/tickets/${createdTicket.ticketNumber}?redirectView=${redirectView}`);
+		redirect(303, `/app/tickets/${createdTicket.ticketNumber}?view=${redirectView}`);
 	},
 	reply: async ({ locals, request, params }) => {
 		const actor = requireUser(locals.user);

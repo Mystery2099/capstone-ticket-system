@@ -126,7 +126,7 @@ export async function saveManagedCategory(
 			categoryId = createdCategory.id;
 			await transaction.insert(securityEvent).values({
 				actorId,
-				action: 'category.createdCategory',
+				action: 'category.created',
 				targetId: categoryId,
 				details: { name: input.name }
 			});
