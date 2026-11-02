@@ -60,9 +60,9 @@ passwords, MFA enrollment, and the authentication secret are preserved. Sign in
 with your existing account and authenticator.
 
 PostgreSQL firewall rules named `capstone-appservice-*` allow the web app's
-published outbound IP set, rather than all Azure services or the whole Internet.
+published possible outbound IP set, rather than all Azure services or the whole Internet.
 Normal code deployment does not require changing these rules. Recheck the full
-outbound IP set after a hosting-plan/region change or an Azure infrastructure
+possible outbound IP set after a hosting-plan/region change or an Azure infrastructure
 change. [App Service outbound IP behavior](https://learn.microsoft.com/azure/app-service/app-service-ip-addresses).
 
 The earlier Container Apps trial was replaced because its outbound IP changed
