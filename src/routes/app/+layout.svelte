@@ -21,6 +21,7 @@
 		LogOut
 	} from '@lucide/svelte';
 	import { getInitials } from '$lib/person';
+	import { TICKET_VIEW_TITLES, getDefaultTicketView } from '$lib/ticket-views';
 	import TicketSearchBar from '$lib/components/tickets/TicketSearchBar.svelte';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import SidebarToggle from '$lib/components/layout/SidebarToggle.svelte';
@@ -28,7 +29,7 @@
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { createDelayedFlag } from '$lib/delayed.svelte';
 	import { resolveMotionDuration } from '$lib/motion';
-	import { Drafts, setDrafts } from '$lib/ticket-draft.svelte';
+	import { Drafts, setDrafts } from '$lib/drafts.svelte';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
 	} from '$lib/components/skeleton/RouteSkeleton.svelte';
@@ -55,7 +56,9 @@
 	let isStaffUser = $derived(data.user.role !== 'requester');
 	// Navigation highlights follow the destination, so clicks register before data arrives.
 	let activeUrl = $derived(navigating.to?.url ?? page.url);
-	let activeView = $derived(activeUrl.searchParams.get('view') || (isStaffUser ? 'open' : 'mine'));
+	let activeView = $derived(
+		activeUrl.searchParams.get('view') || getDefaultTicketView(isStaffUser)
+	);
 	// A sidebar category is a narrowed All open, so only one of the two is highlighted.
 	let activeCategoryId = $derived(
 		activeView === 'open' ? activeUrl.searchParams.get('category') : null
@@ -89,13 +92,13 @@
 	});
 	let myRequestsView = $derived({
 		key: 'mine',
-		label: 'My requests',
+		label: TICKET_VIEW_TITLES.mine,
 		hint: 'Tickets you opened, in any status',
 		count: data.ticketCounts.mine
 	});
 	let draftsView = $derived({
 		key: 'drafts',
-		label: 'Drafts',
+		label: TICKET_VIEW_TITLES.drafts,
 		hint: 'Unfinished work, saved in this browser',
 		icon: FilePen,
 		count: drafts.dirtyDraftCount
@@ -105,28 +108,28 @@
 			? [
 					{
 						key: 'queue',
-						label: 'Assigned to me',
+						label: TICKET_VIEW_TITLES.queue,
 						hint: 'Unresolved tickets assigned to you',
 						icon: UserRound,
 						count: data.ticketCounts.queue
 					},
 					{
 						key: 'unassigned',
-						label: 'Unassigned',
+						label: TICKET_VIEW_TITLES.unassigned,
 						hint: 'Unresolved tickets with no assignee',
 						icon: UserRoundPlus,
 						count: data.ticketCounts.unassigned
 					},
 					{
 						key: 'open',
-						label: 'All open',
+						label: TICKET_VIEW_TITLES.open,
 						hint: 'Every ticket that isn’t resolved or closed',
 						icon: Inbox,
 						count: data.ticketCounts.open
 					},
 					{
 						key: 'all',
-						label: 'All tickets',
+						label: TICKET_VIEW_TITLES.all,
 						hint: 'Every ticket, including resolved and closed',
 						icon: Layers,
 						count: data.ticketCounts.all

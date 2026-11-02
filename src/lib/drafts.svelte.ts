@@ -2,7 +2,7 @@ import { createContext } from 'svelte';
 
 const generateDraftId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-type TicketDraftFields = {
+export type TicketDraftFields = {
 	id: string;
 	subject: string;
 	description: string;
