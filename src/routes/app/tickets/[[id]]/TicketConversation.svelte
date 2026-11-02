@@ -7,8 +7,8 @@
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import StatusBadge from '$lib/components/tickets/StatusBadge.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
+	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { getRoleLabel } from '$lib/person';
 	import { TICKET_STATUSES, TicketEventType } from '$lib/status';
 	import CommentMessage from './CommentMessage.svelte';
@@ -150,15 +150,16 @@
 	<div class="ticket-title">
 		<h1>{ticket.subject}</h1>
 		<p class="ticket-dates">
-			<Tooltip.Root>
-				<Tooltip.Trigger
-					class="ticket-number"
-					aria-label={`Copy ticket number #${ticket.ticketNumber}`}
-					onclick={() => copyToClipboard(`#${ticket.ticketNumber}`, 'Ticket number copied')}
-					>#{ticket.ticketNumber}</Tooltip.Trigger
-				>
-				<Tooltip.Content side="bottom" sideOffset={6}>Copy ticket number</Tooltip.Content>
-			</Tooltip.Root>
+			<TooltipWrapper
+				content="Copy ticket number"
+				onclick={() => copyToClipboard(`#${ticket.ticketNumber}`, 'Ticket number copied')}
+			>
+				{#snippet trigger(props)}<button
+						{...props}
+						class="ticket-number"
+						aria-label={`Copy ticket number #${ticket.ticketNumber}`}>#{ticket.ticketNumber}</button
+					>{/snippet}
+			</TooltipWrapper>
 			· Opened by {directory.getPersonName(ticket.requesterId)} · {formatDateTime(ticket.createdAt)} ·
 			Updated
 			{formatDateTime(ticket.updatedAt)}

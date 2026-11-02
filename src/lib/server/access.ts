@@ -1,10 +1,11 @@
 import { error } from '@sveltejs/kit';
-import { user } from './schema';
+import { ticket, user } from './schema';
 
 /** How long a sign-in counts as recent enough to change accounts or categories. */
 const FRESH_SESSION_MAX_AGE_MS = 15 * 60 * 1000;
 
 export type Person = typeof user.$inferSelect;
+type Ticket = typeof ticket.$inferSelect;
 
 export function isStaff(person: Pick<Person, 'role'>): boolean {
 	return person.role === 'agent' || person.role === 'admin';
@@ -45,4 +46,13 @@ export function requireFreshAdministrator(locals: App.Locals): Person {
 	if (sessionAge > FRESH_SESSION_MAX_AGE_MS)
 		error(403, 'Sign out and sign in again before changing accounts or categories.');
 	return administrator;
+}
+
+/**
+ * Checks that a person may see a ticket.
+ *
+ * @throws 404 rather than 403, so requesters can't tell which ticket numbers exist
+ */
+export function requireTicketAccess(actor: Person, ticketRecord: Ticket): void {
+	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) error(404, 'Ticket not found.');
 }

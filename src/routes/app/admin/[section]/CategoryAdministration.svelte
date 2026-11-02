@@ -28,7 +28,7 @@
 
 	let listHref = $derived(page.url.pathname);
 	// The URL holds the open record, so links and the back button work like tickets.
-	let isCreatingCategory = $derived(page.url.searchParams.has('new'));
+	let isCreateCategoryPaneOpen = $derived(page.url.searchParams.has('new'));
 	let selectedCategory = $derived(
 		data.categories.find((category) => category.id === page.url.searchParams.get('id'))
 	);
@@ -42,7 +42,7 @@
 
 	const categoryDrafts = getDrafts().categories;
 	const draftBinding = new DraftUrlBinding(categoryDrafts, {
-		isComposing: () => isCreatingCategory,
+		isComposing: () => isCreateCategoryPaneOpen,
 		isNavigating: () => !!navigating.to
 	});
 	let categoryDraft = $derived(draftBinding.activeDraft);
@@ -53,8 +53,7 @@
 		data.createCategoryForm,
 		buildAdminFormOptions(() => categoryDrafts.discardById(categoryDraft.id))
 	);
-	const { enhance: enhanceCreateCategory, submitting: isSubmittingNewCategory } =
-		createCategoryForm;
+	const { enhance: enhanceCreateCategory, submitting: isCreatingCategory } = createCategoryForm;
 	// svelte-ignore state_referenced_locally
 	const updateCategoryForm = superForm(data.updateCategoryForm, buildAdminFormOptions());
 	const {
@@ -79,7 +78,7 @@
 	const createFormHotkeys = createComposeFormHotkeys(
 		() => createFormElement,
 		() => listHref,
-		() => isCreatingCategory && !$isSubmittingNewCategory
+		() => isCreateCategoryPaneOpen && !$isCreatingCategory
 	);
 </script>
 
@@ -87,7 +86,7 @@
 	title="Categories"
 	recordNoun="category"
 	recordCount={filteredCategories.length}
-	isPaneOpen={isCreatingCategory || !!selectedCategory}
+	isPaneOpen={isCreateCategoryPaneOpen || !!selectedCategory}
 	bind:filterText
 >
 	{#snippet filters()}
@@ -111,7 +110,7 @@
 			>{:else}<AdminEmptyList pluralNoun="categories" />{/each}
 	{/snippet}
 	{#snippet pane()}
-		{#if isCreatingCategory}
+		{#if isCreateCategoryPaneOpen}
 			<AdminDetailsToolbar
 				title="Add category"
 				subtitle="New categories are active and available on new tickets straight away"
@@ -141,7 +140,7 @@
 						/>
 					</div>
 					<AdminFormFooter
-						isSubmitting={$isSubmittingNewCategory}
+						isSubmitting={$isCreatingCategory}
 						submitLabel="Add category"
 						submittingLabel="Adding…"
 						secondaryLabel="Discard"

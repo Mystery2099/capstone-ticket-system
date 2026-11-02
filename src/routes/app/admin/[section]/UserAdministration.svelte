@@ -32,7 +32,7 @@
 
 	let listHref = $derived(page.url.pathname);
 	// The URL holds the open record, so links and the back button work like tickets.
-	let isCreatingUser = $derived(page.url.searchParams.has('new'));
+	let isCreateUserPaneOpen = $derived(page.url.searchParams.has('new'));
 	let selectedUser = $derived(
 		data.users.find((user) => user.id === page.url.searchParams.get('id'))
 	);
@@ -47,7 +47,7 @@
 
 	const userDrafts = getDrafts().users;
 	const draftBinding = new DraftUrlBinding(userDrafts, {
-		isComposing: () => isCreatingUser,
+		isComposing: () => isCreateUserPaneOpen,
 		isNavigating: () => !!navigating.to
 	});
 	let userDraft = $derived(draftBinding.activeDraft);
@@ -61,7 +61,7 @@
 		data.createUserForm,
 		buildAdminFormOptions(() => userDrafts.discardById(userDraft.id))
 	);
-	const { enhance: enhanceCreateUser, submitting: isSubmittingNewUser } = createUserForm;
+	const { enhance: enhanceCreateUser, submitting: isCreatingUser } = createUserForm;
 	// svelte-ignore state_referenced_locally
 	const updateUserForm = superForm(data.updateUserForm, buildAdminFormOptions());
 	const { form: userFields, enhance: enhanceUpdateUser, submitting: isSavingUser } = updateUserForm;
@@ -84,7 +84,7 @@
 	const createFormHotkeys = createComposeFormHotkeys(
 		() => createFormElement,
 		() => listHref,
-		() => isCreatingUser && !$isSubmittingNewUser
+		() => isCreateUserPaneOpen && !$isCreatingUser
 	);
 </script>
 
@@ -92,7 +92,7 @@
 	title="Users"
 	recordNoun="user"
 	recordCount={filteredUsers.length}
-	isPaneOpen={isCreatingUser || !!selectedUser}
+	isPaneOpen={isCreateUserPaneOpen || !!selectedUser}
 	bind:filterText
 >
 	{#snippet filters()}
@@ -124,7 +124,7 @@
 			>{:else}<AdminEmptyList pluralNoun="users" />{/each}
 	{/snippet}
 	{#snippet pane()}
-		{#if isCreatingUser}
+		{#if isCreateUserPaneOpen}
 			<AdminDetailsToolbar
 				title="Add user"
 				subtitle="Accounts are created here, not by public sign-up"
@@ -183,7 +183,7 @@
 						</div>
 					</div>
 					<AdminFormFooter
-						isSubmitting={$isSubmittingNewUser}
+						isSubmitting={$isCreatingUser}
 						submitLabel="Create account"
 						submittingLabel="Creating…"
 						secondaryLabel="Discard"

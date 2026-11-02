@@ -5,11 +5,10 @@
 <script lang="ts">
 	import type { Component } from 'svelte';
 	import { ChevronDown, Settings, SquarePen, Tags, Users, X } from '@lucide/svelte';
-	import { mergeProps } from 'bits-ui';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 
 	type Props = {
 		navigationViews: { key: string; label: string; hint: string; icon: Component; count: number }[];
@@ -54,22 +53,24 @@
 			<nav aria-label="Tickets">
 				{#each navigationViews as navigationView (navigationView.key)}
 					{#snippet viewNavigationLink()}
-						<Tooltip.Root>
-							<Tooltip.Trigger>
-								{#snippet child({ props })}<a
-										{...mergeProps(props, { onclick: closeMobileSidebar })}
-										class:active={activeUrl.pathname.startsWith('/app/tickets') &&
-											activeView === navigationView.key &&
-											!activeCategoryId}
-										href={'/app/tickets?view=' + navigationView.key}
-										aria-label={navigationView.label}
-										><navigationView.icon size={23} /><span>{navigationView.label}</span><small
-											>{navigationView.count}</small
-										></a
-									>{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content side="right" sideOffset={8}>{navigationView.hint}</Tooltip.Content>
-						</Tooltip.Root>
+						<TooltipWrapper
+							content={navigationView.hint}
+							side="right"
+							sideOffset={8}
+							onclick={closeMobileSidebar}
+						>
+							{#snippet trigger(props)}<a
+									{...props}
+									class:active={activeUrl.pathname.startsWith('/app/tickets') &&
+										activeView === navigationView.key &&
+										!activeCategoryId}
+									href={'/app/tickets?view=' + navigationView.key}
+									aria-label={navigationView.label}
+									><navigationView.icon size={23} /><span>{navigationView.label}</span><small
+										>{navigationView.count}</small
+									></a
+								>{/snippet}
+						</TooltipWrapper>
 					{/snippet}
 					{#if navigationView.key === 'open' && openTicketCountsByCategory.length}
 						<Collapsible.Root bind:open={isCategoryListOpen}>

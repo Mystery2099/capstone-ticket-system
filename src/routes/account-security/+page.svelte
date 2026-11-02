@@ -4,7 +4,10 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	import { ShieldCheck, Download, ScanLine, KeyRound } from '@lucide/svelte';
+	import { ShieldCheck, KeyRound } from '@lucide/svelte';
+	import AuthenticatorSetup from './AuthenticatorSetup.svelte';
+	import SetupStepHeading from './SetupStepHeading.svelte';
+	import { createAuthenticatorQrCode, readTotpSecret } from './authenticator-setup';
 	let { data } = $props();
 	let password = $state('');
 	let verificationCode = $state('');
@@ -12,8 +15,8 @@
 	let totpSecret = $state('');
 	let qrCodeUrl = $state('');
 	let qrCodeFailed = $state(false);
-	let backupCodes = $state<string[]>([]);
-	let hasSavedBackupCodes = $state(false);
+	let recoveryCodes = $state<string[]>([]);
+	let hasSavedRecoveryCodes = $state(false);
 	let isSubmitting = $state(false);
 	let errorMessage = $state('');
 
@@ -22,27 +25,6 @@
 		if (status === 0) return 'Could not connect. Please try again.';
 		if (status >= 500) return 'Verification is temporarily unavailable. Please try again.';
 		return 'Verification failed. Check your password or code and try again.';
-	}
-
-	function downloadRecoveryCodes(): void {
-		const contents = [
-			'Ticket System recovery codes',
-			'',
-			'Each code can be used once. Keep this file somewhere private.',
-			'',
-			...backupCodes,
-			''
-		].join('\n');
-		const downloadUrl = URL.createObjectURL(
-			new Blob([contents], { type: 'text/plain;charset=utf-8' })
-		);
-		const downloadLink = document.createElement('a');
-		downloadLink.href = downloadUrl;
-		downloadLink.download = 'ticket-system-recovery-codes.txt';
-		document.body.append(downloadLink);
-		downloadLink.click();
-		downloadLink.remove();
-		setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
 	}
 
 	async function handleSubmit(event: SubmitEvent): Promise<void> {
@@ -61,15 +43,10 @@
 					return;
 				}
 				password = '';
-				totpSecret = new URL(result.data.totpURI).searchParams.get('secret') || '';
-				backupCodes = result.data.backupCodes;
+				totpSecret = readTotpSecret(result.data.totpURI);
+				recoveryCodes = result.data.backupCodes;
 				try {
-					const { default: qrCode } = await import('qrcode');
-					qrCodeUrl = await qrCode.toDataURL(result.data.totpURI, {
-						width: 256,
-						margin: 4,
-						errorCorrectionLevel: 'M'
-					});
+					qrCodeUrl = await createAuthenticatorQrCode(result.data.totpURI);
 				} catch {
 					qrCodeFailed = true;
 				}
@@ -88,7 +65,7 @@
 			verificationCode = '';
 			qrCodeUrl = '';
 			totpSecret = '';
-			backupCodes = [];
+			recoveryCodes = [];
 			await invalidateAll();
 			await goto('/app/tickets');
 		} catch {
@@ -136,53 +113,18 @@
 				</div>
 			{:else}
 				{#if totpSecret}
-					<div class="setup-grid">
-						<section class="setup-panel" aria-labelledby="scan-heading">
-							<h2 id="scan-heading">
-								<span class="step-number">1</span>Connect your authenticator
-							</h2>
-							<p class="hint">Scan this QR code with your authenticator app.</p>
-							{#if qrCodeUrl}<img
-									class="setup-qr"
-									src={qrCodeUrl}
-									width="256"
-									height="256"
-									alt="QR code for authenticator setup"
-								/>{:else}<div class="qr-placeholder" role="status">
-									<ScanLine size={32} /><span
-										>{qrCodeFailed ? 'Use the setup key below.' : 'Preparing QR code…'}</span
-									>
-								</div>{/if}
-							<details>
-								<summary>Can’t scan? Use the setup key</summary>
-								<p class="hint">Add a time-based account and enter this key:</p>
-								<code class="setup-key">{totpSecret}</code>
-							</details>
-						</section>
-						<section class="setup-panel" aria-labelledby="recovery-heading">
-							<h2 id="recovery-heading">
-								<span class="step-number">2</span>Save your recovery codes
-							</h2>
-							<p class="hint">
-								Each code works once if you lose access to your authenticator. Store them somewhere
-								private.
-							</p>
-							<div class="recovery-codes">
-								{#each backupCodes as backupCode (backupCode)}<code>{backupCode}</code>{/each}
-							</div>
-							<Button type="button" variant="outline" onclick={downloadRecoveryCodes}
-								><Download size={16} />Download recovery codes</Button
-							>
-							<label class="saved-codes"
-								><input type="checkbox" bind:checked={hasSavedBackupCodes} required /><span
-									>I saved my recovery codes</span
-								></label
-							>
-						</section>
-					</div>
+					<AuthenticatorSetup
+						{totpSecret}
+						{qrCodeUrl}
+						{qrCodeFailed}
+						{recoveryCodes}
+						bind:hasSavedRecoveryCodes
+					/>
 				{/if}
 				<section class="verification-fields" aria-label="Verify authenticator">
-					{#if totpSecret}<h2><span class="step-number">3</span>Verify your authenticator</h2>
+					{#if totpSecret}<SetupStepHeading stepNumber={3}
+							>Verify your authenticator</SetupStepHeading
+						>
 						<p class="hint">Enter the six-digit code shown in your authenticator app.</p>{/if}
 					<Label for="security-code"
 						>{isUsingRecoveryCode ? 'Recovery code' : 'Authenticator code'}</Label
@@ -211,7 +153,7 @@
 			<footer>
 				<a href="/login">Back to sign in</a><Button
 					type="submit"
-					disabled={isSubmitting || (!!totpSecret && !hasSavedBackupCodes)}
+					disabled={isSubmitting || (!!totpSecret && !hasSavedRecoveryCodes)}
 					>{isSubmitting
 						? 'Verifying…'
 						: data.isEnrolling && !totpSecret
@@ -283,112 +225,11 @@
 		flex-direction: column;
 		gap: 24px;
 	}
-	.setup-grid {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 18px;
-	}
-	.setup-panel {
-		padding: 20px;
-		border: 1px solid var(--border);
-		border-radius: 12px;
-		min-width: 0;
-		display: flex;
-		flex-direction: column;
-		align-items: stretch;
-		gap: 14px;
-	}
-	h2 {
-		display: flex;
-		align-items: center;
-		gap: 9px;
-		font-weight: 600;
-		font-size: 14px;
-		margin: 0;
-	}
-	.step-number {
-		display: inline-grid;
-		place-items: center;
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		background: var(--muted);
-		font-size: 12px;
-		flex-shrink: 0;
-	}
 	.hint {
 		color: var(--muted-fg);
 		font-size: 13px;
 		line-height: 1.6;
 		margin: 0;
-	}
-	.setup-qr,
-	.qr-placeholder {
-		width: 100%;
-		max-width: 224px;
-		aspect-ratio: 1;
-		height: auto;
-		align-self: center;
-		border-radius: 8px;
-	}
-	.qr-placeholder {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		flex-direction: column;
-		gap: 12px;
-		background: white;
-		color: #333;
-		font-size: 12px;
-	}
-	summary {
-		cursor: pointer;
-		font-size: 12px;
-		color: var(--primary);
-	}
-	details .hint {
-		margin-top: 10px;
-	}
-	.setup-key {
-		display: block;
-		overflow-wrap: anywhere;
-		user-select: all;
-		font-size: 12px;
-		line-height: 1.7;
-		margin-top: 8px;
-	}
-	.recovery-codes {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 10px;
-		padding: 16px;
-		background: var(--background);
-		border: 1px solid var(--border);
-		border-radius: 8px;
-	}
-	.recovery-codes code {
-		user-select: all;
-		font-size: 12px;
-		line-height: 1.6;
-		white-space: nowrap;
-	}
-	.saved-codes {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		font-size: 13px;
-		cursor: pointer;
-		margin-top: 2px;
-	}
-	.saved-codes input {
-		width: 16px;
-		height: 16px;
-		min-width: 16px;
-		margin: 0;
-		padding: 0;
-		flex: none;
-		appearance: auto;
-		accent-color: var(--primary);
 	}
 	.verification-fields {
 		display: flex;
@@ -422,9 +263,6 @@
 		}
 		.security-card {
 			padding: 22px 18px;
-		}
-		.setup-grid {
-			grid-template-columns: 1fr;
 		}
 		h1 {
 			font-size: 19px;

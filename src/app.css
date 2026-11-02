@@ -245,83 +245,6 @@
 		border-radius: 6px;
 		font-size: 13px;
 	}
-	.login-page {
-		min-height: 100dvh;
-		display: grid;
-		place-items: center;
-		padding: 32px 16px;
-	}
-	.login-page > div {
-		max-width: 100%;
-	}
-	.login-card {
-		padding: 32px 36px;
-		background: var(--card);
-		border: 1px solid var(--border);
-		border-radius: 18px;
-	}
-	.login-heading {
-		display: flex;
-		align-items: center;
-		gap: 14px;
-		margin-bottom: 24px;
-	}
-	.login-heading .logo {
-		width: 36px;
-		height: 36px;
-	}
-	.login-heading h1 {
-		font-size: 20px;
-	}
-	.login-heading p {
-		color: var(--muted-fg);
-		margin-top: 2px;
-	}
-	.login-card label {
-		display: flex;
-		flex-direction: column;
-		gap: 8px;
-		font-weight: 550;
-		color: var(--muted-fg);
-		margin-top: 20px;
-	}
-	.login-card input {
-		width: 100%;
-		height: 44px;
-		font-weight: 400;
-		font-size: 16px;
-	}
-	.password-field {
-		position: relative;
-		display: block;
-	}
-	.password-field input {
-		padding-right: 44px;
-	}
-	.password-field button {
-		position: absolute;
-		right: 5px;
-		top: 4px;
-	}
-	.login-submit {
-		width: 100%;
-		margin-top: 22px;
-		height: 44px;
-		font-size: 15px;
-	}
-	.login-help {
-		text-align: center;
-		color: var(--muted-fg);
-		font-size: 13px;
-		margin-top: 22px;
-	}
-	.login-footer {
-		text-align: center;
-		color: var(--muted-fg);
-		font-size: 12px;
-		margin-top: 18px;
-	}
-
 	.app-shell {
 		--sidebar-width: 240px;
 		--sidebar-width-icon: 76px;
@@ -346,38 +269,6 @@
 		min-width: 168px;
 		white-space: nowrap;
 		font-size: 18px;
-	}
-	.search-bar {
-		margin-left: 12px;
-		background: var(--muted);
-		height: 46px;
-		border-radius: 28px;
-		display: flex;
-		align-items: center;
-		padding: 0 12px 0 16px;
-		gap: 12px;
-		flex: 1;
-		max-width: 720px;
-		color: var(--muted-fg);
-	}
-	.search-bar input {
-		border: 0;
-		background: none;
-		padding: 0;
-		min-width: 0;
-		flex: 1;
-		font-size: 16px;
-		outline: none;
-	}
-	.search-bar input:focus {
-		outline: none;
-	}
-	.search-bar kbd {
-		border: 1px solid var(--input);
-		border-radius: 4px;
-		font-size: 12px;
-		min-width: 18px;
-		text-align: center;
 	}
 	.account-wrap {
 		position: relative;
@@ -1034,9 +925,6 @@
 		.brand strong {
 			display: none;
 		}
-		.search-bar {
-			margin-left: 0;
-		}
 		aside.app-sidebar {
 			padding: 4px 8px;
 		}
@@ -1129,28 +1017,6 @@
 			z-index: 2;
 			top: 19px;
 		}
-		.search-bar {
-			margin: 0;
-			border-radius: 32px;
-			height: 54px;
-			width: 100%;
-			padding: 0 58px 0 60px;
-			max-width: none;
-		}
-		.search-bar > svg,
-		.search-bar kbd,
-		.search-bar button {
-			display: none;
-		}
-		.search-bar input {
-			font-size: 16px;
-		}
-		.search-bar input::placeholder {
-			font-size: 0;
-		}
-		.search-bar input:placeholder-shown {
-			background: transparent;
-		}
 		.account-wrap {
 			position: absolute;
 			right: 28px;
@@ -1159,14 +1025,6 @@
 		.account-wrap > .avatar {
 			width: 36px;
 			height: 36px;
-		}
-		.search-bar:has(input:placeholder-shown):after {
-			content: 'Search tickets';
-			position: absolute;
-			left: 76px;
-			font-size: 16px;
-			pointer-events: none;
-			color: var(--muted-fg);
 		}
 		aside.app-sidebar {
 			padding: 16px;
@@ -1421,9 +1279,6 @@
 		.has-ticket + .mobile-new {
 			display: none;
 		}
-		.login-card {
-			padding: 28px 24px;
-		}
 	}
 	@media (min-width: 1024px) {
 		.app-shell.rail {
@@ -1556,26 +1411,6 @@
 			font-size: 12px;
 		}
 	}
-	.login-page {
-		grid-template-columns: minmax(0, 1fr);
-	}
-	.login-page > div {
-		justify-self: center;
-		min-width: 0;
-		width: min(440px, 100%);
-	}
-	.login-card {
-		min-width: 0;
-	}
-	.login-card input {
-		min-width: 0;
-	}
-	@media (max-width: 767px) {
-		.login-page > div {
-			width: min(420px, 100%);
-		}
-	}
-
 	/* Loading placeholders stay static on purpose. Pulse and shimmer loops repaint
 	   every frame, so the only motion here is a single fade when they appear. */
 	.skeleton {
@@ -1764,12 +1599,6 @@
 	from {
 		opacity: 0;
 		translate: 0 4px;
-	}
-}
-@keyframes pop-in {
-	from {
-		opacity: 0;
-		scale: 0.97;
 	}
 }
 @keyframes collapsible-open {

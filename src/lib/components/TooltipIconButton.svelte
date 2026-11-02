@@ -6,8 +6,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { HTMLAnchorAttributes, HTMLButtonAttributes } from 'svelte/elements';
-	import { mergeProps } from 'bits-ui';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import TooltipWrapper from './TooltipWrapper.svelte';
 
 	type TooltipIconButtonProps = Omit<HTMLButtonAttributes & HTMLAnchorAttributes, 'children'> & {
 		label: string;
@@ -24,30 +23,22 @@
 		side = 'bottom',
 		class: className = 'icon-button',
 		href,
+		disabled,
 		children,
-		...restProps
+		...elementProps
 	}: TooltipIconButtonProps = $props();
 	let rendersAsLink = $derived(asLink || href !== undefined);
-	// bits-ui merges event handlers so the tooltip still closes when the control is clicked.
-	let elementProps = $derived(restProps as Record<string, unknown>);
+	// Disabling stays on the element. The tooltip trigger's own disabled prop works differently.
 </script>
 
-<Tooltip.Root>
-	<Tooltip.Trigger>
-		{#snippet child({ props })}
-			{#if rendersAsLink}
-				<a {...mergeProps(props, elementProps)} {href} class={className} aria-label={label}
-					>{@render children()}</a
-				>
-			{:else}
-				<button
-					{...mergeProps(props, elementProps)}
-					type="button"
-					class={className}
-					aria-label={label}>{@render children()}</button
-				>
-			{/if}
-		{/snippet}
-	</Tooltip.Trigger>
-	<Tooltip.Content {side} sideOffset={6}>{tooltip}</Tooltip.Content>
-</Tooltip.Root>
+<TooltipWrapper content={tooltip} {side} {...elementProps}>
+	{#snippet trigger(props)}
+		{#if rendersAsLink}
+			<a {...props} {href} class={className} aria-label={label}>{@render children()}</a>
+		{:else}
+			<button {...props} type="button" class={className} {disabled} aria-label={label}
+				>{@render children()}</button
+			>
+		{/if}
+	{/snippet}
+</TooltipWrapper>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { authClient } from '$lib/auth-client';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import { onMount } from 'svelte';
 	let isHydrated = $state(false);
 	onMount(() => {
@@ -11,11 +11,12 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	let email = $state(''),
-		password = $state(''),
-		isPasswordVisible = $state(false),
-		loginError = $state(''),
-		isSigningIn = $state(false);
+	let email = $state('');
+	let password = $state('');
+	let isPasswordVisible = $state(false);
+	let loginError = $state('');
+	let isSigningIn = $state(false);
+	let passwordToggleLabel = $derived(isPasswordVisible ? 'Hide password' : 'Show password');
 	async function signIn(event: SubmitEvent) {
 		event.preventDefault();
 		isSigningIn = true;
@@ -81,25 +82,23 @@
 							required
 							class="h-11 md:text-base font-normal pr-11"
 						/>
-						<Tooltip.Root>
-							<Tooltip.Trigger onclick={() => (isPasswordVisible = !isPasswordVisible)}>
-								{#snippet child({ props })}
-									<Button
-										{...props}
-										variant="ghost"
-										size="icon-sm"
-										type="button"
-										class="absolute right-1 top-1"
-										aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
-									>
-										{#if isPasswordVisible}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
-									</Button>
-								{/snippet}
-							</Tooltip.Trigger>
-							<Tooltip.Content side="bottom" sideOffset={6}
-								>{isPasswordVisible ? 'Hide password' : 'Show password'}</Tooltip.Content
-							>
-						</Tooltip.Root>
+						<TooltipWrapper
+							content={passwordToggleLabel}
+							onclick={() => (isPasswordVisible = !isPasswordVisible)}
+						>
+							{#snippet trigger(props)}
+								<Button
+									{...props}
+									variant="ghost"
+									size="icon-sm"
+									type="button"
+									class="absolute right-1 top-1"
+									aria-label={passwordToggleLabel}
+								>
+									{#if isPasswordVisible}<EyeOff size={19} />{:else}<Eye size={19} />{/if}
+								</Button>
+							{/snippet}
+						</TooltipWrapper>
 					</span>
 				</Label>
 				{#if loginError}<p class="error" role="alert">{loginError}</p>{/if}
@@ -115,3 +114,93 @@
 		</section>
 	</div>
 </div>
+
+<style>
+	/* In the base layer like the rest of the app's CSS, so Tailwind utilities still win. */
+	@layer base {
+		.login-page {
+			min-height: 100dvh;
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			place-items: center;
+			padding: 32px 16px;
+		}
+		.login-page > div {
+			justify-self: center;
+			min-width: 0;
+			max-width: 100%;
+			width: min(440px, 100%);
+		}
+		.login-card {
+			min-width: 0;
+			padding: 32px 36px;
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 18px;
+		}
+		.login-heading {
+			display: flex;
+			align-items: center;
+			gap: 14px;
+			margin-bottom: 24px;
+		}
+		.login-heading .logo {
+			width: 36px;
+			height: 36px;
+		}
+		.login-heading h1 {
+			font-size: 20px;
+		}
+		.login-heading p {
+			color: var(--muted-fg);
+			margin-top: 2px;
+		}
+		.login-card :global(label) {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			font-weight: 550;
+			color: var(--muted-fg);
+			margin-top: 20px;
+		}
+		.login-card :global(input) {
+			width: 100%;
+			min-width: 0;
+			height: 44px;
+			font-weight: 400;
+			font-size: 16px;
+		}
+		.password-field {
+			position: relative;
+			display: block;
+		}
+		.password-field :global(input) {
+			padding-right: 44px;
+		}
+		.password-field :global(button) {
+			position: absolute;
+			right: 5px;
+			top: 4px;
+		}
+		.login-card :global(.login-submit) {
+			width: 100%;
+			margin-top: 22px;
+			height: 44px;
+			font-size: 15px;
+		}
+		.login-help {
+			text-align: center;
+			color: var(--muted-fg);
+			font-size: 13px;
+			margin-top: 22px;
+		}
+		@media (max-width: 767px) {
+			.login-page > div {
+				width: min(420px, 100%);
+			}
+			.login-card {
+				padding: 28px 24px;
+			}
+		}
+	}
+</style>
