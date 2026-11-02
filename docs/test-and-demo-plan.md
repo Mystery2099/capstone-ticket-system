@@ -3,13 +3,6 @@
 Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`.
 `pnpm test:e2e` starts its own isolated browser-test server.
 
-The optional HTTP scenario changes accounts and MFA settings. Run it only against
-a disposable fixture server, never a personal or deployed database:
-
-```sh
-TEST_BASE_URL=http://localhost:5173 pnpm exec vitest run tests/http.test.ts
-```
-
 ## Acceptance checks
 
 | Area           | Verify                                                                                                           |
