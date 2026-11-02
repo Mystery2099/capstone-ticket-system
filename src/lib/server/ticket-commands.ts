@@ -68,7 +68,9 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 	}
 	if (assignedToUserId) {
 		const [assignee] = await db.select().from(user).where(eq(user.id, assignedToUserId));
-		requireAssignable(assignee ? applyRolePermissions(assignee, await loadRoles()) : undefined);
+		requireEligibleTicketAssignee(
+			assignee ? applyRolePermissions(assignee, await loadRoles()) : undefined
+		);
 	}
 
 	return db.transaction(async (transaction) => {
@@ -110,13 +112,13 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 }
 
 /** @throws 400 unless the person is an enabled agent or administrator */
-function requireAssignable(person: Person | undefined): void {
+function requireEligibleTicketAssignee(person: Person | undefined): void {
 	if (!person || person.banned || !hasPermission(person, 'receiveAssignments'))
 		error(400, 'Choose an enabled agent or administrator.');
 }
 
 /** Writes a comment and its activity event, once the ticket is locked. */
-async function insertComment(
+async function insertTicketCommentAndActivity(
 	transaction: Transaction,
 	actor: Person,
 	ticketRecord: Ticket,
@@ -144,79 +146,84 @@ async function insertComment(
 }
 
 /** Validates and writes a field change and its activity event, once the ticket is locked. */
-async function applyFieldChange(
+async function applyTicketFieldChange(
 	transaction: Transaction,
 	actor: Person,
 	ticketRecord: Ticket,
 	formData: FormData
 ): Promise<void> {
-	const field = parseTicketUpdateField(String(formData.get('field')));
-	const rawValue = String(formData.get('value') || '');
+	const ticketField = parseTicketUpdateField(String(formData.get('field')));
+	const requestedFieldValue = String(formData.get('value') || '');
 
 	// Permission checks keep precedence over value validation.
-	const isReopening =
-		field === 'statusCode' &&
-		rawValue === 'open' &&
+	const isReopeningTicket =
+		ticketField === 'statusCode' &&
+		requestedFieldValue === 'open' &&
 		(ticketRecord.statusCode === 'resolved' || ticketRecord.statusCode === 'closed');
 	if (
 		ticketRecord.statusCode === 'closed' &&
-		!(hasPermission(actor, 'reopenClosedTickets') && isReopening)
+		!(hasPermission(actor, 'reopenClosedTickets') && isReopeningTicket)
 	)
 		error(403, 'You do not have permission to reopen a Closed ticket.');
 	const isReopeningOwnResolvedTicket =
-		isReopening &&
+		isReopeningTicket &&
 		ticketRecord.statusCode === 'resolved' &&
 		ticketRecord.requesterId === actor.id &&
 		hasPermission(actor, 'reopenOwnResolvedTickets');
-	const fieldPermissions: Record<typeof field, Permission> = {
+	const requiredPermissionByTicketField: Record<typeof ticketField, Permission> = {
 		statusCode: 'setTicketStatus',
 		priority: 'setTicketPriority',
 		categoryId: 'setTicketCategory',
 		assignedToUserId: 'assignTickets'
 	};
 	const canReopenClosedTicket =
-		isReopening &&
+		isReopeningTicket &&
 		ticketRecord.statusCode === 'closed' &&
 		hasPermission(actor, 'reopenClosedTickets');
 	if (
-		!hasPermission(actor, fieldPermissions[field]) &&
+		!hasPermission(actor, requiredPermissionByTicketField[ticketField]) &&
 		!isReopeningOwnResolvedTicket &&
 		!canReopenClosedTicket
 	)
 		error(403, 'You cannot change this ticket.');
 
-	const validatedValue = parseTicketUpdateValue(field, rawValue);
-	if (field === 'categoryId') {
+	const validatedFieldValue = parseTicketUpdateValue(ticketField, requestedFieldValue);
+	if (ticketField === 'categoryId') {
 		const [activeCategory] = await transaction
 			.select()
 			.from(category)
-			.where(and(eq(category.id, validatedValue), eq(category.active, true)));
+			.where(and(eq(category.id, validatedFieldValue), eq(category.active, true)));
 		if (!activeCategory) error(400, 'Choose an active category.');
 	}
-	if (field === 'assignedToUserId' && rawValue) {
-		const [assignee] = await transaction.select().from(user).where(eq(user.id, rawValue));
-		requireAssignable(assignee ? applyRolePermissions(assignee, await loadRoles(transaction)) : undefined);
+	if (ticketField === 'assignedToUserId' && requestedFieldValue) {
+		const [assignee] = await transaction
+			.select()
+			.from(user)
+			.where(eq(user.id, requestedFieldValue));
+		requireEligibleTicketAssignee(
+			assignee ? applyRolePermissions(assignee, await loadRoles(transaction)) : undefined
+		);
 	}
 
-	const previousValue = ticketRecord[field];
-	const nextValue = validatedValue || null;
-	if (previousValue === nextValue) return;
+	const previousFieldValue = ticketRecord[ticketField];
+	const nextFieldValue = validatedFieldValue || null;
+	if (previousFieldValue === nextFieldValue) return;
 	const statusTimestamps =
-		field === 'statusCode'
+		ticketField === 'statusCode'
 			? {
-					resolvedAt: rawValue === 'resolved' ? new Date() : null,
-					closedAt: rawValue === 'closed' ? new Date() : null
+					resolvedAt: requestedFieldValue === 'resolved' ? new Date() : null,
+					closedAt: requestedFieldValue === 'closed' ? new Date() : null
 				}
 			: {};
 	await transaction
 		.update(ticket)
-		.set({ [field]: nextValue, updatedAt: new Date(), ...statusTimestamps })
+		.set({ [ticketField]: nextFieldValue, updatedAt: new Date(), ...statusTimestamps })
 		.where(eq(ticket.id, ticketRecord.id));
 	await transaction.insert(ticketEvent).values({
 		ticketId: ticketRecord.id,
 		actorId: actor.id,
-		eventType: field === 'statusCode' ? TicketEventType.STATUS : field,
-		details: { from: previousValue, to: nextValue }
+		eventType: ticketField === 'statusCode' ? TicketEventType.STATUS : ticketField,
+		details: { from: previousFieldValue, to: nextFieldValue }
 	});
 }
 
@@ -225,10 +232,10 @@ async function applyFieldChange(
  *
  * @throws 404 when the ticket doesn't exist or the actor may not see it
  */
-async function runWithLockedTicket(
+async function executeWithLockedTicket(
 	actor: Person,
 	ticketNumber: number,
-	applyChange: (transaction: Transaction, ticketRecord: Ticket) => Promise<void>
+	applyTicketChange: (transaction: Transaction, ticketRecord: Ticket) => Promise<void>
 ): Promise<void> {
 	// Malformed or out-of-range numbers simply mean the ticket does not exist.
 	parseTicketNumber(ticketNumber);
@@ -240,7 +247,7 @@ async function runWithLockedTicket(
 			.for('update');
 		if (!ticketRecord) error(404, 'Ticket not found.');
 		requireTicketAccess(actor, ticketRecord);
-		return applyChange(transaction, ticketRecord);
+		return applyTicketChange(transaction, ticketRecord);
 	});
 }
 
@@ -254,8 +261,8 @@ export async function addTicketComment(
 	ticketNumber: number,
 	formData: FormData
 ): Promise<void> {
-	return runWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
-		insertComment(transaction, actor, ticketRecord, formData)
+	return executeWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
+		insertTicketCommentAndActivity(transaction, actor, ticketRecord, formData)
 	);
 }
 
@@ -270,7 +277,7 @@ export async function updateTicketField(
 	ticketNumber: number,
 	formData: FormData
 ): Promise<void> {
-	return runWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
-		applyFieldChange(transaction, actor, ticketRecord, formData)
+	return executeWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
+		applyTicketFieldChange(transaction, actor, ticketRecord, formData)
 	);
 }

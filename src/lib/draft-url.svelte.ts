@@ -52,18 +52,18 @@ export class DraftUrlBinding<DraftType extends { id: string; isDirty: boolean }>
 	}
 
 	#promoteDirtyBlankDraft(): void {
-		const draft = this.activeDraft;
+		const activeDraft = this.activeDraft;
 		if (
 			!this.#options.isComposing() ||
 			this.#options.isNavigating() ||
-			draft !== this.#draftStore.blankDraft ||
-			!draft.isDirty
+			activeDraft !== this.#draftStore.blankDraft ||
+			!activeDraft.isDirty
 		)
 			return;
-		const url = new URL(page.url);
-		url.searchParams.set('draft', draft.id);
-		this.#promotedDraftId = draft.id;
+		const draftUrl = new URL(page.url);
+		draftUrl.searchParams.set('draft', activeDraft.id);
+		this.#promotedDraftId = activeDraft.id;
 		this.#draftStore.promoteBlankDraft();
-		replaceState(url, {});
+		replaceState(draftUrl, {});
 	}
 }

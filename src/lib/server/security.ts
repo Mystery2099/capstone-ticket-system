@@ -18,7 +18,7 @@ type RequestBucket = { count: number; expiresAt: number };
 
 /** Process-local protection; a shared gateway must enforce limits across replicas. */
 export class RequestLimiter {
-	private readonly buckets = new Map<string, RequestBucket>();
+	private readonly requestBucketsByKey = new Map<string, RequestBucket>();
 
 	constructor(
 		private readonly maximumRequests: number,
@@ -27,18 +27,20 @@ export class RequestLimiter {
 	) {}
 
 	/** Returns the retry delay in seconds, or zero when the request is allowed. */
-	recordRequest(bucketKey: string, now = Date.now()): number {
-		let bucket = this.buckets.get(bucketKey);
-		if (!bucket || bucket.expiresAt <= now) {
-			for (const [storedKey, storedBucket] of this.buckets) {
-				if (storedBucket.expiresAt <= now) this.buckets.delete(storedKey);
+	recordRequest(bucketKey: string, currentTimeMilliseconds = Date.now()): number {
+		let requestBucket = this.requestBucketsByKey.get(bucketKey);
+		if (!requestBucket || requestBucket.expiresAt <= currentTimeMilliseconds) {
+			for (const [storedBucketKey, storedBucket] of this.requestBucketsByKey) {
+				if (storedBucket.expiresAt <= currentTimeMilliseconds)
+					this.requestBucketsByKey.delete(storedBucketKey);
 			}
-			if (!bucket && this.buckets.size >= this.maximumBuckets) return 60;
-			bucket = { count: 0, expiresAt: now + this.windowMilliseconds };
-			this.buckets.set(bucketKey, bucket);
+			if (!requestBucket && this.requestBucketsByKey.size >= this.maximumBuckets) return 60;
+			requestBucket = { count: 0, expiresAt: currentTimeMilliseconds + this.windowMilliseconds };
+			this.requestBucketsByKey.set(bucketKey, requestBucket);
 		}
-		if (bucket.count >= this.maximumRequests) return Math.ceil((bucket.expiresAt - now) / 1000);
-		bucket.count++;
+		if (requestBucket.count >= this.maximumRequests)
+			return Math.ceil((requestBucket.expiresAt - currentTimeMilliseconds) / 1000);
+		requestBucket.count++;
 		return 0;
 	}
 }

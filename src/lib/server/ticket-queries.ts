@@ -52,64 +52,73 @@ function buildTicketListConditions(
 	categories: Category[],
 	searchQuery: TicketSearchQuery | null
 ): (SQL | undefined)[] {
-	const conditions: (SQL | undefined)[] = [];
-	if (!hasPermission(actor, 'viewAllTickets')) conditions.push(eq(ticket.requesterId, actor.id));
-	if (view === 'mine') conditions.push(eq(ticket.requesterId, actor.id));
-	if (view === 'queue') conditions.push(eq(ticket.assignedToUserId, actor.id));
-	if (view === 'unassigned') conditions.push(sql`${ticket.assignedToUserId} is null`);
+	const ticketListConditions: (SQL | undefined)[] = [];
+	if (!hasPermission(actor, 'viewAllTickets'))
+		ticketListConditions.push(eq(ticket.requesterId, actor.id));
+	if (view === 'mine') ticketListConditions.push(eq(ticket.requesterId, actor.id));
+	if (view === 'queue') ticketListConditions.push(eq(ticket.assignedToUserId, actor.id));
+	if (view === 'unassigned') ticketListConditions.push(sql`${ticket.assignedToUserId} is null`);
 	// A search also finds resolved and closed tickets, unless a status filter says otherwise.
 	if (!searchQuery && ['open', 'queue', 'unassigned'].includes(view))
-		conditions.push(inArray(ticket.statusCode, [...OPEN_STATUSES]));
+		ticketListConditions.push(inArray(ticket.statusCode, [...OPEN_STATUSES]));
 
-	for (const parameter of ['requester', 'assignee']) {
-		const value = url.searchParams.get(parameter);
-		if (value === 'none' && parameter === 'assignee')
-			conditions.push(sql`${ticket.assignedToUserId} is null`);
-		else if (value)
-			conditions.push(
-				eq(parameter === 'requester' ? ticket.requesterId : ticket.assignedToUserId, value)
+	for (const parameterName of ['requester', 'assignee']) {
+		const parameterValue = url.searchParams.get(parameterName);
+		if (parameterValue === 'none' && parameterName === 'assignee')
+			ticketListConditions.push(sql`${ticket.assignedToUserId} is null`);
+		else if (parameterValue)
+			ticketListConditions.push(
+				eq(
+					parameterName === 'requester' ? ticket.requesterId : ticket.assignedToUserId,
+					parameterValue
+				)
 			);
 	}
-	for (const parameter of ['after', 'beforeDate']) {
-		const value = url.searchParams.get(parameter);
+	for (const parameterName of ['after', 'beforeDate']) {
+		const parameterValue = url.searchParams.get(parameterName);
 		if (
-			!value ||
-			!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
-			!Number.isFinite(Date.parse(value)) ||
-			new Date(value).toISOString().slice(0, 10) !== value
+			!parameterValue ||
+			!/^\d{4}-\d{2}-\d{2}$/.test(parameterValue) ||
+			!Number.isFinite(Date.parse(parameterValue)) ||
+			new Date(parameterValue).toISOString().slice(0, 10) !== parameterValue
 		)
 			continue;
-		conditions.push(
-			parameter === 'after'
-				? sql`${ticket.createdAt} >= ${value}::date`
-				: sql`${ticket.createdAt} < ${value}::date + interval '1 day'`
+		ticketListConditions.push(
+			parameterName === 'after'
+				? sql`${ticket.createdAt} >= ${parameterValue}::date`
+				: sql`${ticket.createdAt} < ${parameterValue}::date + interval '1 day'`
 		);
 	}
 	if (url.searchParams.get('hasComments') === 'true')
-		conditions.push(sql`exists (
+		ticketListConditions.push(sql`exists (
 		select 1 from ${ticketComment} where ${ticketComment.ticketId} = ${ticket.id}
 		and ${hasPermission(actor, 'useInternalNotes') ? sql`true` : sql`${ticketComment.isInternal} = false`}
 	)`);
-	const filters = [
+	const ticketColumnFilters = [
 		['status', ticket.statusCode],
 		['priority', ticket.priority],
 		['category', ticket.categoryId]
 	] as const;
-	for (const [parameter, column] of filters) {
-		const value = url.searchParams.get(parameter);
-		if (!value) continue;
-		if (parameter === 'category' && !categories.some((candidate) => candidate.id === value))
+	for (const [parameterName, ticketColumn] of ticketColumnFilters) {
+		const parameterValue = url.searchParams.get(parameterName);
+		if (!parameterValue) continue;
+		if (
+			parameterName === 'category' &&
+			!categories.some((candidate) => candidate.id === parameterValue)
+		)
 			continue;
-		conditions.push(eq(column, value));
+		ticketListConditions.push(eq(ticketColumn, parameterValue));
 	}
 
 	if (searchQuery)
-		conditions.push(searchQuery.buildMatchCondition(hasPermission(actor, 'useInternalNotes')));
-	return conditions;
+		ticketListConditions.push(
+			searchQuery.buildMatchCondition(hasPermission(actor, 'useInternalNotes'))
+		);
+	return ticketListConditions;
 }
 
 /** Loads one ticket's conversation, leaving out private content for requesters. */
-async function loadConversation(
+async function loadAccessibleTicketConversation(
 	actor: Person,
 	ticketNumber: string
 ): Promise<{ ticketRecord: Ticket; comments: TicketComment[]; events: TicketEvent[] }> {
@@ -170,11 +179,14 @@ const TICKET_LIST_PARAMETERS = [
  * Parameters are read one at a time, so SvelteKit reruns a load that calls this only when
  * one of them changes, not when another ticket is opened.
  */
-function buildTicketListHref(url: URL, pagingParameter?: [name: string, value: string]): string {
+function buildTicketListHref(
+	url: URL,
+	pagingParameter?: [name: string, parameterValue: string]
+): string {
 	const searchParams = new URLSearchParams();
-	for (const parameter of TICKET_LIST_PARAMETERS) {
-		const value = url.searchParams.get(parameter);
-		if (value !== null) searchParams.set(parameter, value);
+	for (const parameterName of TICKET_LIST_PARAMETERS) {
+		const parameterValue = url.searchParams.get(parameterName);
+		if (parameterValue !== null) searchParams.set(parameterName, parameterValue);
 	}
 	if (pagingParameter) searchParams.set(...pagingParameter);
 	const queryString = searchParams.toString();
@@ -182,7 +194,7 @@ function buildTicketListHref(url: URL, pagingParameter?: [name: string, value: s
 }
 
 /** Loads every person with their role's permissions, for names and assignment checks. */
-async function loadPeople() {
+async function loadPeopleWithRolePermissions() {
 	const roles = await loadRoles();
 	return (
 		await db
@@ -190,7 +202,7 @@ async function loadPeople() {
 			.from(user)
 	).map((person) => applyRolePermissions(person, roles));
 }
-type PersonSummary = Awaited<ReturnType<typeof loadPeople>>[number];
+type PersonSummary = Awaited<ReturnType<typeof loadPeopleWithRolePermissions>>[number];
 
 /**
  * Loads one batch of the ticket list for a view, its filters and the search box.
@@ -203,19 +215,21 @@ type PersonSummary = Awaited<ReturnType<typeof loadPeople>>[number];
 export async function loadTicketList(actor: Person, url: URL) {
 	const [categories, people] = await Promise.all([
 		db.select().from(category).orderBy(asc(category.name)),
-		loadPeople()
+		loadPeopleWithRolePermissions()
 	]);
 	const view =
 		url.searchParams.get('view') || (hasPermission(actor, 'viewAllTickets') ? 'open' : 'mine');
 	const searchQuery = TicketSearchQuery.fromUrl(url);
 	const canViewInternalContent = hasPermission(actor, 'useInternalNotes');
-	const conditions = buildTicketListConditions(actor, url, view, categories, searchQuery);
+	const ticketListConditions = buildTicketListConditions(actor, url, view, categories, searchQuery);
 	const searchSort = searchQuery && url.searchParams.get('sort') !== 'newest' ? 'relevance' : null;
 
 	// Newest-first lists page from the last ticket number shown. Relevance order pages by page number.
 	const beforeTicketNumber = searchSort ? null : url.searchParams.get('before');
 	if (beforeTicketNumber)
-		conditions.push(lt(ticket.ticketNumber, parseTicketNumber(Number(beforeTicketNumber))));
+		ticketListConditions.push(
+			lt(ticket.ticketNumber, parseTicketNumber(Number(beforeTicketNumber)))
+		);
 	const requestedPageNumber = Number(url.searchParams.get('page'));
 	const pageNumber =
 		searchSort && Number.isSafeInteger(requestedPageNumber) && requestedPageNumber > 0
@@ -228,7 +242,7 @@ export async function loadTicketList(actor: Person, url: URL) {
 			: await db
 					.select()
 					.from(ticket)
-					.where(and(...conditions))
+					.where(and(...ticketListConditions))
 					.orderBy(
 						...(searchQuery && searchSort
 							? [desc(searchQuery.buildRankExpression(canViewInternalContent))]
@@ -307,12 +321,12 @@ export async function loadTicketList(actor: Person, url: URL) {
  * @throws 404 when the ticket doesn't exist or the actor may not see it
  */
 export async function loadTicketConversation(actor: Person, routeTicketId?: string) {
-	const people = await loadPeople();
+	const people = await loadPeopleWithRolePermissions();
 	let selectedTicket: Ticket | null = null;
 	let comments: TicketComment[] = [];
 	let events: TicketEvent[] = [];
 	if (routeTicketId && routeTicketId !== 'new') {
-		const conversation = await loadConversation(actor, routeTicketId);
+		const conversation = await loadAccessibleTicketConversation(actor, routeTicketId);
 		selectedTicket = conversation.ticketRecord;
 		comments = conversation.comments;
 		events = conversation.events;
