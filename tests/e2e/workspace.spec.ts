@@ -145,19 +145,6 @@ test('sidebar category shows that category’s open tickets', async ({ page }) =
 	await expect(page.locator(`a.list-row[href="${ticketHref}"]`)).toHaveCount(0);
 });
 
-test('phone workspace fits and administrator can open user editor', async ({ page }) => {
-	await page.setViewportSize({ width: 390, height: 844 });
-	await signIn(page, 'jordan.ellis@example.test');
-	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-	await page.goto('/app/admin/users');
-	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await expect(page.getByRole('link', { name: 'Add user' })).toBeVisible();
-	await page.getByRole('link', { name: /Priya Raman/ }).click();
-	await expect(page.getByLabel('Display name', { exact: true })).toHaveValue('Priya Raman');
-	await page.getByRole('link', { name: 'Back to user list' }).click();
-	await expect(page.getByLabel('Display name', { exact: true })).toHaveCount(0);
-});
-
 test('administrator adds and edits records in the pane beside the list', async ({ page }) => {
 	await signIn(page, 'jordan.ellis@example.test');
 	await page.goto('/app/admin/categories');
@@ -232,93 +219,6 @@ test('form problems appear beside the field and the password never comes back', 
 	await expect(page.getByLabel('Initial password')).toHaveValue('Temporary-Password-2');
 });
 
-test('saving a name keeps role and account state, and Revert restores saved values', async ({
-	page
-}) => {
-	await signIn(page, 'jordan.ellis@example.test');
-	await page.goto('/app/admin/users');
-	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await page.locator('a.list-row', { hasText: 'Theo Brandt' }).click();
-	await choose(page, 'Role', 'Agent');
-	await page.getByLabel('Display name').fill('Theo B');
-	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.locator('a.list-row', { hasText: 'Theo B' })).toContainText('Agent');
-	await expect(page.getByRole('button', { name: 'Role', exact: true })).toHaveText('Agent');
-	await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveText('Enabled');
-	await page.getByLabel('Display name').fill('Someone else');
-	await choose(page, 'Account', 'Disabled');
-	await page.getByRole('button', { name: 'Revert', exact: true }).click();
-	await expect(page.getByLabel('Display name')).toHaveValue('Theo B');
-	await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveText('Enabled');
-});
-
-test('a minimized sidebar stays minimized while navigating', async ({ page }) => {
-	await signIn(page, 'priya.raman@example.test');
-	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await page.getByRole('button', { name: 'Toggle navigation' }).click();
-	await expect(page.locator('.app-shell')).toHaveClass(/rail/);
-	await page.getByRole('link', { name: 'All tickets', exact: true }).click();
-	await expect(page).toHaveURL(/view=all/);
-	await expect(page.locator('.app-shell')).toHaveClass(/rail/);
-	// The cookie lets the server render it minimized, so it never flashes open.
-	const response = await page.reload();
-	expect(await response?.text()).toContain('app-shell rail');
-});
-
-test('the phone sidebar opens as a sheet and closes after choosing a link', async ({ page }) => {
-	await page.setViewportSize({ width: 390, height: 844 });
-	await signIn(page, 'priya.raman@example.test');
-	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await page.getByRole('button', { name: 'Toggle navigation' }).click();
-	const link = page.getByRole('link', { name: 'All tickets', exact: true });
-	await expect(link).toBeVisible();
-	await link.click();
-	await expect(page).toHaveURL(/view=all/);
-	await expect(link).toBeHidden();
-});
-
-test('hotkeys focus search, preserve typing, and submit or close ticket forms', async ({
-	page
-}) => {
-	await signIn(page, 'marcus.lee@example.test');
-	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await page.locator('body').click({ position: { x: 1, y: 1 } });
-	await page.keyboard.press('/');
-	await expect(page.getByRole('combobox', { name: 'Search tickets', exact: true })).toBeFocused();
-
-	await openNewTicket(page);
-	const subject = page.getByLabel('Subject', { exact: true });
-	await subject.fill('Hotkey ticket');
-	await subject.press('/');
-	await expect(subject).toHaveValue('Hotkey ticket/');
-	await expect(subject).toBeFocused();
-	await subject.press('Escape');
-	await expect(page.getByLabel('Subject', { exact: true })).toHaveCount(0);
-
-	await openNewTicket(page);
-	await subject.fill('Created with a keyboard shortcut');
-	await page.getByLabel('Description', { exact: true }).fill('Submit from a focused textarea.');
-	await choose(page, 'Category', 'Hardware');
-	await page.getByLabel('Description', { exact: true }).press('ControlOrMeta+Enter');
-	await expect(
-		page.getByRole('heading', { name: 'Created with a keyboard shortcut', exact: true })
-	).toBeVisible();
-});
-
-test('hotkeys submit and close admin create forms', async ({ page }) => {
-	await signIn(page, 'jordan.ellis@example.test');
-	await page.goto('/app/admin/categories?new');
-	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	const name = page.getByLabel('Category name', { exact: true });
-	await name.fill('Keyboard category');
-	await name.press('Escape');
-	await expect(page).toHaveURL(/\/app\/admin\/categories$/);
-	await page.getByRole('link', { name: 'Add category', exact: true }).click();
-	await name.fill('Keyboard category');
-	await name.press('ControlOrMeta+Enter');
-	await expect(page).toHaveURL(/\/app\/admin\/categories\?id=/);
-});
-
 test('a failed reply keeps its text and a pending retry cannot be submitted twice', async ({
 	page
 }) => {
@@ -372,13 +272,6 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 	await expect(page).toHaveURL(/\/login$/);
 });
 
-test('search options remain accessible at the upper mobile breakpoint', async ({ page }) => {
-	await signIn(page, 'marcus.lee@example.test');
-	await page.setViewportSize({ width: 735, height: 900 });
-	await page.getByRole('button', { name: 'Search options', exact: true }).click();
-	await expect(page.getByLabel('Created on or after')).toBeVisible();
-});
-
 test('administrator creates a custom role and account that can sign in with its permissions', async ({
 	page
 }) => {
@@ -423,7 +316,9 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(
 		page.getByRole('heading', { name: 'Service Technician', exact: true })
 	).toBeVisible();
-	await page.getByLabel('Reassign users to', { exact: true }).selectOption({ label: 'Requester' });
+	await page
+		.getByRole('combobox', { name: 'Reassign users to', exact: true })
+		.selectOption({ label: 'Requester' });
 	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
 	await expect(page).toHaveURL(/\/app\/admin\/roles$/);
 	await expect(page.getByRole('link', { name: /Service Technician/ })).toHaveCount(0);

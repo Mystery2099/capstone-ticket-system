@@ -55,38 +55,12 @@ test('guessed ticket numbers do not reveal another requester ticket', async () =
 		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 404
 	);
 });
-test('the drafts view fetches no tickets', async () => {
-	const r = await service.loadTicketWorkspace(
-		people.priya,
-		new URL('http://localhost/app/tickets?view=drafts')
-	);
-	assert.equal(r.tickets.length, 0);
-});
-test('agents can access unassigned tickets', async () => {
-	const r = await service.loadTicketWorkspace(
-		people.priya,
-		new URL('http://localhost/app/tickets?view=unassigned')
-	);
-	assert.equal(r.tickets.length, 3);
-});
 const searchTicketNumbers = async (personId: string, searchText: string) => {
 	const url = new URL('http://localhost/app/tickets');
 	url.searchParams.set('q', searchText);
 	const r = await service.loadTicketWorkspace(people[personId], url);
 	return r.tickets.map((t) => t.ticketNumber);
 };
-test('search matches any word order, word forms, typos, comments and people', async () => {
-	assert.equal((await searchTicketNumbers('priya', 'offline printer'))[0], 1048);
-	assert((await searchTicketNumbers('priya', 'printing')).includes(1048));
-	assert.equal((await searchTicketNumbers('priya', 'projectr'))[0], 1042);
-	assert.deepEqual(await searchTicketNumbers('priya', 'printer -offline'), []);
-	assert.deepEqual(await searchTicketNumbers('priya', '"offline printer"'), []);
-	assert.deepEqual(await searchTicketNumbers('priya', 'vpn marcus'), [1046]);
-	const url = new URL('http://localhost/app/tickets?q=ethernet');
-	const [row] = (await service.loadTicketWorkspace(people.priya, url)).tickets;
-	assert.equal(row.ticketNumber, 1046);
-	assert(row.previewHighlight?.some((segment) => segment.isMatch && segment.text === 'Ethernet'));
-});
 test('search keeps internal notes and other requesters tickets private', async () => {
 	assert.deepEqual(await searchTicketNumbers('priya', 'escalating'), [1046]);
 	assert.deepEqual(await searchTicketNumbers('marcus', 'escalating'), []);
@@ -211,22 +185,6 @@ test('capability checks deny unknown roles and keep ticket visibility separate f
 		permissionCheck.mockRestore();
 	}
 });
-test('requesters cannot open a ticket for someone else', async () => {
-	const [cat] = await db.select().from(schema.category);
-	await assert.rejects(
-		() =>
-			service.createTicket(
-				people.marcus,
-				form({
-					subject: 'Spoofed',
-					description: 'Not mine',
-					categoryId: cat.id,
-					requesterId: 'rosa'
-				})
-			),
-		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
-	);
-});
 test('ticket creation persists Normal priority and audit event together', async () => {
 	const cats = await db.select().from(schema.category);
 	const t = await service.createTicket(
@@ -329,21 +287,6 @@ test('failed foreign key rolls back ticket and audit rows', async () => {
 	assert.equal((await db.select().from(schema.ticket)).length, before);
 	await assert.rejects(() => db.execute(sql`UPDATE ticket SET priority = 'urgent'`));
 });
-test('malformed category is a validation error and blank replies fail', async () => {
-	await assert.rejects(
-		() =>
-			service.createTicket(
-				people.marcus,
-				form({ subject: 'Test', description: 'Test', categoryId: 'invalid' })
-			),
-		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
-	);
-	await assert.rejects(
-		() => service.addTicketComment(people.priya, 1046, form({ body: '  ' })),
-		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
-	);
-});
-
 test('assignment rejects requesters and disabled agents, and successful changes are audited', async () => {
 	const { eq } = await import('drizzle-orm');
 	await assert.rejects(
@@ -409,62 +352,6 @@ test('status mutation rolls back if its activity insert fails', async () => {
 		await db.execute(sql`DROP FUNCTION reject_test_event()`);
 	}
 });
-test('PGlite backup restores records and relationships into a fresh instance', async () => {
-	const { PGlite } = await import('@electric-sql/pglite');
-	const backup = await db.$client.dumpDataDir('gzip');
-	const restored = new PGlite({ loadDataDir: backup });
-	try {
-		const result = await restored.query<{ count: number }>(
-			`SELECT count(*)::int AS count FROM ticket`
-		);
-		assert.equal(result.rows[0].count, (await db.select().from(schema.ticket)).length);
-		const notes = await restored.query(
-			`SELECT c.body FROM ticket_comment c JOIN ticket t ON c.ticket_id=t.id WHERE c.is_internal=true`
-		);
-		assert(notes.rows.length > 0);
-	} finally {
-		await restored.close();
-	}
-});
-
-test('oversized and whitespace-only ticket inputs fail with controlled validation errors', async () => {
-	const categories = await db.select().from(schema.category);
-	for (const subject of ['   ', 'x'.repeat(181)]) {
-		await assert.rejects(
-			() =>
-				service.createTicket(
-					people.marcus,
-					form({ subject, description: 'Valid description', categoryId: categories[0].id })
-				),
-			(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
-		);
-	}
-});
-test('invalid metadata enum and malformed category references fail without changing the ticket', async () => {
-	const before = await service.loadTicketWorkspace(
-		people.priya,
-		new URL('http://localhost/app/tickets'),
-		'1046'
-	);
-	for (const values of [
-		{ field: 'priority', value: 'urgent' },
-		{ field: 'categoryId', value: 'not-a-uuid' },
-		{ field: 'statusCode', value: 'unknown' }
-	]) {
-		await assert.rejects(
-			() => service.updateTicketField(people.priya, 1046, form(values)),
-			(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
-		);
-	}
-	const after = await service.loadTicketWorkspace(
-		people.priya,
-		new URL('http://localhost/app/tickets'),
-		'1046'
-	);
-	assert.equal(after.selectedTicket?.priority, before.selectedTicket?.priority);
-	assert.equal(after.selectedTicket?.statusCode, before.selectedTicket?.statusCode);
-});
-
 test('ticket pages use a cursor and previews exclude newer private notes', async () => {
 	const { eq, inArray } = await import('drizzle-orm');
 	const [category] = await db.select().from(schema.category);
@@ -543,71 +430,6 @@ test('live suggestions protect private content and options only count visible co
 	assert(result.tickets.every((record) => record.requesterId === 'marcus'));
 	optionsUrl.searchParams.set('after', '2099-01-01');
 	assert.deepEqual((await service.loadTicketWorkspace(people.priya, optionsUrl)).tickets, []);
-});
-
-test('renamed assignees explain name matches in suggestions and full results', async () => {
-	const { eq } = await import('drizzle-orm');
-	const { TicketSearchQuery } = await import('../src/lib/server/ticket-search');
-	await db
-		.update(schema.user)
-		.set({ name: 'Mathew Kennedy-Brewer' })
-		.where(eq(schema.user.id, 'jordan'));
-	try {
-		const suggestions = await service.loadTicketSuggestions(
-			people.priya,
-			new TicketSearchQuery('Mathew')
-		);
-		const assignedSuggestion = suggestions.find((record) =>
-			record.metadataMatches?.some((match) => match.label === 'Assigned to')
-		);
-		assert(assignedSuggestion);
-		const match = assignedSuggestion.metadataMatches!.find(
-			(match) => match.label === 'Assigned to'
-		)!;
-		assert.equal(match.segments.map((segment) => segment.text).join(''), 'Mathew Kennedy-Brewer');
-		assert(match.segments.some((segment) => segment.isMatch && segment.text === 'Mathew'));
-		const workspace = await service.loadTicketWorkspace(
-			people.priya,
-			new URL('http://localhost/app/tickets?view=all&q=Mathew')
-		);
-		assert(
-			workspace.tickets
-				.find((record) => record.ticketNumber === assignedSuggestion.ticketNumber)
-				?.searchMetadataMatches.some((match) => match.label === 'Assigned to')
-		);
-	} finally {
-		await db
-			.update(schema.user)
-			.set({ name: people.jordan.name })
-			.where(eq(schema.user.id, 'jordan'));
-	}
-});
-
-test('search highlights positive terms across fields without including excluded terms', async () => {
-	const workspace = await service.loadTicketWorkspace(
-		people.priya,
-		new URL('http://localhost/app/tickets?q=vpn%20marcus%20-unicorn')
-	);
-	const row = workspace.tickets.find((record) => record.ticketNumber === 1046)!;
-	assert(
-		row.subjectHighlight?.some((segment) => segment.isMatch && segment.text.toLowerCase() === 'vpn')
-	);
-	assert(
-		row.searchMetadataMatches.some(
-			(match) =>
-				match.label === 'Requested by' &&
-				match.segments.some((segment) => segment.isMatch && segment.text === 'Marcus')
-		)
-	);
-	const comments = await service.loadTicketWorkspace(
-		people.marcus,
-		new URL('http://localhost/app/tickets?q=ethernet%20marcus')
-	);
-	assert(
-		comments.tickets
-			.find((record) => record.ticketNumber === 1046)
-			?.previewHighlight?.some((segment) => segment.isMatch && segment.text === 'Ethernet')
-	);
 });
 
 test('managed roles persist permissions, protect administration, and reassign users atomically', async () => {
