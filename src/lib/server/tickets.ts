@@ -1,8 +1,9 @@
 import { error } from '@sveltejs/kit';
-import { and, asc, desc, eq, inArray, or, ilike, lt, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { OPEN_STATUSES, TicketEventType } from '../status';
 import { db } from './db';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
+import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
 import {
 	createTicketSchema,
 	parseFormInput,
@@ -12,8 +13,6 @@ import {
 	commentSchema
 } from './validation';
 
-/** Longest search text sent to the database. */
-const MAX_SEARCH_LENGTH = 200;
 const TICKET_PAGE_SIZE = 50;
 
 export type Person = typeof user.$inferSelect;
@@ -46,20 +45,43 @@ export function requireTicketAccess(actor: Person, ticketRecord: Ticket): void {
 	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) error(404, 'Ticket not found.');
 }
 
+/**
+ * Returns where a search should go instead of the results: the ticket itself, when the
+ * search is a ticket number the actor may open. Otherwise the search runs as usual, so
+ * requesters can't tell which ticket numbers exist.
+ */
+export async function findTicketSearchRedirect(actor: Person, url: URL): Promise<string | null> {
+	const searchQuery = TicketSearchQuery.fromUrl(url);
+	if (searchQuery?.ticketNumber == null) return null;
+	const [ticketRecord] = await db
+		.select()
+		.from(ticket)
+		.where(eq(ticket.ticketNumber, searchQuery.ticketNumber));
+	if (!ticketRecord) return null;
+	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) return null;
+	const redirectUrl = new URL(url);
+	redirectUrl.pathname = `/app/tickets/${ticketRecord.ticketNumber}`;
+	redirectUrl.searchParams.delete('q');
+	redirectUrl.searchParams.delete('before');
+	redirectUrl.searchParams.delete('page');
+	return redirectUrl.pathname + redirectUrl.search;
+}
+
 /** Builds the WHERE conditions for a view, its filters and the search box. */
 function buildTicketListConditions(
 	actor: Person,
 	url: URL,
 	view: string,
 	categories: Category[],
-	people: Pick<Person, 'id' | 'name'>[]
+	searchQuery: TicketSearchQuery | null
 ): (SQL | undefined)[] {
 	const conditions: (SQL | undefined)[] = [];
 	if (!isStaff(actor)) conditions.push(eq(ticket.requesterId, actor.id));
 	if (view === 'mine') conditions.push(eq(ticket.requesterId, actor.id));
 	if (view === 'queue') conditions.push(eq(ticket.assignedToUserId, actor.id));
 	if (view === 'unassigned') conditions.push(sql`${ticket.assignedToUserId} is null`);
-	if (['open', 'queue', 'unassigned'].includes(view))
+	// A search also finds resolved and closed tickets, unless a status filter says otherwise.
+	if (!searchQuery && ['open', 'queue', 'unassigned'].includes(view))
 		conditions.push(inArray(ticket.statusCode, [...OPEN_STATUSES]));
 
 	const filters = [
@@ -75,21 +97,7 @@ function buildTicketListConditions(
 		conditions.push(eq(column, value));
 	}
 
-	const searchText = url.searchParams.get('q')?.slice(0, MAX_SEARCH_LENGTH);
-	if (searchText) {
-		const lowerCaseSearchText = searchText.toLowerCase();
-		const matchingPersonIds = people
-			.filter((person) => person.name.toLowerCase().includes(lowerCaseSearchText))
-			.map((person) => person.id);
-		conditions.push(
-			or(
-				ilike(ticket.subject, `%${searchText}%`),
-				ilike(ticket.description, `%${searchText}%`),
-				sql`cast(${ticket.ticketNumber} as text) = ${searchText.replace('#', '')}`,
-				matchingPersonIds.length ? inArray(ticket.requesterId, matchingPersonIds) : sql`false`
-			)
-		);
-	}
+	if (searchQuery) conditions.push(searchQuery.buildMatchCondition(isStaff(actor)));
 	return conditions;
 }
 
@@ -144,11 +152,20 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 		.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
 		.from(user);
 	const view = url.searchParams.get('view') || (isStaff(actor) ? 'open' : 'mine');
-	const conditions = buildTicketListConditions(actor, url, view, categories, people);
+	const searchQuery = TicketSearchQuery.fromUrl(url);
+	const canViewInternalContent = isStaff(actor);
+	const conditions = buildTicketListConditions(actor, url, view, categories, searchQuery);
+	const searchSort = searchQuery && url.searchParams.get('sort') !== 'newest' ? 'relevance' : null;
 
-	const beforeTicketNumber = url.searchParams.get('before');
+	// Newest-first lists page from the last ticket number shown. Relevance order pages by page number.
+	const beforeTicketNumber = searchSort ? null : url.searchParams.get('before');
 	if (beforeTicketNumber)
 		conditions.push(lt(ticket.ticketNumber, parseTicketNumber(Number(beforeTicketNumber))));
+	const requestedPageNumber = Number(url.searchParams.get('page'));
+	const pageNumber =
+		searchSort && Number.isSafeInteger(requestedPageNumber) && requestedPageNumber > 0
+			? Math.min(requestedPageNumber, 1000000)
+			: 1;
 	// Drafts live in the browser, so that view has no tickets to fetch.
 	const matchingTickets =
 		view === 'drafts'
@@ -157,17 +174,31 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 					.select()
 					.from(ticket)
 					.where(and(...conditions))
-					.orderBy(desc(ticket.ticketNumber))
-					.limit(TICKET_PAGE_SIZE + 1);
+					.orderBy(
+						...(searchQuery && searchSort
+							? [desc(searchQuery.buildRankExpression(canViewInternalContent))]
+							: []),
+						desc(ticket.ticketNumber)
+					)
+					.limit(TICKET_PAGE_SIZE + 1)
+					.offset((pageNumber - 1) * TICKET_PAGE_SIZE);
 	const hasMoreTickets = matchingTickets.length > TICKET_PAGE_SIZE;
 	const tickets = matchingTickets.slice(0, TICKET_PAGE_SIZE);
 	const nextPageUrl = new URL(url);
 	nextPageUrl.pathname = '/app/tickets';
-	if (tickets.length)
+	if (searchSort) nextPageUrl.searchParams.set('page', String(pageNumber + 1));
+	else if (tickets.length)
 		nextPageUrl.searchParams.set('before', String(tickets[tickets.length - 1].ticketNumber));
 	const firstPageUrl = new URL(url);
 	firstPageUrl.pathname = '/app/tickets';
 	firstPageUrl.searchParams.delete('before');
+	firstPageUrl.searchParams.delete('page');
+	const searchHighlights = searchQuery
+		? await searchQuery.loadHighlights(
+				tickets.map((ticketRecord) => ticketRecord.id),
+				canViewInternalContent
+			)
+		: new Map<string, TicketSearchHighlight>();
 	const latestPublicComments = tickets.length
 		? await db
 				.selectDistinctOn([ticketComment.ticketId])
@@ -187,15 +218,17 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 		const latestPublicComment = latestPublicComments.find(
 			(comment) => comment.ticketId === ticketRecord.id
 		);
-		const latestCommentAuthor = people.find(
-			(person) => person.id === latestPublicComment?.authorId
-		);
+		const searchHighlight = searchHighlights.get(ticketRecord.id);
+		const previewAuthorId = searchHighlight?.snippetSegments
+			? searchHighlight.snippetAuthorId
+			: latestPublicComment?.authorId;
+		const previewAuthor = people.find((person) => person.id === previewAuthorId);
 		return {
 			...ticketRecord,
 			preview: latestPublicComment?.body || ticketRecord.description,
-			previewAuthor: latestPublicComment
-				? latestCommentAuthor?.name.split(' ')[0] || 'Support team'
-				: null
+			previewAuthor: previewAuthorId ? previewAuthor?.name.split(' ')[0] || 'Support team' : null,
+			subjectHighlight: searchHighlight?.subjectSegments ?? null,
+			previewHighlight: searchHighlight?.snippetSegments ?? null
 		};
 	});
 
@@ -221,7 +254,10 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 	return {
 		tickets: ticketRows,
 		nextPageHref: hasMoreTickets ? nextPageUrl.pathname + nextPageUrl.search : null,
-		firstPageHref: beforeTicketNumber ? firstPageUrl.pathname + firstPageUrl.search : null,
+		firstPageHref:
+			beforeTicketNumber || pageNumber > 1 ? firstPageUrl.pathname + firstPageUrl.search : null,
+		searchText: searchQuery?.searchText ?? null,
+		searchSort,
 		categories,
 		people: visiblePeople,
 		selectedTicket,

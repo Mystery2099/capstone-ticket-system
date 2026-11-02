@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { mkdirSync } from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { drizzle as localDrizzle } from 'drizzle-orm/pglite';
 import { drizzle as remoteDrizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -19,7 +20,7 @@ function connectDatabase() {
 		>;
 	}
 	mkdirSync(config.directory, { recursive: true });
-	return localDrizzle(new PGlite(config.directory), { schema });
+	return localDrizzle(new PGlite(config.directory, { extensions: { pg_trgm } }), { schema });
 }
 
 type Database = ReturnType<typeof localDrizzle<typeof schema>>;

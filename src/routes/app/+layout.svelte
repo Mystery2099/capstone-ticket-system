@@ -167,6 +167,8 @@
 		event.preventDefault();
 		const searchParams = new URLSearchParams(page.url.searchParams);
 		searchParams.delete('draft');
+		searchParams.delete('before');
+		searchParams.delete('page');
 		if (searchParams.get('view') === 'drafts') searchParams.delete('view');
 		if (searchQuery.trim()) searchParams.set('q', searchQuery.trim());
 		else searchParams.delete('q');

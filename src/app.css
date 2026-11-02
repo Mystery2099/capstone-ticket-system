@@ -640,6 +640,11 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
+	.search-match {
+		background: color-mix(in oklab, var(--primary) 18%, transparent);
+		color: inherit;
+		border-radius: 3px;
+	}
 	.status {
 		display: inline-flex;
 		align-items: center;

@@ -61,6 +61,31 @@ test('agents can access unassigned tickets', async () => {
 	);
 	assert.equal(r.tickets.length, 3);
 });
+const searchTicketNumbers = async (personId: string, searchText: string) => {
+	const url = new URL('http://localhost/app/tickets');
+	url.searchParams.set('q', searchText);
+	const r = await service.loadTicketWorkspace(people[personId], url);
+	return r.tickets.map((t) => t.ticketNumber);
+};
+test('search matches any word order, word forms, typos, comments and people', async () => {
+	assert.equal((await searchTicketNumbers('priya', 'offline printer'))[0], 1048);
+	assert((await searchTicketNumbers('priya', 'printing')).includes(1048));
+	assert.equal((await searchTicketNumbers('priya', 'projectr'))[0], 1042);
+	assert.deepEqual(await searchTicketNumbers('priya', 'printer -offline'), []);
+	assert.deepEqual(await searchTicketNumbers('priya', '"offline printer"'), []);
+	assert.deepEqual(await searchTicketNumbers('priya', 'vpn marcus'), [1046]);
+	const url = new URL('http://localhost/app/tickets?q=ethernet');
+	const [row] = (await service.loadTicketWorkspace(people.priya, url)).tickets;
+	assert.equal(row.ticketNumber, 1046);
+	assert(row.previewHighlight?.some((segment) => segment.isMatch && segment.text === 'Ethernet'));
+});
+test('search keeps internal notes and other requesters tickets private', async () => {
+	assert.deepEqual(await searchTicketNumbers('priya', 'escalating'), [1046]);
+	assert.deepEqual(await searchTicketNumbers('marcus', 'escalating'), []);
+	const url = new URL('http://localhost/app/tickets?q=%231046');
+	assert.equal(await service.findTicketSearchRedirect(people.rosa, url), null);
+	assert.equal(await service.findTicketSearchRedirect(people.marcus, url), '/app/tickets/1046');
+});
 test('staff can open a ticket for another enabled requester', async () => {
 	const [cat] = await db.select().from(schema.category);
 	const fields = { subject: 'On behalf', description: 'Phoned in', categoryId: cat.id };

@@ -5,6 +5,7 @@ import { createTicketSchema, commentSchema } from '$lib/server/validation';
 import {
 	addTicketComment,
 	createTicket,
+	findTicketSearchRedirect,
 	loadTicketWorkspace,
 	requireUser,
 	updateTicketField
@@ -16,6 +17,10 @@ const replyFormSchema = zod4(commentSchema);
 
 export const load: PageServerLoad = async ({ locals, url, params }) => {
 	const actor = requireUser(locals.user);
+	if (!params.id) {
+		const ticketRedirect = await findTicketSearchRedirect(actor, url);
+		if (ticketRedirect) redirect(303, ticketRedirect);
+	}
 	const [workspace, createForm, replyForm] = await Promise.all([
 		loadTicketWorkspace(actor, url, params.id),
 		superValidate(createTicketFormSchema, { id: 'ticket-create' }),

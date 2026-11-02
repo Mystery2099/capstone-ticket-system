@@ -8,7 +8,9 @@ Use fictional ticket content for the course, with individual accounts.
 ## Deployment order
 
 1. Provision a dedicated PostgreSQL database and separate schema-owner/deployment
-   and application logins. Keep their credentials outside version control.
+   and application logins. Keep their credentials outside version control. Add
+   `PG_TRGM` to the server's `azure.extensions` parameter; ticket search needs it
+   and migrations create it.
 2. From a trusted source checkout with development dependencies installed, run
    `pnpm db:migrate` using deployment credentials. This applies tracked migrations
    and inserts the five required ticket statuses. It creates no users or tickets.
