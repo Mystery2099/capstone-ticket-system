@@ -24,6 +24,11 @@ export function buildAdminFormOptions(onCreated?: () => void) {
 	return {
 		resetForm: false,
 		taintedMessage: false as const,
+		onError({ result }: { result: { error: { message?: string } } }) {
+			toast.error(result.error.message || 'Unable to save. Please try again.', {
+				duration: Infinity
+			});
+		},
 		onUpdated({ form }: { form: { message?: AdminFormMessage } }) {
 			if (!form.message) return;
 			const { text, failed, createdId } = form.message;

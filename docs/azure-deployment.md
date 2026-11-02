@@ -74,8 +74,8 @@ trusted application and deployment paths.
   revokes older password-only sessions. Subsequent sign-ins require an authenticator
   or single-use recovery code. Keep `BETTER_AUTH_SECRET` backed up securely: MFA
   secrets and recovery material depend on it.
-- Administrator writes require a session established in the last 15 minutes.
-  Sign out and sign in again if asked. Account and category mutations commit with
+- Administrator writes require an active administrator session with MFA enabled.
+  Account and category mutations commit with
   their audit events. Passwords and MFA secrets are never included in these events.
 - Disabling an account or changing its role/email revokes its sessions. The last
   enabled administrator and the current administrator's own access are protected.

@@ -22,7 +22,7 @@ mark that confirmation automatically.
 
 Administrators must enroll MFA before workspace access. Enrollment revokes older
 password-only sessions, and future sign-ins require a second factor. Administrative
-writes require a session created in the last 15 minutes. Role/email changes and
+writes require an active administrator session with MFA enabled. Role/email changes and
 account disablement revoke sessions. Runtime requests re-read account state instead
 of trusting a role copied into the browser or an old session response.
 

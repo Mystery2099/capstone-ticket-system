@@ -10,7 +10,6 @@ declare global {
 		}
 		interface Locals {
 			user: typeof user.$inferSelect | null;
-			sessionCreatedAt: Date | null;
 		}
 	}
 }

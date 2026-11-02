@@ -7,7 +7,7 @@ import {
 	updateManagedUser,
 	saveManagedCategory
 } from '$lib/server/administration';
-import { requireAdministrator, requireFreshAdministrator } from '$lib/server/access';
+import { requireAdministrator } from '$lib/server/access';
 import { db } from '$lib/server/db';
 import { user, category } from '$lib/server/schema';
 import {
@@ -59,7 +59,7 @@ function buildFailureMessage<T extends Record<string, unknown>>(
 
 export const actions: Actions = {
 	createUser: async ({ locals, request }) => {
-		const actor = requireFreshAdministrator(locals);
+		const actor = requireAdministrator(locals.user);
 		const form = await superValidate(request, createUserFormSchema);
 		const { name, email, password, role } = form.data;
 		// The password is only needed here, so it doesn't travel back in the response.
@@ -75,7 +75,7 @@ export const actions: Actions = {
 		}
 	},
 	updateUser: async ({ locals, request }) => {
-		const actor = requireFreshAdministrator(locals);
+		const actor = requireAdministrator(locals.user);
 		const form = await superValidate(request, updateUserFormSchema);
 		if (!form.valid) return fail(400, { form });
 		const { id, name, email, role, enabled } = form.data;
@@ -89,7 +89,7 @@ export const actions: Actions = {
 		}
 	},
 	saveCategory: async ({ locals, request }) => {
-		const actor = requireFreshAdministrator(locals);
+		const actor = requireAdministrator(locals.user);
 		const form = await superValidate(request, categoryFormSchema);
 		if (!form.valid) return fail(400, { form });
 		const { id, name, active } = form.data;

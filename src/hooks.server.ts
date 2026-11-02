@@ -14,7 +14,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return applySecurityHeaders(await auth.handler(event.request), event.url.protocol === 'https:');
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	event.locals.user = null;
-	event.locals.sessionCreatedAt = session?.session.createdAt ?? null;
 	if (session) {
 		const [person] = await db.select().from(user).where(eq(user.id, session.user.id));
 		if (person && !person.banned) event.locals.user = person;
