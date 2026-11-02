@@ -863,7 +863,7 @@
 								ticket.statusCode,
 								Object.entries(TICKET_STATUSES).map(([value, status]) => ({
 									value,
-									label: status.symbol + ' ' + status.label
+									label: status.label
 								}))
 							)}{@render ticketFieldSelect(
 								'priority',
