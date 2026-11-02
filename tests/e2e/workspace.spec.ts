@@ -391,6 +391,7 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(page).toHaveURL(/roles\?id=/);
 	await expect(page.getByLabel('Role name', { exact: true })).toHaveValue('Field Technician');
 	await page.goto('/app/admin/users?new');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.getByLabel('Display name').fill('Test Technician');
 	await page.getByLabel('Email', { exact: true }).fill('technician@example.test');
 	await page.getByLabel('Initial password').fill('Capstone2026!');

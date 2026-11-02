@@ -1,4 +1,3 @@
-import type { user } from '$lib/server/schema';
 declare global {
 	namespace App {
 		namespace Superforms {
