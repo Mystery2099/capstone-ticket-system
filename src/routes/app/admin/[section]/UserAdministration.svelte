@@ -9,7 +9,7 @@
 	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import { DraftUrlBinding } from '$lib/draft-url.svelte';
 	import { getDrafts } from '$lib/drafts.svelte';
-	import { ROLE_OPTIONS, getInitials, getRoleLabel, type PersonRole } from '$lib/person';
+	import { getInitials } from '$lib/person';
 	import AdminDetailsToolbar from './AdminDetailsToolbar.svelte';
 	import AdminFormFooter from './AdminFormFooter.svelte';
 	import AdminWorkspace from './AdminWorkspace.svelte';
@@ -23,6 +23,9 @@
 
 	let { data }: { data: PageData } = $props();
 
+	let roleOptions = $derived(data.roles.map((role) => ({ value: role.id, label: role.name })));
+	const roleLabel = (roleId: string | null) =>
+		data.roles.find((role) => role.id === roleId)?.name ?? 'Unknown role';
 	let filterText = $state('');
 	let roleFilter = $state('');
 	let enabledFilter = $state('');
@@ -71,7 +74,7 @@
 		if (!selectedUser) return;
 		const { id, name, email, role, banned } = selectedUser;
 		updateUserForm.reset({
-			data: { id, name, email, role: (role ?? 'requester') as PersonRole, enabled: !banned }
+			data: { id, name, email, role: (role ?? 'requester') as string, enabled: !banned }
 		});
 	}
 	$effect(() => {
@@ -101,7 +104,7 @@
 			variant="filter"
 			class="shrink-0"
 			bind:value={roleFilter}
-			options={[{ value: '', label: 'Any role' }, ...ROLE_OPTIONS]}
+			options={[{ value: '', label: 'Any role' }, ...roleOptions]}
 		/>
 		<Combobox
 			label="Filter by account state"
@@ -119,7 +122,7 @@
 				><span class="avatar row-avatar">{getInitials(user.name)}</span>
 				<div class="row-content">
 					<div class="row-title">
-						<strong>{user.name}</strong><time>{getRoleLabel(user.role)}</time>
+						<strong>{user.name}</strong><time>{roleLabel(user.role)}</time>
 					</div>
 					<div class="row-meta">
 						<span class="row-preview">{user.email}{user.banned ? ' · Disabled' : ''}</span>
@@ -184,7 +187,7 @@
 									label="Role"
 									variant="inline"
 									bind:value={userDraft.role}
-									options={ROLE_OPTIONS}
+									options={roleOptions}
 								/>
 							</div>
 						</div>
@@ -205,7 +208,7 @@
 		{:else if selectedUser}
 			<AdminDetailsToolbar
 				title={selectedUser.name}
-				subtitle={`${selectedUser.email} · ${getRoleLabel(selectedUser.role)}`}
+				subtitle={`${selectedUser.email} · ${roleLabel(selectedUser.role)}`}
 				recordNoun="user"
 				{listHref}
 			/>
@@ -218,10 +221,8 @@
 								name="role"
 								label="Role"
 								variant="inline"
-								bind:value={
-									() => $userFields.role, (role) => ($userFields.role = role as PersonRole)
-								}
-								options={ROLE_OPTIONS}
+								bind:value={() => $userFields.role, (role) => ($userFields.role = role as string)}
+								options={roleOptions}
 							/>
 						</div>
 						<div class="metadata-control">

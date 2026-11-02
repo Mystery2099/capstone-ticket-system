@@ -378,3 +378,32 @@ test('search options remain accessible at the upper mobile breakpoint', async ({
 	await page.getByRole('button', { name: 'Search options', exact: true }).click();
 	await expect(page.getByLabel('Created on or after')).toBeVisible();
 });
+
+test('administrator creates a custom role and account that can sign in with its permissions', async ({
+	page
+}) => {
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto('/app/admin/roles?new');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await choose(page, 'Copy permissions from', 'Agent');
+	await page.getByLabel('Role name', { exact: true }).fill('Field Technician');
+	await page.getByRole('button', { name: 'Create role', exact: true }).click();
+	await expect(page).toHaveURL(/roles\?id=/);
+	await expect(page.getByLabel('Role name', { exact: true })).toHaveValue('Field Technician');
+	await page.goto('/app/admin/users?new');
+	await page.getByLabel('Display name').fill('Test Technician');
+	await page.getByLabel('Email', { exact: true }).fill('technician@example.test');
+	await page.getByLabel('Initial password').fill('Capstone2026!');
+	await choose(page, 'Role', 'Field Technician');
+	await page.getByRole('button', { name: 'Create account', exact: true }).click();
+	await expect(page).toHaveURL(/users\?id=/);
+	await page.getByRole('button', { name: 'Account menu', exact: true }).click();
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await signIn(page, 'technician@example.test');
+	await openNewTicket(page);
+	await expect(page.getByRole('button', { name: 'Requester', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Priority', exact: true })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Status', exact: true })).toBeVisible();
+	await page.goto('/app/admin/roles');
+	await expect(page.getByText('Administrator access required.', { exact: false })).toBeVisible();
+});

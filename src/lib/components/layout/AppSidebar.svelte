@@ -153,6 +153,14 @@
 				</p>
 				<nav aria-label="Administration">
 					<a
+						class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname.endsWith('/roles'))}
+						href="/app/admin/roles"
+						onclick={closeMobileSidebar}
+						><Users size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Roles</span
+						></a
+					>
+
+					<a
 						class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname.endsWith('/users'))}
 						href="/app/admin/users"
 						onclick={closeMobileSidebar}

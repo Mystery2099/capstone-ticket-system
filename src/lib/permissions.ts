@@ -35,8 +35,12 @@ export const ROLE_PERMISSIONS: Readonly<Record<PersonRole, readonly Permission[]
 /** Unknown or missing roles have no permissions. */
 export type PermissionSubject = { role: string | null; permissions?: readonly Permission[] };
 
-export function hasPermission(subject: string | PermissionSubject | null | undefined, permission: Permission): boolean {
-	if (subject && typeof subject === 'object') return subject.permissions?.includes(permission) ?? hasPermission(subject.role, permission);
+export function hasPermission(
+	subject: string | PermissionSubject | null | undefined,
+	permission: Permission
+): boolean {
+	if (subject && typeof subject === 'object')
+		return subject.permissions?.includes(permission) ?? hasPermission(subject.role, permission);
 	const role = subject;
 	if (!role || !Object.hasOwn(ROLE_PERMISSIONS, role)) return false;
 	return ROLE_PERMISSIONS[role as PersonRole].includes(permission);
@@ -44,15 +48,15 @@ export function hasPermission(subject: string | PermissionSubject | null | undef
 
 /** Human-readable labels for the role editor. Administration stays reserved for Administrator. */
 export const PERMISSION_LABELS: Record<Permission, string> = {
- viewAllTickets: 'View all tickets',
- createTicketsForOthers: 'Create tickets for other users',
- assignTickets: 'Assign and unassign tickets',
- receiveAssignments: 'Receive ticket assignments',
- setTicketPriority: 'Set ticket priority',
- setTicketStatus: 'Set ticket status',
- setTicketCategory: 'Change ticket category',
- useInternalNotes: 'Read and write internal notes',
- reopenOwnResolvedTickets: 'Reopen own resolved tickets',
- reopenClosedTickets: 'Reopen closed tickets',
- manageAdministration: 'Manage administration'
+	viewAllTickets: 'View all tickets',
+	createTicketsForOthers: 'Create tickets for other users',
+	assignTickets: 'Assign and unassign tickets',
+	receiveAssignments: 'Receive ticket assignments',
+	setTicketPriority: 'Set ticket priority',
+	setTicketStatus: 'Set ticket status',
+	setTicketCategory: 'Change ticket category',
+	useInternalNotes: 'Read and write internal notes',
+	reopenOwnResolvedTickets: 'Reopen own resolved tickets',
+	reopenClosedTickets: 'Reopen closed tickets',
+	manageAdministration: 'Manage administration'
 };

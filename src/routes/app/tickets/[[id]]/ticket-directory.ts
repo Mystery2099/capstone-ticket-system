@@ -16,6 +16,10 @@ export class TicketDirectory {
 	}
 
 	/** The person's role. Missing people are treated as agents. */
+	getPersonRoleLabel(personId: string | null): string {
+		return this.#findPerson(personId)?.roleName ?? 'Unknown role';
+	}
+
 	getPersonRole(personId: string): string {
 		return this.#findPerson(personId)?.role || 'agent';
 	}

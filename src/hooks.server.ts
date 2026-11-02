@@ -18,7 +18,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.user = null;
 	if (session) {
 		const [person] = await db.select().from(user).where(eq(user.id, session.user.id));
-		if (person && !person.banned) event.locals.user = applyRolePermissions(person, await loadRoles());
+		if (person && !person.banned)
+			event.locals.user = applyRolePermissions(person, await loadRoles());
 	}
 	if (
 		hasPermission(event.locals.user, 'manageAdministration') &&

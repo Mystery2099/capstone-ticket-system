@@ -10,7 +10,6 @@
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { getRoleLabel } from '$lib/person';
 	import { TICKET_STATUSES, TicketEventType } from '$lib/status';
 	import CommentMessage from './CommentMessage.svelte';
 	import TicketActivityEntry from './TicketActivityEntry.svelte';
@@ -272,7 +271,7 @@
 			</div>{/if}
 		{#each visibleTimeline as timelineEntry (`${timelineEntry.kind}-${timelineEntry.id}`)}{#if timelineEntry.kind === 'comment'}<CommentMessage
 					authorName={directory.getPersonName(timelineEntry.authorId)}
-					roleLabel={getRoleLabel(directory.getPersonRole(timelineEntry.authorId))}
+					roleLabel={directory.getPersonRoleLabel(timelineEntry.authorId)}
 					timestampLabel={formatDateTime(timelineEntry.createdAt)}
 					body={timelineEntry.body}
 					isInternal={timelineEntry.isInternal}
@@ -281,7 +280,7 @@
 				{replyForm}
 				bind:isInternalNote
 				authorName={directory.getPersonName(currentUser.id)}
-				authorRoleLabel={getRoleLabel(directory.getPersonRole(currentUser.id))}
+				authorRoleLabel={directory.getPersonRoleLabel(currentUser.id)}
 				{canUseInternalNotes}
 			/>{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
 				<LockKeyhole size={18} />

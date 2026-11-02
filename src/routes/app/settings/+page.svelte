@@ -2,7 +2,7 @@
 	import { signOutSession } from '$lib/auth-client';
 	import { onMount } from 'svelte';
 	import { LogOut } from '@lucide/svelte';
-	import { getInitials, getRoleLabel } from '$lib/person';
+	import { getInitials } from '$lib/person';
 	import { readThemePreference, saveThemePreference, type ThemePreference } from '$lib/theme';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
@@ -53,7 +53,7 @@
 					<strong class="text-[14px]">{data.user.name}</strong>
 					<p class="text-[12px] leading-[1.6] wrap-anywhere text-muted-foreground">
 						{data.user.email} ·
-						{getRoleLabel(data.user.role)}
+						{data.user.roleName ?? 'Unknown role'}
 					</p>
 				</div>
 			</div>

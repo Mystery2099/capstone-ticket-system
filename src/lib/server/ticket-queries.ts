@@ -35,8 +35,7 @@ export async function findTicketSearchRedirect(actor: Person, url: URL): Promise
 		.from(ticket)
 		.where(eq(ticket.ticketNumber, searchQuery.ticketNumber));
 	if (!ticketRecord) return null;
-	if (!hasPermission(actor, 'viewAllTickets') && ticketRecord.requesterId !== actor.id)
-		return null;
+	if (!hasPermission(actor, 'viewAllTickets') && ticketRecord.requesterId !== actor.id) return null;
 	const redirectUrl = new URL(url);
 	redirectUrl.pathname = `/app/tickets/${ticketRecord.ticketNumber}`;
 	redirectUrl.searchParams.delete('q');
@@ -54,8 +53,7 @@ function buildTicketListConditions(
 	searchQuery: TicketSearchQuery | null
 ): (SQL | undefined)[] {
 	const conditions: (SQL | undefined)[] = [];
-	if (!hasPermission(actor, 'viewAllTickets'))
-		conditions.push(eq(ticket.requesterId, actor.id));
+	if (!hasPermission(actor, 'viewAllTickets')) conditions.push(eq(ticket.requesterId, actor.id));
 	if (view === 'mine') conditions.push(eq(ticket.requesterId, actor.id));
 	if (view === 'queue') conditions.push(eq(ticket.assignedToUserId, actor.id));
 	if (view === 'unassigned') conditions.push(sql`${ticket.assignedToUserId} is null`);
@@ -158,9 +156,11 @@ async function loadConversation(
 export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId?: string) {
 	const categories = await db.select().from(category).orderBy(asc(category.name));
 	const roles = await loadRoles();
-	const people = (await db
-		.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
-		.from(user)).map((person) => applyRolePermissions(person, roles));
+	const people = (
+		await db
+			.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
+			.from(user)
+	).map((person) => applyRolePermissions(person, roles));
 	const view =
 		url.searchParams.get('view') || (hasPermission(actor, 'viewAllTickets') ? 'open' : 'mine');
 	const searchQuery = TicketSearchQuery.fromUrl(url);

@@ -186,7 +186,7 @@
 			people={data.searchPeople}
 			categories={data.searchCategories}
 		/>
-		<AccountMenu userName={data.user.name} userRole={data.user.role} />
+		<AccountMenu userName={data.user.name} userRole={data.user.roleName ?? data.user.role} />
 	</header>
 	<AppSidebar
 		{navigationViews}

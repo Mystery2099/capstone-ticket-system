@@ -2,23 +2,29 @@ import { relations } from 'drizzle-orm';
 import { applicationRole } from './role-schema';
 import { pgTable, text, timestamp, boolean, index, integer } from 'drizzle-orm/pg-core';
 
-export const user = pgTable('user', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull(),
-	email: text('email').notNull().unique(),
-	emailVerified: boolean('email_verified').default(false).notNull(),
-	image: text('image'),
-	createdAt: timestamp('created_at').defaultNow().notNull(),
-	updatedAt: timestamp('updated_at')
-		.defaultNow()
-		.$onUpdate(() => /* @__PURE__ */ new Date())
-		.notNull(),
-	role: text('role').default('requester').references(() => applicationRole.id, { onDelete: 'restrict' }),
-	twoFactorEnabled: boolean('two_factor_enabled').default(false),
-	banned: boolean('banned').default(false),
-	banReason: text('ban_reason'),
-	banExpires: timestamp('ban_expires')
-}, (table) => [index('user_role_idx').on(table.role)]);
+export const user = pgTable(
+	'user',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull(),
+		email: text('email').notNull().unique(),
+		emailVerified: boolean('email_verified').default(false).notNull(),
+		image: text('image'),
+		createdAt: timestamp('created_at').defaultNow().notNull(),
+		updatedAt: timestamp('updated_at')
+			.defaultNow()
+			.$onUpdate(() => /* @__PURE__ */ new Date())
+			.notNull(),
+		role: text('role')
+			.default('requester')
+			.references(() => applicationRole.id, { onDelete: 'restrict' }),
+		twoFactorEnabled: boolean('two_factor_enabled').default(false),
+		banned: boolean('banned').default(false),
+		banReason: text('ban_reason'),
+		banExpires: timestamp('ban_expires')
+	},
+	(table) => [index('user_role_idx').on(table.role)]
+);
 
 export const session = pgTable(
 	'session',

@@ -1,4 +1,4 @@
-import { error, fail, isHttpError } from '@sveltejs/kit';
+import { error, fail, isHttpError, redirect } from '@sveltejs/kit';
 import { asc } from 'drizzle-orm';
 import { message, setError, superValidate, type SuperValidated } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
@@ -9,6 +9,7 @@ import {
 } from '$lib/server/administration';
 import { requireAdministrator } from '$lib/server/access';
 import { db } from '$lib/server/db';
+import { loadRoles, saveRole, deleteRole } from '$lib/server/roles';
 import { user, category } from '$lib/server/schema';
 import {
 	adminCategorySchema,
@@ -23,9 +24,10 @@ const categoryFormSchema = zod4(adminCategorySchema);
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	requireAdministrator(locals.user);
-	if (!['users', 'categories'].includes(params.section)) error(404);
+	if (!['users', 'categories', 'roles'].includes(params.section)) error(404);
 	return {
 		section: params.section,
+		roles: await loadRoles(),
 		users: await db
 			.select({
 				id: user.id,
@@ -58,6 +60,41 @@ function buildFailureMessage<T extends Record<string, unknown>>(
 }
 
 export const actions: Actions = {
+	saveRole: async ({ locals, request }) => {
+		const actor = requireAdministrator(locals.user);
+		const fields = await request.formData();
+		let savedId;
+		try {
+			savedId = await saveRole(actor.id, {
+				id: String(fields.get('id') || ''),
+				name: String(fields.get('name') || ''),
+				permissions: fields.getAll('permissions').map(String)
+			});
+		} catch (caughtError) {
+			if (isUniqueViolation(caughtError))
+				return fail(400, { roleError: 'Another role already uses this name.' });
+			if (isHttpError(caughtError))
+				return fail(caughtError.status, { roleError: caughtError.body.message });
+			throw caughtError;
+		}
+		redirect(303, '/app/admin/roles?id=' + savedId);
+	},
+	deleteRole: async ({ locals, request }) => {
+		const actor = requireAdministrator(locals.user);
+		const fields = await request.formData();
+		try {
+			await deleteRole(
+				actor.id,
+				String(fields.get('id') || ''),
+				String(fields.get('replacementRoleId') || '')
+			);
+		} catch (caughtError) {
+			if (isHttpError(caughtError))
+				return fail(caughtError.status, { roleError: caughtError.body.message });
+			throw caughtError;
+		}
+		redirect(303, '/app/admin/roles');
+	},
 	createUser: async ({ locals, request }) => {
 		const actor = requireAdministrator(locals.user);
 		const form = await superValidate(request, createUserFormSchema);

@@ -602,3 +602,59 @@ test('search highlights positive terms across fields without including excluded 
 			?.previewHighlight?.some((segment) => segment.isMatch && segment.text === 'Ethernet')
 	);
 });
+
+test('managed roles persist permissions, protect administration, and reassign users atomically', async () => {
+	const { saveRole, deleteRole, loadRoles, applyRolePermissions } =
+		await import('../src/lib/server/roles');
+	const { updateManagedUser } = await import('../src/lib/server/administration');
+	const { eq } = await import('drizzle-orm');
+	const roleId = await saveRole('jordan', {
+		id: '',
+		name: 'Technician',
+		permissions: ['viewAllTickets', 'setTicketStatus']
+	});
+	await updateManagedUser('jordan', {
+		id: 'rosa',
+		name: people.rosa.name,
+		email: people.rosa.email,
+		role: roleId,
+		enabled: true
+	});
+	const [assignedPerson] = await db.select().from(schema.user).where(eq(schema.user.id, 'rosa'));
+	let actor = applyRolePermissions(assignedPerson, await loadRoles());
+	assert(permissions.hasPermission(actor, 'setTicketStatus'));
+	assert(!permissions.hasPermission(actor, 'useInternalNotes'));
+	await saveRole('jordan', { id: roleId, name: 'Service Desk', permissions: [] });
+	actor = applyRolePermissions(assignedPerson, await loadRoles());
+	assert.equal(actor.roleName, 'Service Desk');
+	assert(!permissions.hasPermission(actor, 'setTicketStatus'));
+	await assert.rejects(() =>
+		service.updateTicketField(actor, 1046, form({ field: 'statusCode', value: 'resolved' }))
+	);
+	await assert.rejects(() => saveRole('jordan', { id: 'admin', name: 'Changed', permissions: [] }));
+	await assert.rejects(() =>
+		saveRole('jordan', { id: '', name: 'Escalated', permissions: ['manageAdministration'] })
+	);
+	await assert.rejects(() =>
+		saveRole('jordan', { id: '', name: 'Invalid', permissions: ['forged'] })
+	);
+	await assert.rejects(() => deleteRole('jordan', 'admin', 'requester'));
+	await assert.rejects(() => deleteRole('jordan', roleId, ''));
+	assert((await loadRoles()).some((role) => role.id === roleId));
+	await db
+		.insert(schema.session)
+		.values({
+			id: 'role-test-session',
+			token: 'role-test-token',
+			userId: 'rosa',
+			expiresAt: new Date(Date.now() + 60000)
+		});
+	await deleteRole('jordan', roleId, 'requester');
+	const [reassigned] = await db.select().from(schema.user).where(eq(schema.user.id, 'rosa'));
+	assert.equal(reassigned.role, 'requester');
+	assert.equal(
+		(await db.select().from(schema.session).where(eq(schema.session.userId, 'rosa'))).length,
+		0
+	);
+	assert(!(await loadRoles()).some((role) => role.id === roleId));
+});

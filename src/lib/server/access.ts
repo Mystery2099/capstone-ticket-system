@@ -2,7 +2,10 @@ import { error } from '@sveltejs/kit';
 import { ticket, user } from './schema';
 import { hasPermission } from '../permissions';
 
-export type Person = typeof user.$inferSelect & { permissions?: import('../permissions').Permission[]; roleName?: string };
+export type Person = typeof user.$inferSelect & {
+	permissions?: import('../permissions').Permission[];
+	roleName?: string;
+};
 type Ticket = typeof ticket.$inferSelect;
 
 /**
