@@ -2,7 +2,9 @@
 	import { goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
+	import { superForm, type SuperForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { adminCategorySchema } from '$lib/validation';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormField from '$lib/components/FormField.svelte';
@@ -48,14 +50,28 @@
 	let categoryDraft = $derived(draftBinding.activeDraft);
 
 	// The create form is bound to its draft, so only its errors and status are used here.
+	// The draft is copied in on submit, where it is checked before anything is sent.
 	// svelte-ignore state_referenced_locally
-	const createCategoryForm = superForm(
+	const createCategoryForm: SuperForm<PageData['createCategoryForm']['data']> = superForm(
 		data.createCategoryForm,
-		buildAdminFormOptions(() => categoryDrafts.discardById(categoryDraft.id))
+		{
+			...buildAdminFormOptions(() => categoryDrafts.discardById(categoryDraft.id)),
+			validators: zod4Client(adminCategorySchema),
+			validationMethod: 'submit-only',
+			onSubmit() {
+				createCategoryForm.form.set(
+					{ id: '', name: categoryDraft.name, active: true },
+					{ taint: false }
+				);
+			}
+		}
 	);
 	const { enhance: enhanceCreateCategory, submitting: isCreatingCategory } = createCategoryForm;
 	// svelte-ignore state_referenced_locally
-	const updateCategoryForm = superForm(data.updateCategoryForm, buildAdminFormOptions());
+	const updateCategoryForm = superForm(data.updateCategoryForm, {
+		...buildAdminFormOptions(),
+		validators: zod4Client(adminCategorySchema)
+	});
 	const {
 		form: categoryFields,
 		enhance: enhanceUpdateCategory,

@@ -1,5 +1,8 @@
 import { toast } from 'svelte-sonner';
 import { superForm, type SuperForm } from 'sveltekit-superforms';
+import { zod4Client } from 'sveltekit-superforms/adapters';
+import type { TicketDraft } from '$lib/drafts.svelte';
+import { commentSchema, createTicketSchema } from '$lib/validation';
 import type { PageData } from './$types';
 
 export type TicketCreateSuperForm = SuperForm<PageData['createForm']['data']>;
@@ -7,25 +10,32 @@ export type TicketReplySuperForm = SuperForm<PageData['replyForm']['data']>;
 
 /**
  * The new-ticket form. Its values live in a browser draft, so Superforms only handles
- * submitting it. Create it in a component that outlives the form's markup, so a creation
- * that finishes after the form has closed still discards its draft.
+ * submitting it. The draft is copied into the form on submit, where it is checked before
+ * anything is sent. Errors then stay until the next submit, like the server's own.
+ * Create it in a component that outlives the form's markup, so a creation that finishes
+ * after the form has closed still discards its draft.
  *
- * @param readActiveDraftId the draft being submitted, read when the form is submitted
+ * @param readActiveDraft the draft being submitted, read when the form is submitted
  * @param onCreated runs with that draft's id once the server has created the ticket
  */
 export function createTicketCreateForm(
 	formData: PageData['createForm'],
-	readActiveDraftId: () => string,
+	readActiveDraft: () => TicketDraft,
 	onCreated: (submittedDraftId: string) => void
 ): TicketCreateSuperForm {
 	let submittedDraftId: string | null = null;
-	return superForm(formData, {
+	const createForm: TicketCreateSuperForm = superForm(formData, {
+		validators: zod4Client(createTicketSchema),
+		validationMethod: 'submit-only',
 		resetForm: false,
 		taintedMessage: false,
 		applyAction: 'never',
 		multipleSubmits: 'prevent',
 		onSubmit() {
-			submittedDraftId = readActiveDraftId();
+			const activeDraft = readActiveDraft();
+			submittedDraftId = activeDraft.id;
+			const { subject, description, categoryId } = activeDraft;
+			createForm.form.set({ subject, description, categoryId }, { taint: false });
 		},
 		onResult({ result }) {
 			if (result.type === 'redirect' && submittedDraftId) onCreated(submittedDraftId);
@@ -37,6 +47,7 @@ export function createTicketCreateForm(
 			toast.error('Couldn’t create the ticket. Your draft is still saved.', { duration: Infinity });
 		}
 	});
+	return createForm;
 }
 
 /**
@@ -46,6 +57,7 @@ export function createTicketCreateForm(
  */
 export function createTicketReplyForm(formData: PageData['replyForm']): TicketReplySuperForm {
 	return superForm(formData, {
+		validators: zod4Client(commentSchema),
 		taintedMessage: false,
 		applyAction: 'never',
 		multipleSubmits: 'prevent',

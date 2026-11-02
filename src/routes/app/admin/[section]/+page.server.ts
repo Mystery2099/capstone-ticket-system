@@ -11,11 +11,7 @@ import { requireAdministrator } from '$lib/server/access';
 import { db } from '$lib/server/db';
 import { loadRoles, saveRole, deleteRole } from '$lib/server/roles';
 import { user, category } from '$lib/server/schema';
-import {
-	adminCategorySchema,
-	adminCreateUserSchema,
-	adminUpdateUserSchema
-} from '$lib/server/validation';
+import { adminCategorySchema, adminCreateUserSchema, adminUpdateUserSchema } from '$lib/validation';
 import type { Actions, PageServerLoad } from './$types';
 
 const createUserFormSchema = zod4(adminCreateUserSchema);

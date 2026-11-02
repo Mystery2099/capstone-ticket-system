@@ -1,13 +1,13 @@
 import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import { message, superValidate, type SuperValidated } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
-import { createTicketSchema, commentSchema } from '$lib/server/validation';
+import { createTicketSchema, commentSchema } from '$lib/validation';
 import { requireUser } from '$lib/server/access';
 import {
 	addTicketComment,
 	createTicket,
 	findTicketSearchRedirect,
-	loadTicketWorkspace,
+	loadTicketConversation,
 	updateTicketField
 } from '$lib/server/tickets';
 import type { Actions, PageServerLoad } from './$types';
@@ -21,12 +21,13 @@ export const load: PageServerLoad = async ({ locals, url, params }) => {
 		const ticketRedirect = await findTicketSearchRedirect(actor, url);
 		if (ticketRedirect) redirect(303, ticketRedirect);
 	}
-	const [workspace, createForm, replyForm] = await Promise.all([
-		loadTicketWorkspace(actor, url, params.id),
+	// The list comes from the layout load, so opening a ticket only loads its conversation.
+	const [conversation, createForm, replyForm] = await Promise.all([
+		loadTicketConversation(actor, params.id),
 		superValidate(createTicketFormSchema, { id: 'ticket-create' }),
 		superValidate(replyFormSchema, { id: 'ticket-reply' })
 	]);
-	return { ...workspace, createForm, replyForm };
+	return { ...conversation, createForm, replyForm };
 };
 
 /** Keep field errors and domain failures in the same Superforms response. */

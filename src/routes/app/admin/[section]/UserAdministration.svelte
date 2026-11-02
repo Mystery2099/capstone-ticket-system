@@ -2,7 +2,9 @@
 	import { afterNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { untrack } from 'svelte';
-	import { superForm } from 'sveltekit-superforms';
+	import { superForm, type SuperForm } from 'sveltekit-superforms';
+	import { zod4Client } from 'sveltekit-superforms/adapters';
+	import { adminCreateUserSchema, adminUpdateUserSchema } from '$lib/validation';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormField from '$lib/components/FormField.svelte';
@@ -63,14 +65,26 @@
 	});
 
 	// The create form is bound to its draft, so only its errors and status are used here.
+	// The draft is copied in on submit, where it is checked before anything is sent.
 	// svelte-ignore state_referenced_locally
-	const createUserForm = superForm(
+	const createUserForm: SuperForm<PageData['createUserForm']['data']> = superForm(
 		data.createUserForm,
-		buildAdminFormOptions(() => userDrafts.discardById(userDraft.id))
+		{
+			...buildAdminFormOptions(() => userDrafts.discardById(userDraft.id)),
+			validators: zod4Client(adminCreateUserSchema),
+			validationMethod: 'submit-only',
+			onSubmit() {
+				const { name, email, role } = userDraft;
+				createUserForm.form.set({ name, email, role, password }, { taint: false });
+			}
+		}
 	);
 	const { enhance: enhanceCreateUser, submitting: isCreatingUser } = createUserForm;
 	// svelte-ignore state_referenced_locally
-	const updateUserForm = superForm(data.updateUserForm, buildAdminFormOptions());
+	const updateUserForm = superForm(data.updateUserForm, {
+		...buildAdminFormOptions(),
+		validators: zod4Client(adminUpdateUserSchema)
+	});
 	const { form: userFields, enhance: enhanceUpdateUser, submitting: isSavingUser } = updateUserForm;
 
 	/** Loads the saved user into the form, for opening it and for Revert. */

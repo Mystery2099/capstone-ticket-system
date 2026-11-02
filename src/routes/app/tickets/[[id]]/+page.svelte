@@ -137,7 +137,7 @@
 	// svelte-ignore state_referenced_locally
 	const createForm = createTicketCreateForm(
 		data.createForm,
-		() => activeDraft.id,
+		() => activeDraft,
 		(submittedDraftId) => {
 			drafts.tickets.discardById(submittedDraftId);
 			toast.success('Ticket created.');

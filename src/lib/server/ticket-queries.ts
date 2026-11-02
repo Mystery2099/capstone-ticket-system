@@ -148,19 +148,63 @@ async function loadConversation(
 }
 
 /**
- * Loads everything the ticket screen needs: the filtered list, plus the open ticket if any.
- *
- * @param routeTicketId the ticket number from the URL, or `new` for the compose pane
- * @throws 404 when the ticket doesn't exist or the actor may not see it
+ * Every search parameter that shapes the ticket list. Anything else in the URL, such as the
+ * open ticket or a draft, belongs to the reading pane.
  */
-export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId?: string) {
-	const categories = await db.select().from(category).orderBy(asc(category.name));
+const TICKET_LIST_PARAMETERS = [
+	'view',
+	'q',
+	'sort',
+	'status',
+	'priority',
+	'category',
+	'requester',
+	'assignee',
+	'after',
+	'beforeDate',
+	'hasComments'
+] as const;
+
+/**
+ * Builds a list href from the list's own parameters, plus an optional paging parameter.
+ * Parameters are read one at a time, so SvelteKit reruns a load that calls this only when
+ * one of them changes, not when another ticket is opened.
+ */
+function buildTicketListHref(url: URL, pagingParameter?: [name: string, value: string]): string {
+	const searchParams = new URLSearchParams();
+	for (const parameter of TICKET_LIST_PARAMETERS) {
+		const value = url.searchParams.get(parameter);
+		if (value !== null) searchParams.set(parameter, value);
+	}
+	if (pagingParameter) searchParams.set(...pagingParameter);
+	const queryString = searchParams.toString();
+	return '/app/tickets' + (queryString ? '?' + queryString : '');
+}
+
+/** Loads every person with their role's permissions, for names and assignment checks. */
+async function loadPeople() {
 	const roles = await loadRoles();
-	const people = (
+	return (
 		await db
 			.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
 			.from(user)
 	).map((person) => applyRolePermissions(person, roles));
+}
+type PersonSummary = Awaited<ReturnType<typeof loadPeople>>[number];
+
+/**
+ * Loads one batch of the ticket list for a view, its filters and the search box.
+ *
+ * Only reads `url.searchParams.get`, never the path or the whole query string, so the list
+ * load is not rerun when someone opens another ticket. Keep it that way.
+ *
+ * @throws 404 when the `before` paging parameter isn't a ticket number
+ */
+export async function loadTicketList(actor: Person, url: URL) {
+	const [categories, people] = await Promise.all([
+		db.select().from(category).orderBy(asc(category.name)),
+		loadPeople()
+	]);
 	const view =
 		url.searchParams.get('view') || (hasPermission(actor, 'viewAllTickets') ? 'open' : 'mine');
 	const searchQuery = TicketSearchQuery.fromUrl(url);
@@ -195,15 +239,11 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 					.offset((pageNumber - 1) * TICKET_PAGE_SIZE);
 	const hasMoreTickets = matchingTickets.length > TICKET_PAGE_SIZE;
 	const tickets = matchingTickets.slice(0, TICKET_PAGE_SIZE);
-	const nextPageUrl = new URL(url);
-	nextPageUrl.pathname = '/app/tickets';
-	if (searchSort) nextPageUrl.searchParams.set('page', String(pageNumber + 1));
-	else if (tickets.length)
-		nextPageUrl.searchParams.set('before', String(tickets[tickets.length - 1].ticketNumber));
-	const firstPageUrl = new URL(url);
-	firstPageUrl.pathname = '/app/tickets';
-	firstPageUrl.searchParams.delete('before');
-	firstPageUrl.searchParams.delete('page');
+	let nextPageHref: string | null = null;
+	if (hasMoreTickets)
+		nextPageHref = searchSort
+			? buildTicketListHref(url, ['page', String(pageNumber + 1)])
+			: buildTicketListHref(url, ['before', String(tickets[tickets.length - 1].ticketNumber)]);
 	const searchHighlights = searchQuery
 		? await searchQuery.loadHighlights(
 				tickets.map((ticketRecord) => ticketRecord.id),
@@ -248,6 +288,26 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 		};
 	});
 
+	return {
+		tickets: ticketRows,
+		nextPageHref,
+		firstPageHref: beforeTicketNumber || pageNumber > 1 ? buildTicketListHref(url) : null,
+		searchText: searchQuery?.searchText ?? null,
+		searchSort,
+		categories,
+		view
+	};
+}
+
+/**
+ * Loads the reading pane: the open ticket and its conversation, if any, and the people the
+ * actor may see by name.
+ *
+ * @param routeTicketId the ticket number from the URL, or `new` for the compose pane
+ * @throws 404 when the ticket doesn't exist or the actor may not see it
+ */
+export async function loadTicketConversation(actor: Person, routeTicketId?: string) {
+	const people = await loadPeople();
 	let selectedTicket: Ticket | null = null;
 	let comments: TicketComment[] = [];
 	let events: TicketEvent[] = [];
@@ -259,7 +319,7 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 	}
 
 	const assigneeId = selectedTicket?.assignedToUserId;
-	const visiblePeople =
+	const visiblePeople: PersonSummary[] =
 		hasPermission(actor, 'viewAllTickets') ||
 		hasPermission(actor, 'createTicketsForOthers') ||
 		hasPermission(actor, 'assignTickets')
@@ -271,20 +331,27 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 						person.id === assigneeId
 				);
 	return {
-		tickets: ticketRows,
-		nextPageHref: hasMoreTickets ? nextPageUrl.pathname + nextPageUrl.search : null,
-		firstPageHref:
-			beforeTicketNumber || pageNumber > 1 ? firstPageUrl.pathname + firstPageUrl.search : null,
-		searchText: searchQuery?.searchText ?? null,
-		searchSort,
-		categories,
 		people: visiblePeople,
 		selectedTicket,
 		comments,
 		events,
-		view,
 		isNewTicket: routeTicketId === 'new'
 	};
+}
+
+/**
+ * Loads everything the ticket screen needs: the filtered list, plus the open ticket if any.
+ * The page loads the two halves separately; this joins them for callers that want both.
+ *
+ * @param routeTicketId the ticket number from the URL, or `new` for the compose pane
+ * @throws 404 when the ticket doesn't exist or the actor may not see it
+ */
+export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId?: string) {
+	const [ticketList, conversation] = await Promise.all([
+		loadTicketList(actor, url),
+		loadTicketConversation(actor, routeTicketId)
+	]);
+	return { ...ticketList, ...conversation };
 }
 
 /** Returns only ticket content the actor may open, shared by the suggestion endpoint. */
