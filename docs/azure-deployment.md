@@ -8,7 +8,9 @@ Use fictional ticket content for the course, with individual accounts.
 ## Deployment order
 
 1. Provision a dedicated PostgreSQL database and separate schema-owner/deployment
-   and application logins. Keep their credentials outside version control.
+   and application logins. Keep their credentials outside version control. Add
+   `PG_TRGM` to the server's `azure.extensions` parameter; ticket search needs it
+   and migrations create it.
 2. From a trusted source checkout with development dependencies installed, run
    `pnpm db:migrate` using deployment credentials. This applies tracked migrations
    and inserts the five required ticket statuses. It creates no users or tickets.
@@ -81,13 +83,15 @@ trusted application and deployment paths.
   multiple instances, use a shared limiter/gateway and verify authentication rate
   limits across instances. Validate client IP handling at the trusted proxy; do
   not trust arbitrary forwarding headers from public clients.
-- Ticket lists use 50-row cursor pages and one latest public preview comment per
-  ticket. Full conversations are still loaded together.
+- Ticket lists contain up to 50 rows. Newest-first pages use a ticket-number cursor;
+  relevance pages use page numbers. Search can replace previews with highlighted
+  description/comment excerpts. Full conversations are still loaded together.
 
 ## Recovery and existing installations
 
 Existing fictional accounts are not deleted or silently reset by migration. Their
-old passwords remain valid until explicitly changed. Before exposing an old seeded
+existing password credentials remain valid until explicitly changed. Some older fictional
+records have no credential at all and cannot sign in until a password is explicitly set. Before exposing an old seeded
 installation, replace those passwords individually or provision a fresh database.
 Do not treat changing or removing old seed environment variables as a password reset.
 
@@ -104,6 +108,28 @@ MFA challenges, and remembered devices, and writes an operator audit event. It
 never enables a disabled account or changes a role. Administrators whose MFA was
 reset must enroll again before workspace access. Use deployment/operator credentials
 for this command; the web application cannot reset MFA through HTTP.
+
+## Migration and sign-in troubleshooting
+
+- `column "impersonated_by" does not exist` indicates that the running auth schema
+  is newer than the database. Run `pnpm db:migrate` against the same database as
+  the app, using deployment credentials. Do not patch just the session table:
+  related user and MFA migrations are also required.
+- If migration fails because `pg_trgm` is not allow-listed, add `PG_TRGM` to the
+  Azure server's `azure.extensions` parameter, preserving existing entries, then
+  rerun migration. [Azure extension instructions](https://learn.microsoft.com/en-us/azure/postgresql/extensions/how-to-allow-extensions).
+  Pending migrations run in one transaction; this failure rolls them back together.
+- An enabled account without an `account` row for provider `credential` with a
+  password cannot use email/password sign-in. Use `pnpm account:recover` with a
+  private password file to set it. No default password is supplied, and password
+  hashes cannot be recovered as plaintext. Do not commit credentials to documentation.
+- `INVALID_ORIGIN` is an origin configuration error, not a bad password. Local auth
+  defaults to `http://localhost:5173` (also trusting `http://127.0.0.1:5173`). If Vite
+  falls back to port 5174 because 5173 is occupied, use the intended 5173 instance,
+  or stop it and restart with `ORIGIN=http://localhost:5174 pnpm dev --port 5174`.
+  The login form currently shows the generic account error for this response.
+- When verifying sign-in, use the app's actual origin and database configuration.
+  Administrator sign-in proceeds to MFA enrollment if it has not been completed.
 
 ## Hosted acceptance and backup drill
 

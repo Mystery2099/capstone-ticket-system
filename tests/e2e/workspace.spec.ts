@@ -17,7 +17,25 @@ async function signIn(page: Page, email: string) {
 		if (await page.getByLabel('Current password', { exact: true }).isVisible()) {
 			await page.getByLabel('Current password', { exact: true }).fill('Capstone2026!');
 			await page.getByRole('button', { name: 'Start setup' }).click();
+			await expect(
+				page.getByRole('img', { name: 'QR code for authenticator setup' })
+			).toBeVisible();
+			await expect(
+				page.getByRole('img', { name: 'QR code for authenticator setup' })
+			).toHaveAttribute('src', /^data:image\/png;base64,/);
+			await page.getByText('Can’t scan? Use the setup key', { exact: true }).click();
 			await expect(page.locator('code').first()).toBeVisible();
+			const downloadEvent = page.waitForEvent('download');
+			await page.getByRole('button', { name: 'Download recovery codes' }).click();
+			const download = await downloadEvent;
+			expect(download.suggestedFilename()).toBe('ticket-system-recovery-codes.txt');
+			const stream = await download.createReadStream();
+			let downloadedCodes = '';
+			for await (const chunk of stream!) downloadedCodes += chunk.toString();
+			for (const code of await page.locator('.recovery-codes code').allTextContents())
+				expect(downloadedCodes).toContain(code);
+			expect(downloadedCodes).not.toContain((await page.locator('code').first().textContent())!);
+			await expect(page.getByRole('button', { name: 'Verify', exact: true })).toBeDisabled();
 			administratorKey = (await page.locator('code').first().textContent())!;
 			await page.getByLabel('I saved my recovery codes').check();
 		}
@@ -343,4 +361,11 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 	await expect(page).toHaveURL(/\/login$/);
+});
+
+test('search options remain accessible at the upper mobile breakpoint', async ({ page }) => {
+	await signIn(page, 'marcus.lee@example.test');
+	await page.setViewportSize({ width: 735, height: 900 });
+	await page.getByRole('button', { name: 'Search options', exact: true }).click();
+	await expect(page.getByLabel('Created on or after')).toBeVisible();
 });

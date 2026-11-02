@@ -72,6 +72,7 @@ export const ticket = pgTable(
 		index('ticket_requester_created_idx').on(table.requesterId, table.createdAt),
 		index('ticket_assignee_created_idx').on(table.assignedToUserId, table.createdAt),
 		index('ticket_status_created_idx').on(table.statusCode, table.createdAt),
+		index('ticket_subject_trgm_idx').using('gin', table.subject.op('gin_trgm_ops')),
 		check('ticket_priority_valid', sql`${table.priority} in ('low', 'normal', 'high')`),
 		check('ticket_subject_not_blank', sql`length(trim(${table.subject})) > 0`),
 		check('ticket_description_not_blank', sql`length(trim(${table.description})) > 0`)

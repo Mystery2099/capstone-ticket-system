@@ -17,7 +17,7 @@ One full-stack SvelteKit app handles both the web UI and server logic. The brows
 
 Implemented: ticket workflows, account/category administration, server-side permissions,
 security headers, administrator MFA with recovery codes, transactional administrative
-audit records, cursor pagination, and explicit database provisioning. The application
+audit records, ranked ticket search with live suggestions, paginated results, and explicit database provisioning. The application
 has no demo mode or automatic sample accounts. Hosted deployment and restore verification
 remain operational steps; see [production deployment](docs/azure-deployment.md).
 
@@ -34,7 +34,13 @@ For local development, data lives in `.data/postgres` unless database settings s
 another database. Sign in at `http://localhost:5173/login`, complete administrator MFA
 enrollment, and create categories and individual accounts. Supply a private password
 file containing a unique password of 12–128 characters; remove it after provisioning.
-No default credentials are provided. Setup refuses to overwrite existing accounts.
+If another dev server is already using port 5173, use that instance or stop it before
+restarting; a Vite fallback port needs a matching `ORIGIN` for sign-in. See
+[sign-in troubleshooting](docs/azure-deployment.md#migration-and-sign-in-troubleshooting).
+No default credentials are provided. Initial administrator creation refuses to run when accounts already exist.
+Existing fictional records may have no password credential. Use the operator recovery command
+in the [deployment runbook](docs/azure-deployment.md#recovery-and-existing-installations)
+to set an individual password; migration alone does not make those accounts usable.
 
 Copy `.env.example` to `.env` for connection settings. Migrations use deployment
 credentials; the web process should use the restricted login described in the deployment
@@ -49,6 +55,30 @@ changes seeded test accounts and MFA settings, so use it only with a disposable 
 server, never a personal or deployed database.
 
 The UI direction is a Gmail-inspired ticket workspace with responsive mobile layouts and a Plum & Apricot palette. The Claude-produced design mockups in [design/](design/) are implementation references developed alongside the app.
+
+## Ticket search
+
+Search covers subjects, descriptions, visible comments, category names, and requester/assignee
+names. Subject matches have the highest text weight; subjects also support typo matching.
+Words match in any order and support prefixes, quoted phrases, and exclusions. No operators
+are required. Submit a number such as `1046` or `#1046` to open an accessible ticket directly;
+unavailable numbers fall back to normal search.
+
+Live suggestions start at two characters after a 200 ms pause. Use arrows and Enter to
+select a suggestion, Enter without a selection for full results, `/` to focus, and Escape
+to clear the field. Recent searches are stored per account in this browser and can be cleared.
+Search options include status, priority, category, dates, and visible comments; staff can also
+choose requester or assignee. Submitting search covers all statuses unless explicitly filtered.
+Results offer highlighted excerpts and best-match or newest-first ordering. Name and
+category matches include labels such as “Assigned to”, “Requested by”, or “Category”
+in both suggestions and full results, with the matching words highlighted. Lists contain
+up to 50 tickets per page; newest-first uses a ticket-number cursor, relevance uses page numbers.
+Requesters see only their tickets and public comments, including in suggestions and snippets.
+
+Hosted PostgreSQL requires `PG_TRGM` in Azure's extension allow-list **before** running
+`pnpm db:migrate`. Local PGlite registers the extension automatically. Search adds a subject
+trigram index, with no new search column or external search service. Full-text documents are
+assembled at query time; large datasets will need query-plan and latency checks.
 
 ## Documentation
 

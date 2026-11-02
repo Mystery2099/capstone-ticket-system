@@ -1,12 +1,12 @@
-# PostgreSQL Database Design — Working Proposal
+# PostgreSQL Database Design
 
-This is a **design proposal**, not a migrated or validated database. The aim is to demonstrate genuine relational behavior without adding tables that don't help this class project.
+The implemented Drizzle schema and tracked migrations are the source of truth. The linked standalone SQL reference and data dictionary preserve the earlier design proposal; they are not migration scripts.
 
 [ERD](diagrams/entity-relationship.mmd) · [Better Auth plan](auth-integration.md) · [SQL design reference](database/schema-reference.sql) · [Data dictionary](database/data-dictionary.md) · [Review checklist](database/schema-review-checklist.md)
 
-## Planned tables
+## Implemented tables
 
-Better Auth owns `user`, `session`, `account` and `verification`. We'll generate their definitions with the actual installed Better Auth version instead of hand-writing them. Our five application tables are:
+Better Auth owns `user`, `session`, `account`, `verification`, and `two_factor`. Definitions are in `src/lib/server/auth-schema.ts`; ticket and audit tables are in `src/lib/server/ticket-schema.ts`. The application tables include:
 
 | Table            | Purpose                                                                                       |
 | ---------------- | --------------------------------------------------------------------------------------------- |
@@ -15,8 +15,9 @@ Better Auth owns `user`, `session`, `account` and `verification`. We'll generate
 | `ticket`         | Subject, description, requester, optional assignee, status, category, priority and timestamps |
 | `ticket_comment` | Public replies and staff-only internal notes, using `is_internal`                             |
 | `ticket_event`   | Server-written status, assignment, priority and category history                              |
+| `security_event` | Transactional administrator and operator audit records                                        |
 
-Ticket requester, assignee, comment author and event actor link to Better Auth `user.id`. Its IDs are strings by default; these foreign keys should use the generated compatible type, rather than UUID. Our app records can use UUIDs, alongside a separate readable numeric ticket number.
+Ticket requester, assignee, comment author and event actor link to Better Auth `user.id`. User IDs and referencing foreign keys use text. Application records use UUIDs, alongside a separate unique, generated numeric ticket number.
 
 ## Data integrity and access
 
@@ -26,7 +27,7 @@ Internal note text must be excluded in the server's requester-facing queries, pr
 
 ## Practical indexing and recovery
 
-Start with indexes supporting requester tickets, assigned/unassigned queues, status filters and chronological comment/event history. Check real query plans after seeding data rather than adding indexes speculatively. Use a `pg_dump` backup and verify restoration into another database.
+Indexes support requester tickets, assignment and status filters, and chronological comment/event history. Migration `0003_search_subject_trigram` enables `pg_trgm` and adds a subject GIN trigram index. Full-text search documents are assembled at query time from ticket content, names, categories and permitted comments; no search column is stored. Check query plans with realistic data before scaling. Use a `pg_dump` backup and verify restoration into another database.
 
 PostgreSQL RLS isn't part of this first design: SvelteKit owns data access and applies authorization before querying or returning records. Revisit that if we ever expose database access to untrusted clients.
 

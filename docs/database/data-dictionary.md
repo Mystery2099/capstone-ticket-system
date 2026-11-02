@@ -1,6 +1,6 @@
 # Database Data Dictionary
 
-> **Reference draft, written before Better Auth was adopted.** Better Auth now owns the user/session/account tables, so cross-check column names against `src/lib/server/db/schema/tickets.ts` and the [working proposal](../database-design.md); the `app_user` naming here is historical.
+> **Reference draft, written before Better Auth was adopted.** Better Auth now owns the user/session/account tables, so cross-check column names against `src/lib/server/ticket-schema.ts`, `src/lib/server/auth-schema.ts`, and the [implemented database design](../database-design.md); the `app_user` naming here is historical.
 
 This describes the proposed first schema, not an implemented database. **PK** means primary key, **FK** means foreign key, and **required** means `NOT NULL`.
 

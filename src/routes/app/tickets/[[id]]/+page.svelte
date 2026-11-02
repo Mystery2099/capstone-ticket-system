@@ -27,6 +27,7 @@
 	} from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import StatusBadge from '$lib/StatusBadge.svelte';
+	import HighlightedText from '$lib/components/HighlightedText.svelte';
 	import { TICKET_STATUSES, getInitials, TicketEventType } from '$lib/status';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
@@ -278,6 +279,7 @@
 	async function applyListFilter(filterName: string, filterValue: string) {
 		const searchParams = new URLSearchParams(listSearchParams);
 		searchParams.delete('before');
+		searchParams.delete('page');
 		if (filterValue) searchParams.set(filterName, filterValue);
 		else searchParams.delete(filterName);
 		await goto('/app/tickets?' + searchParams);
@@ -547,7 +549,7 @@
 	<section class="ticket-list" aria-label="Ticket list">
 		<div class="list-top">
 			<h1>
-				{listHeading}{#if !isListLoading}
+				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
 					<span>{isShowingDrafts ? draftRows.length : data.tickets.length}</span>{/if}
 			</h1>
 			{#if !isShowingDrafts}<Tooltip.Root>
@@ -564,6 +566,19 @@
 					<Tooltip.Content side="bottom" sideOffset={6}>Refresh tickets</Tooltip.Content>
 				</Tooltip.Root>{/if}
 		</div>
+		{#if data.searchText}<div class="filters" aria-label="Search result controls">
+				<span>{data.tickets.length}{data.nextPageHref ? '+' : ''} results on this page</span>
+				<Combobox
+					label="Sort search results"
+					value={data.searchSort ?? 'newest'}
+					options={[
+						{ value: 'relevance', label: 'Best match' },
+						{ value: 'newest', label: 'Newest first' }
+					]}
+					onchange={(value) => applyListFilter('sort', value)}
+				/>
+				<button class="text-link" onclick={() => applyListFilter('q', '')}>Clear search</button>
+			</div>{/if}
 		{#if !isShowingDrafts}<div class="filters">
 				<Combobox
 					label="Filter by status"
@@ -619,32 +634,50 @@
 						<div class="row-content">
 							<div class="row-title">
 								{#if row.priority === 'high'}<ChevronsUp class="high" size={17} />{/if}<strong
-									>{row.subject}</strong
+									><HighlightedText
+										segments={row.subjectHighlight}
+										fallbackText={row.subject}
+									/></strong
 								><time
 									>{new Date(row.updatedAt).toDateString() === new Date().toDateString()
 										? formatTime(row.updatedAt)
 										: formatDate(row.updatedAt)}</time
 								>
 							</div>
+							{#if row.searchMetadataMatches.length}<div class="search-match-reasons">
+									{#each row.searchMetadataMatches as match (match.label)}<span
+											>{match.label}
+											<HighlightedText segments={match.segments} fallbackText="" /></span
+										>{/each}
+								</div>{/if}
 							<div class="row-meta">
 								<StatusBadge status={row.statusCode} /><span class="row-requester"
 									>{getPersonName(row.requesterId)} · #{row.ticketNumber}</span
 								><span class="row-preview"
-									>— {row.previewAuthor ? row.previewAuthor + ': ' : ''}{row.preview}</span
+									>— {row.previewAuthor ? row.previewAuthor + ': ' : ''}<HighlightedText
+										segments={row.previewHighlight}
+										fallbackText={row.preview}
+									/></span
 								>
 							</div>
 						</div></a
 					>{:else}<div class="empty">
 						<Inbox size={36} />
-						<h2>No tickets here</h2>
-						<p>Try another view or change your filters.</p>
+						<h2>{data.searchText ? 'No matching tickets' : 'No tickets here'}</h2>
+						<p>
+							{data.searchText
+								? 'Try fewer words, another spelling, or broader search options.'
+								: 'Try another view or change your filters.'}
+						</p>
 						<a href="/app/tickets" class="text-link">Clear filters</a>
 					</div>{/each}
 				{#if data.firstPageHref || data.nextPageHref}
 					<nav aria-label="Ticket list pages" class="flex items-center justify-between gap-4 p-4">
-						{#if data.firstPageHref}<a class="text-link" href={data.firstPageHref}>Newest tickets</a
+						{#if data.firstPageHref}<a class="text-link" href={data.firstPageHref}
+								>{data.searchSort === 'relevance' ? 'Top results' : 'Newest tickets'}</a
 							>{/if}
-						{#if data.nextPageHref}<a class="text-link" href={data.nextPageHref}>Older tickets</a
+						{#if data.nextPageHref}<a class="text-link" href={data.nextPageHref}
+								>{data.searchSort === 'relevance' ? 'More results' : 'Older tickets'}</a
 							>{/if}
 					</nav>
 				{/if}
@@ -960,3 +993,14 @@
 	</section>
 </div>
 <a class="mobile-new new-ticket" href="/app/tickets/new"><SquarePen size={23} /> New ticket</a>
+
+<style>
+	.search-match-reasons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 12px;
+		margin-top: 4px;
+		color: var(--muted-fg);
+		font-size: 12px;
+	}
+</style>
