@@ -105,7 +105,7 @@
 	</Popover.Trigger>
 	<Popover.Content
 		align="start"
-		class="w-(--bits-popover-anchor-width) min-w-52 gap-0 p-0"
+		class="z-70 w-(--bits-popover-anchor-width) min-w-52 gap-0 p-0"
 		onOpenAutoFocus={(event) => {
 			// Without a search box, the list needs focus for the arrow keys to reach it.
 			if (isSearchVisible) return;
