@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { LockKeyhole } from '@lucide/svelte';
 	import { getInitials } from '$lib/person';
+	import { cn } from '$lib/utils';
 
 	type CommentMessageProps = {
 		authorName: string;
@@ -23,18 +24,34 @@
 	}: CommentMessageProps = $props();
 </script>
 
-<article class="message" class:internal-note={isInternal} class:sending={isSending}>
+<article
+	class={cn(
+		'message',
+		// On phones the message's own padding still applies inside the note.
+		isInternal &&
+			'-mx-2.5 my-3 rounded-[8px] border border-note-border bg-note px-2.5 py-3.5 max-md:px-0 max-md:py-[18px]',
+		isSending && 'sending animate-[rise-in_var(--motion-base)_ease-out] opacity-70'
+	)}
+>
 	<span class="avatar">{getInitials(authorName)}</span>
 	<div class="message-content">
-		<div class="message-heading">
-			<strong>{authorName}</strong><span class="role-tag">{roleLabel}</span><time
+		<div class="flex min-h-6 flex-wrap items-center gap-2 max-md:gap-1.5">
+			<strong class="text-[15px] max-md:text-[14px]">{authorName}</strong><span
+				class="rounded-[4px] bg-secondary px-1.5 py-px text-[11px] font-semibold text-muted-foreground max-md:text-[10px]"
+				>{roleLabel}</span
+			><time
+				class="ml-auto text-[11px] text-muted-foreground max-lg:m-0 max-lg:w-full max-md:text-[10px]"
 				>{timestampLabel}</time
 			>
 		</div>
-		{#if caption}<p class="message-caption">{caption}</p>{/if}
-		{#if isInternal}<p class="private-label">
+		{#if caption}<p class="mb-2 text-[12px] text-muted-foreground">{caption}</p>{/if}
+		{#if isInternal}<p class="mt-1 flex items-center gap-[5px] text-[11px] text-muted-foreground">
 				<LockKeyhole size={13} /> Internal note · only visible to support team
 			</p>{/if}
-		<p class="message-body">{body}</p>
+		<p
+			class="message-body mt-1.5 text-[14px] leading-[1.65] whitespace-pre-wrap wrap-anywhere wide:text-[15px]"
+		>
+			{body}
+		</p>
 	</div>
 </article>

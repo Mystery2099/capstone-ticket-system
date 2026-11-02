@@ -84,13 +84,13 @@
 		<TooltipIconButton label="Back to tickets" href={listHref} class="icon-button back"
 			><ArrowLeft size={21} /></TooltipIconButton
 		>
-		<div class="ticket-title">
+		<div class="pane-title">
 			<!-- SvelteKit clears focus when navigation lands unless an element has autofocus. -->
 			<!-- svelte-ignore a11y_autofocus -->
 			<input
 				autofocus
 				{@attach (input) => input.focus()}
-				class="compose-subject"
+				class="block min-h-7 w-full rounded-none border-0 bg-transparent p-0 text-[20px] leading-7 font-[650] focus:outline-none"
 				name="subject"
 				aria-invalid={!!$createErrors.subject}
 				aria-describedby={$createErrors.subject ? 'subject-error' : undefined}
@@ -104,7 +104,7 @@
 			{#if $createErrors.subject}<p id="subject-error" class="error" role="alert">
 					{$createErrors.subject.join(' ')}
 				</p>{/if}
-			<p class="ticket-dates">
+			<p class="pane-subtitle">
 				New ticket{draft.subject.length > SUBJECT_COUNTER_FROM
 					? ` · ${draft.subject.length} / ${SUBJECT_MAX_LENGTH}`
 					: ''}
@@ -114,14 +114,15 @@
 			><X size={20} /></TooltipIconButton
 		>
 	</div>
-	<div class="conversation-scroll compose-body">
+	<div class="conversation-scroll flex flex-col">
 		<div class="ticket-heading">
-			<div class="ticket-metadata">
+			<div class="field-row">
 				{#if isStaffUser}
 					<div class="metadata-control">
 						<span>Requester</span><Combobox
 							name="requesterId"
 							label="Requester"
+							variant="inline"
 							bind:value={draft.requesterId}
 							options={requesterOptions}
 							disabled={$isCreatingTicket}
@@ -131,6 +132,7 @@
 						<span>Assignee</span><Combobox
 							name="assignedToUserId"
 							label="Assignee"
+							variant="inline"
 							bind:value={draft.assignedToUserId}
 							options={[{ value: '', label: 'Unassigned' }, ...assigneeOptions]}
 							disabled={$isCreatingTicket}
@@ -141,6 +143,7 @@
 					<span>Category</span><Combobox
 						name="categoryId"
 						label="Category"
+						variant="inline"
 						placeholder="Choose"
 						bind:value={draft.categoryId}
 						options={categoryOptions}
@@ -150,8 +153,10 @@
 				</div>
 			</div>
 		</div>
-		<div class="composer">
+		<!-- The body fills the pane like an email, instead of a fixed box above empty space. -->
+		<div class="composer mt-3.5 flex min-h-[220px] flex-1 flex-col">
 			<textarea
+				class="flex-1 resize-none"
 				name="description"
 				aria-invalid={!!$createErrors.description}
 				aria-describedby={$createErrors.description ? 'description-error' : undefined}
@@ -172,7 +177,7 @@
 				<span class="muted small" class:compose-hint={!$isCreatingTicket && !isDescriptionNearLimit}
 					>{footerHint}</span
 				>
-				<span class="compose-actions">
+				<span class="flex shrink-0 items-center gap-1.5 max-md:ml-auto">
 					<Button variant="ghost" size="pill-sm" disabled={$isCreatingTicket} onclick={discardDraft}
 						>Discard</Button
 					>

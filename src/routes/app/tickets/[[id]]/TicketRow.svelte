@@ -17,11 +17,14 @@
 	let requesterName = $derived(directory.getPersonName(row.requesterId));
 </script>
 
-<a {href} class="ticket-row" class:selected={isSelected}
+<a {href} class="list-row" class:selected={isSelected}
 	><span class="avatar row-avatar">{getInitials(requesterName)}</span>
 	<div class="row-content">
 		<div class="row-title">
-			{#if row.priority === 'high'}<ChevronsUp class="high" size={17} />{/if}<strong
+			{#if row.priority === 'high'}<ChevronsUp
+					class="shrink-0 text-[#b3261e] max-md:mt-[3px]"
+					size={17}
+				/>{/if}<strong
 				><HighlightedText segments={row.subjectHighlight} fallbackText={row.subject} /></strong
 			><time>{formatRecentTimestamp(row.updatedAt)}</time>
 		</div>
@@ -32,7 +35,8 @@
 					>{/each}
 			</div>{/if}
 		<div class="row-meta">
-			<StatusBadge status={row.statusCode} /><span class="row-requester"
+			<StatusBadge status={row.statusCode} /><span
+				class="shrink-0 max-md:-order-1 max-md:w-full max-md:text-[13px] max-md:text-muted-foreground"
 				>{requesterName} · #{row.ticketNumber}</span
 			><span class="row-preview"
 				>— {row.previewAuthor ? row.previewAuthor + ': ' : ''}<HighlightedText

@@ -4,13 +4,13 @@
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import Combobox from '$lib/components/Combobox.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormField from '$lib/components/FormField.svelte';
 	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import { DraftUrlBinding } from '$lib/draft-url.svelte';
 	import { getDrafts } from '$lib/drafts.svelte';
 	import { ROLE_OPTIONS, getInitials, getRoleLabel, type PersonRole } from '$lib/person';
 	import AdminDetailsToolbar from './AdminDetailsToolbar.svelte';
-	import AdminEmptyList from './AdminEmptyList.svelte';
 	import AdminFormFooter from './AdminFormFooter.svelte';
 	import AdminWorkspace from './AdminWorkspace.svelte';
 	import {
@@ -98,11 +98,15 @@
 	{#snippet filters()}
 		<Combobox
 			label="Filter by role"
+			variant="filter"
+			class="shrink-0"
 			bind:value={roleFilter}
 			options={[{ value: '', label: 'Any role' }, ...ROLE_OPTIONS]}
 		/>
 		<Combobox
 			label="Filter by account state"
+			variant="filter"
+			class="shrink-0"
 			bind:value={enabledFilter}
 			options={[{ value: '', label: 'Any state' }, ...ENABLED_STATE_OPTIONS]}
 		/>
@@ -110,7 +114,7 @@
 	{#snippet rows()}
 		{#each filteredUsers as user (user.id)}<a
 				href={`?id=${user.id}`}
-				class="ticket-row"
+				class="list-row"
 				class:selected={selectedUser?.id === user.id}
 				><span class="avatar row-avatar">{getInitials(user.name)}</span>
 				<div class="row-content">
@@ -121,7 +125,9 @@
 						<span class="row-preview">{user.email}{user.banned ? ' · Disabled' : ''}</span>
 					</div>
 				</div></a
-			>{:else}<AdminEmptyList pluralNoun="users" />{/each}
+			>{:else}<EmptyState title="No users here"
+				>{#snippet description()}Try another search or change your filters.{/snippet}</EmptyState
+			>{/each}
 	{/snippet}
 	{#snippet pane()}
 		{#if isCreateUserPaneOpen}
@@ -140,7 +146,7 @@
 					action="?/createUser"
 					use:enhanceCreateUser
 				>
-					<div class="conversation-scroll admin-form">
+					<div class="conversation-scroll flex max-w-[560px] flex-col gap-4">
 						<FormField
 							form={createUserForm}
 							name="name"
@@ -171,11 +177,12 @@
 							autocomplete="new-password"
 							description="At least 12 characters. Share directly with the account holder. Passwords aren’t saved in drafts."
 						/>
-						<div class="ticket-metadata">
+						<div class="field-row">
 							<div class="metadata-control">
 								<span>Role</span><Combobox
 									name="role"
 									label="Role"
+									variant="inline"
 									bind:value={userDraft.role}
 									options={ROLE_OPTIONS}
 								/>
@@ -204,12 +211,13 @@
 			/>
 			<form class="compose" method="POST" action="?/updateUser" use:enhanceUpdateUser>
 				<input type="hidden" name="id" value={$userFields.id} />
-				<div class="conversation-scroll admin-form">
-					<div class="ticket-metadata">
+				<div class="conversation-scroll flex max-w-[560px] flex-col gap-4">
+					<div class="field-row">
 						<div class="metadata-control">
 							<span>Role</span><Combobox
 								name="role"
 								label="Role"
+								variant="inline"
 								bind:value={
 									() => $userFields.role, (role) => ($userFields.role = role as PersonRole)
 								}
@@ -220,6 +228,7 @@
 							<span>Account</span><Combobox
 								name="enabled"
 								label="Account"
+								variant="inline"
 								bind:value={
 									() => String($userFields.enabled),
 									(selectedState) => ($userFields.enabled = selectedState === 'true')

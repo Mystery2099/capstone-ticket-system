@@ -20,10 +20,14 @@
 	import SidebarToggle from '$lib/components/layout/SidebarToggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { createDelayedFlag } from '$lib/delayed.svelte';
+	import { cn } from '$lib/utils';
 	import { Drafts, setDrafts } from '$lib/drafts.svelte';
 	import RouteSkeleton, {
 		type RouteSkeletonKind
 	} from '$lib/components/skeleton/RouteSkeleton.svelte';
+	const MOBILE_NAV_LINK_CLASS = 'flex min-w-[60px] flex-col items-center gap-1 text-[11px]';
+	const MOBILE_NAV_ICON_CLASS = 'h-[29px] rounded-[24px] px-4 py-[3px]';
+
 	let { data, children } = $props();
 	let isHydrated = $state(false);
 	onMount(() => {
@@ -164,9 +168,15 @@
 	data-hydrated={isHydrated}
 	class={isSidebarOpen ? 'app-shell' : 'app-shell rail'}
 >
-	<header class="topbar">
-		<SidebarToggle /><a class="brand" href="/app/tickets"
-			><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
+	<header
+		class="col-span-full flex items-center gap-3 py-2 pr-1 pl-4 max-md:relative max-md:h-[74px] max-md:shrink-0 max-md:gap-0 max-md:bg-card max-md:px-4 max-md:py-2.5"
+	>
+		<SidebarToggle /><a
+			class="flex min-w-[168px] items-center gap-2.5 text-[18px] whitespace-nowrap max-md:hidden md:max-lg:min-w-0"
+			href="/app/tickets"
+			><span class="logo"><Ticket size={22} /></span><strong class="md:max-lg:hidden"
+				>Ticket System</strong
+			></a
 		>
 		<TicketSearchBar
 			userId={data.user.id}
@@ -191,12 +201,19 @@
 		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
 		<div class={slowRouteNavigation.current ? 'hidden' : 'contents'}>{@render children()}</div>
 	</main>
-	<nav class="mobile-nav" aria-label="Mobile navigation">
-		{#each navigationViews.slice(0, 3) as navigationView (navigationView.key)}<a
-				class:active={activeView === navigationView.key &&
-					activeUrl.pathname.startsWith('/app/tickets')}
+	<nav
+		class="hidden h-[74px] shrink-0 items-center justify-around gap-0.5 bg-muted px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] max-md:flex"
+		aria-label="Mobile navigation"
+	>
+		{#each navigationViews.slice(0, 3) as navigationView (navigationView.key)}{@const isActive =
+				activeView === navigationView.key && activeUrl.pathname.startsWith('/app/tickets')}<a
+				class={cn(MOBILE_NAV_LINK_CLASS, isActive && 'font-[650]')}
 				href={'/app/tickets?view=' + navigationView.key}
-				><span><navigationView.icon size={23} /></span>{navigationView.label}</a
-			>{/each}<a href="/app/settings"><span><Settings size={23} /></span>Settings</a>
+				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
+					><navigationView.icon size={23} /></span
+				>{navigationView.label}</a
+			>{/each}<a class={MOBILE_NAV_LINK_CLASS} href="/app/settings"
+			><span class={MOBILE_NAV_ICON_CLASS}><Settings size={23} /></span>Settings</a
+		>
 	</nav>
 </Sidebar.Provider>

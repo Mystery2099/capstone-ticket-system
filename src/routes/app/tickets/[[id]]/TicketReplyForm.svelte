@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { LockKeyhole, MessageSquare, Send } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { cn } from '$lib/utils';
 	import CommentMessage from './CommentMessage.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
 
@@ -29,6 +30,12 @@
 		delayed: isReplyDelayed,
 		errors: replyErrors
 	} = replyForm;
+	function buildTabClass(isChosen: boolean): string {
+		return cn(
+			'flex items-center gap-[7px] rounded-[18px] px-2.5 py-1.5 text-[12px] text-muted-foreground',
+			isChosen && 'bg-selected font-[650] text-primary'
+		);
+	}
 	let hasUnsentText = $derived(!!$replyFields.body.trim());
 	let submitLabel = $derived(
 		$isSendingComment
@@ -51,22 +58,21 @@
 		isSending
 	/>{/if}
 <form
-	class="composer"
-	class:note-mode={isInternalNote}
+	class={cn('composer', isInternalNote && 'border-note-border bg-note')}
 	aria-busy={$isSendingComment}
 	method="POST"
 	action="?/reply"
 	use:enhanceReply
 >
-	<div class="composer-tabs">
+	<div class="flex gap-1.5 px-2.5 py-2">
 		<button
 			type="button"
-			class:chosen={!isInternalNote}
+			class={buildTabClass(!isInternalNote)}
 			disabled={$isSendingComment}
 			onclick={() => (isInternalNote = false)}><MessageSquare size={16} /> Comment</button
 		>{#if isStaffUser}<button
 				type="button"
-				class:chosen={isInternalNote}
+				class={buildTabClass(isInternalNote)}
 				disabled={$isSendingComment}
 				onclick={() => (isInternalNote = true)}><LockKeyhole size={16} /> Internal note</button
 			>{/if}

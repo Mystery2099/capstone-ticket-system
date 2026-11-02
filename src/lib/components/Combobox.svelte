@@ -19,6 +19,10 @@
 		disabled?: boolean;
 		required?: boolean;
 		submitOnSelect?: boolean;
+		/** field: a form input. filter: compact, in a filter bar. inline: borderless, inside a field pill. */
+		variant?: 'field' | 'filter' | 'inline';
+		/** Colors the trigger like that status's badge. */
+		statusCode?: string;
 		class?: string;
 		onchange?: (value: string) => void;
 	};
@@ -31,9 +35,32 @@
 		disabled = false,
 		required = false,
 		submitOnSelect = false,
+		variant = 'field',
+		statusCode,
 		class: className,
 		onchange
 	}: Props = $props();
+
+	const TRIGGER_BASE_CLASS =
+		'flex items-center justify-between gap-2 rounded-[6px] border border-input text-left font-normal focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary';
+	const TRIGGER_VARIANT_CLASSES = {
+		field: 'min-h-9 w-full px-3 py-[7px]',
+		filter:
+			'h-8 min-h-8 w-auto max-w-[34%] rounded-[8px] px-2 py-1 text-[14px] max-md:h-[34px] max-md:px-2.5 max-md:text-[14px] md:max-lg:p-1 md:max-lg:text-[12px]',
+		inline:
+			'min-h-[22px] w-auto max-w-[180px] rounded-[14px] border-0 px-0.5 py-0 text-[13px] font-semibold'
+	};
+	let triggerClass = $derived(
+		cn(
+			TRIGGER_BASE_CLASS,
+			TRIGGER_VARIANT_CLASSES[variant],
+			// A status trigger takes its colors from the status badge styles instead.
+			statusCode
+				? ['status', statusCode, 'rounded-[6px] px-1.5 py-0.5']
+				: ['text-foreground', variant === 'inline' ? 'bg-transparent' : 'bg-card'],
+			className
+		)
+	);
 
 	let isOpen = $state(false);
 	let triggerElement = $state<HTMLButtonElement | null>(null);
@@ -70,13 +97,11 @@
 	/>
 {/if}
 <Popover.Root bind:open={isOpen}>
-	<Popover.Trigger
-		bind:ref={triggerElement}
-		class={cn('combobox-trigger', className)}
-		aria-label={label}
-		{disabled}
-	>
-		<span>{selectedLabel ?? placeholder}</span><ChevronDown size={16} />
+	<Popover.Trigger bind:ref={triggerElement} class={triggerClass} aria-label={label} {disabled}>
+		<span class="min-w-0 truncate">{selectedLabel ?? placeholder}</span><ChevronDown
+			size={16}
+			class="shrink-0"
+		/>
 	</Popover.Trigger>
 	<Popover.Content
 		align="start"

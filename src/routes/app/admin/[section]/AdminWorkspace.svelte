@@ -1,7 +1,8 @@
 <!-- The list-and-pane layout shared by the user and category administration screens. -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { Inbox, Plus } from '@lucide/svelte';
+	import { Plus } from '@lucide/svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 
@@ -29,7 +30,7 @@
 
 <div class="workspace" class:has-ticket={isPaneOpen}>
 	<section
-		class="ticket-list"
+		class="list-pane"
 		aria-label={`${recordNoun[0].toUpperCase()}${recordNoun.slice(1)} list`}
 	>
 		<div class="list-top">
@@ -38,7 +39,7 @@
 				><Plus size={20} /></TooltipIconButton
 			>
 		</div>
-		<div class="filters admin-filters">
+		<div class="filters">
 			<Input
 				aria-label={`Filter ${title.toLowerCase()}`}
 				placeholder="Filter"
@@ -59,11 +60,9 @@
 		{#if isPaneOpen}
 			{@render pane()}
 		{:else}
-			<div class="reading-empty">
-				<span class="empty-icon"><Inbox size={35} /></span>
-				<h2>Choose a {recordNoun}</h2>
-				<p>Select one from the list to edit it,<br />or add a new one.</p>
-			</div>
+			<EmptyState title={`Choose a ${recordNoun}`} isPane>
+				{#snippet description()}Select one from the list to edit it,<br />or add a new one.{/snippet}
+			</EmptyState>
 		{/if}
 	</section>
 </div>

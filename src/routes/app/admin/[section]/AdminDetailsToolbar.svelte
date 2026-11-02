@@ -15,9 +15,9 @@
 	<TooltipIconButton label={`Back to ${recordNoun} list`} href={listHref} class="icon-button back"
 		><ArrowLeft size={21} /></TooltipIconButton
 	>
-	<div class="ticket-title">
+	<div class="pane-title">
 		<h1>{title}</h1>
-		<p class="ticket-dates">{subtitle}</p>
+		<p class="pane-subtitle">{subtitle}</p>
 	</div>
 	<TooltipIconButton
 		label="Close"

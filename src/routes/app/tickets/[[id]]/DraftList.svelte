@@ -1,6 +1,6 @@
 <!-- Every kind of unsent draft in one list, each opening back in its own form. -->
 <script lang="ts">
-	import { Inbox } from '@lucide/svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { Drafts } from '$lib/drafts.svelte';
 	import { getInitials } from '$lib/person';
 	import type { TicketDirectory } from './ticket-directory';
@@ -44,7 +44,7 @@
 <div class="rows">
 	{#each draftRows as row (row.id)}<a
 			href={row.href}
-			class="ticket-row"
+			class="list-row"
 			class:selected={row.id === selectedDraftId}
 			>{#if row.avatar}<span class="avatar row-avatar">{row.avatar}</span>{/if}
 			<div class="row-content">
@@ -55,10 +55,8 @@
 					<span class="row-preview">{row.preview}</span>
 				</div>
 			</div></a
-		>{:else}<div class="empty">
-			<Inbox size={36} />
-			<h2>No drafts</h2>
-			<p>Anything you start but don’t finish is saved here.</p>
+		>{:else}<EmptyState title="No drafts">
+			{#snippet description()}Anything you start but don’t finish is saved here.{/snippet}
 			<a href="/app/tickets" class="text-link">Back to tickets</a>
-		</div>{/each}
+		</EmptyState>{/each}
 </div>

@@ -37,7 +37,8 @@
 		{label}
 		{options}
 		value={displayedValue}
-		class={field === 'statusCode' ? 'status ' + displayedValue : ''}
+		variant="inline"
+		statusCode={field === 'statusCode' ? displayedValue : undefined}
 		{disabled}
 		submitOnSelect
 	/>

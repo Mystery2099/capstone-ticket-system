@@ -19,7 +19,7 @@
 	}: AdminFormFooterProps = $props();
 </script>
 
-<div class="composer-footer admin-actions">
+<div class="composer-footer justify-end border-t border-border px-6 py-2.5">
 	{#if hint}
 		<span class="muted small compose-hint">{hint}</span>
 	{/if}

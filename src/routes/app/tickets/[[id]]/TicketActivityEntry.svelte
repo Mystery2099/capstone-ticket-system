@@ -31,14 +31,21 @@
 	}
 </script>
 
-<div class="activity">
-	<span class="activity-icon"><ArrowRightLeft size={15} /></span>
+<div
+	class="flex items-center gap-3.5 border-b border-border px-2 py-2.5 text-[12px] leading-[1.8] text-muted-foreground max-md:gap-2.5 max-md:px-0 max-md:text-[11px]"
+>
+	<span class="grid size-7 shrink-0 place-items-center rounded-full bg-muted"
+		><ArrowRightLeft size={15} /></span
+	>
 	<p>
-		<strong>{directory.getPersonName(event.actorId)}</strong>
+		<strong class="font-semibold text-foreground">{directory.getPersonName(event.actorId)}</strong>
 		changed {isStatusChange ? 'status' : FIELD_NAMES[event.eventType] || event.eventType}
 		from
 		<span>{describeFieldValue(event.details.from)}</span>
-		to {#if isStatusChange}<StatusBadge status={String(event.details.to)} />{:else}<strong
+		to {#if isStatusChange}<StatusBadge
+				status={String(event.details.to)}
+				class="text-[11px]"
+			/>{:else}<strong class="font-semibold text-foreground"
 				>{describeFieldValue(event.details.to)}</strong
 			>{/if}
 		<span class="muted">· {formatDateTime(event.createdAt)}</span>

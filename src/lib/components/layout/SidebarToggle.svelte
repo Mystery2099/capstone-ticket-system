@@ -8,6 +8,6 @@
 
 <TooltipIconButton
 	label="Toggle navigation"
-	class="icon-button menu-button"
+	class="icon-button max-md:absolute max-md:top-[19px] max-md:left-[26px] max-md:z-2"
 	onclick={sidebar.toggle}><Menu /></TooltipIconButton
 >

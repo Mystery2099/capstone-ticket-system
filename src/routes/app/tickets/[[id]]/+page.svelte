@@ -2,10 +2,11 @@
 	import { untrack } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { Inbox, RefreshCw, SquarePen } from '@lucide/svelte';
+	import { RefreshCw, SquarePen } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import VirtualTicketRows from '$lib/components/tickets/VirtualTicketRows.svelte';
@@ -188,7 +189,7 @@
 </script>
 
 <div class="workspace" class:has-ticket={hasTicket}>
-	<section class="ticket-list" aria-label="Ticket list">
+	<section class="list-pane" aria-label="Ticket list">
 		<div class="list-top">
 			<h1>
 				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
@@ -204,6 +205,7 @@
 				<span>{loadedTicketCountLabel} results loaded</span>
 				<Combobox
 					label="Sort search results"
+					variant="filter"
 					value={data.searchSort ?? 'newest'}
 					options={SEARCH_SORT_OPTIONS}
 					onchange={(value) => applyListFilter('sort', value)}
@@ -213,6 +215,7 @@
 		{#if !isShowingDrafts}<div class="filters">
 				<Combobox
 					label="Filter by status"
+					variant="filter"
 					placeholder="Status"
 					value={page.url.searchParams.get('status') || ''}
 					options={[{ value: '', label: 'Any status' }, ...STATUS_OPTIONS]}
@@ -220,6 +223,7 @@
 				/>
 				<Combobox
 					label="Filter by priority"
+					variant="filter"
 					placeholder="Priority"
 					value={page.url.searchParams.get('priority') || ''}
 					options={[{ value: '', label: 'Any priority' }, ...PRIORITY_OPTIONS]}
@@ -227,6 +231,7 @@
 				/>
 				<Combobox
 					label="Filter by category"
+					variant="filter"
 					placeholder="Category"
 					value={page.url.searchParams.get('category') || ''}
 					options={[{ value: '', label: 'Any category' }, ...categoryOptions]}
@@ -250,16 +255,14 @@
 							href={buildTicketHref(row.ticketNumber)}
 							isSelected={highlightedTicketId === row.id}
 							{directory}
-						/>{/snippet}{#snippet empty()}<div class="empty">
-							<Inbox size={36} />
-							<h2>{data.searchText ? 'No matching tickets' : 'No tickets here'}</h2>
-							<p>
-								{data.searchText
+						/>{/snippet}{#snippet empty()}<EmptyState
+							title={data.searchText ? 'No matching tickets' : 'No tickets here'}
+						>
+							{#snippet description()}{data.searchText
 									? 'Try fewer words, another spelling, or broader search options.'
-									: 'Try another view or change your filters.'}
-							</p>
+									: 'Try another view or change your filters.'}{/snippet}
 							<a href="/app/tickets" class="text-link">Clear filters</a>
-						</div>{/snippet}
+						</EmptyState>{/snippet}
 				</VirtualTicketRows>{/key}{/if}
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">
@@ -294,10 +297,9 @@
 				nextTicketHref={ticketIndex >= 0 && ticketIndex < listLoader.rows.length - 1
 					? buildTicketHref(listLoader.rows[ticketIndex + 1].ticketNumber)
 					: undefined}
-			/>{:else}<div class="reading-empty">
-				<span class="empty-icon"><Inbox size={35} /></span>
-				<h2>Your workspace, in order.</h2>
-				<p>Select a ticket to read the conversation<br />and keep things moving.</p>
+			/>{:else}<EmptyState title="Your workspace, in order." isPane>
+				{#snippet description()}Select a ticket to read the conversation<br />and keep things
+					moving.{/snippet}
 				{#if !isListLoading}<span class="small muted"
 						>{activeCategory
 							? `${listLoader.rows.length} open ${activeCategory.name} tickets`
@@ -305,7 +307,10 @@
 								? `${drafts.dirtyDraftCount} drafts`
 								: `${listLoader.rows.length} tickets · ${viewTitle}`}</span
 					>{/if}
-			</div>{/if}
+			</EmptyState>{/if}
 	</section>
 </div>
-<a class="mobile-new new-ticket" href="/app/tickets/new"><SquarePen size={23} /> New ticket</a>
+<a
+	class="new-ticket fixed right-4 bottom-[88px] z-10 m-0 hidden h-[52px] w-auto gap-3 rounded-[16px] px-5 text-[14px] max-md:flex [.has-ticket+&]:hidden"
+	href="/app/tickets/new"><SquarePen size={23} /> New ticket</a
+>

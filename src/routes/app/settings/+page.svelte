@@ -5,6 +5,8 @@
 	import { getInitials, getRoleLabel } from '$lib/person';
 	import { readThemePreference, saveThemePreference, type ThemePreference } from '$lib/theme';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import SettingRow from '$lib/components/settings/SettingRow.svelte';
+	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
 	let { data } = $props();
 	const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
 		{ value: 'system', label: 'Follow system', hint: '(default)' },
@@ -27,53 +29,38 @@
 	}
 </script>
 
-<div class="settings-design">
-	<header class="admin-header"><h1>Settings</h1></header>
-	<div class="settings-content">
-		<section class="setting-row">
-			<div>
-				<h2>Appearance</h2>
-				<p>Remembered in this browser.</p>
-			</div>
-			<fieldset class="appearance-radios" aria-label="Appearance">
-				{#each THEME_OPTIONS as option (option.value)}<label
-						><input
-							type="radio"
-							name="theme"
-							value={option.value}
-							checked={themePreference === option.value}
-							onchange={() => selectThemePreference(option.value)}
-						/>{option.label} <span class="muted small">{option.hint}</span></label
-					>{/each}
-			</fieldset>
-		</section>
-		<section class="setting-row">
-			<div>
-				<h2>Account</h2>
-				<p>Managed by an administrator.</p>
-			</div>
-			<div>
-				<div class="settings-account">
-					<span class="avatar">{getInitials(data.user.name)}</span>
-					<div>
-						<strong>{data.user.name}</strong>
-						<p>
-							{data.user.email} ·
-							{getRoleLabel(data.user.role)}
-						</p>
-					</div>
+<SettingsLayout title="Settings">
+	<SettingRow title="Appearance" description="Remembered in this browser.">
+		<fieldset class="m-0 flex flex-col gap-[18px] border-0 p-0" aria-label="Appearance">
+			{#each THEME_OPTIONS as option (option.value)}<label
+					class="flex items-center gap-2.5 text-[14px]"
+					><input
+						type="radio"
+						name="theme"
+						value={option.value}
+						checked={themePreference === option.value}
+						onchange={() => selectThemePreference(option.value)}
+						class="m-0 size-[19px] min-h-0 accent-primary"
+					/>{option.label} <span class="muted small">{option.hint}</span></label
+				>{/each}
+		</fieldset>
+	</SettingRow>
+	<SettingRow title="Account" description="Managed by an administrator.">
+		<div>
+			<div class="flex items-center gap-3.5">
+				<span class="avatar size-12 text-base">{getInitials(data.user.name)}</span>
+				<div>
+					<strong class="text-[14px]">{data.user.name}</strong>
+					<p class="text-[12px] leading-[1.6] wrap-anywhere text-muted-foreground">
+						{data.user.email} ·
+						{getRoleLabel(data.user.role)}
+					</p>
 				</div>
-				<Button
-					variant="outline"
-					size="pill"
-					class="mt-5"
-					onclick={signOut}
-					disabled={isSigningOut}
-				>
-					<LogOut size={16} />
-					{isSigningOut ? 'Signing out…' : 'Sign out'}
-				</Button>
 			</div>
-		</section>
-	</div>
-</div>
+			<Button variant="outline" size="pill" class="mt-5" onclick={signOut} disabled={isSigningOut}>
+				<LogOut size={16} />
+				{isSigningOut ? 'Signing out…' : 'Sign out'}
+			</Button>
+		</div>
+	</SettingRow>
+</SettingsLayout>

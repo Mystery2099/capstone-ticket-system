@@ -4,12 +4,12 @@
 	import { untrack } from 'svelte';
 	import { superForm } from 'sveltekit-superforms';
 	import Combobox from '$lib/components/Combobox.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormField from '$lib/components/FormField.svelte';
 	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import { DraftUrlBinding } from '$lib/draft-url.svelte';
 	import { getDrafts } from '$lib/drafts.svelte';
 	import AdminDetailsToolbar from './AdminDetailsToolbar.svelte';
-	import AdminEmptyList from './AdminEmptyList.svelte';
 	import AdminFormFooter from './AdminFormFooter.svelte';
 	import AdminWorkspace from './AdminWorkspace.svelte';
 	import {
@@ -92,6 +92,8 @@
 	{#snippet filters()}
 		<Combobox
 			label="Filter by state"
+			variant="filter"
+			class="shrink-0"
 			bind:value={activeFilter}
 			options={[{ value: '', label: 'Any state' }, ...ACTIVE_STATE_OPTIONS]}
 		/>
@@ -99,7 +101,7 @@
 	{#snippet rows()}
 		{#each filteredCategories as category (category.id)}<a
 				href={`?id=${category.id}`}
-				class="ticket-row"
+				class="list-row"
 				class:selected={selectedCategory?.id === category.id}
 				><div class="row-content">
 					<div class="row-title"><strong>{category.name}</strong></div>
@@ -107,7 +109,9 @@
 						<span class="row-preview">{category.active ? 'Active' : 'Inactive'}</span>
 					</div>
 				</div></a
-			>{:else}<AdminEmptyList pluralNoun="categories" />{/each}
+			>{:else}<EmptyState title="No categories here"
+				>{#snippet description()}Try another search or change your filters.{/snippet}</EmptyState
+			>{/each}
 	{/snippet}
 	{#snippet pane()}
 		{#if isCreateCategoryPaneOpen}
@@ -128,7 +132,7 @@
 				>
 					<input type="hidden" name="id" value="" />
 					<input type="hidden" name="active" value="true" />
-					<div class="conversation-scroll admin-form">
+					<div class="conversation-scroll flex max-w-[560px] flex-col gap-4">
 						<FormField
 							form={createCategoryForm}
 							name="name"
@@ -161,12 +165,13 @@
 			/>
 			<form class="compose" method="POST" action="?/saveCategory" use:enhanceUpdateCategory>
 				<input type="hidden" name="id" value={$categoryFields.id} />
-				<div class="conversation-scroll admin-form">
-					<div class="ticket-metadata">
+				<div class="conversation-scroll flex max-w-[560px] flex-col gap-4">
+					<div class="field-row">
 						<div class="metadata-control">
 							<span>State</span><Combobox
 								name="active"
 								label="State"
+								variant="inline"
 								bind:value={
 									() => String($categoryFields.active),
 									(selectedState) => ($categoryFields.active = selectedState === 'true')

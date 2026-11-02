@@ -36,6 +36,8 @@
 	];
 	/** How many of the latest timeline entries show before "Show all". */
 	const RECENT_TIMELINE_LENGTH = 4;
+	const METADATA_PILL_CLASS =
+		'inline-flex min-h-[34px] max-w-full items-center gap-1.5 rounded-[24px] border border-border px-2.5 py-1 text-[12px] text-muted-foreground';
 	const STATUS_OPTIONS: SelectOption[] = Object.entries(TICKET_STATUSES).map(([value, status]) => ({
 		value,
 		label: status.label
@@ -147,16 +149,16 @@
 	<TooltipIconButton label="Back to tickets" href={backHref} class="icon-button back"
 		><ArrowLeft size={21} /></TooltipIconButton
 	>
-	<div class="ticket-title">
+	<div class="pane-title">
 		<h1>{ticket.subject}</h1>
-		<p class="ticket-dates">
+		<p class="pane-subtitle">
 			<TooltipWrapper
 				content="Copy ticket number"
 				onclick={() => copyToClipboard(`#${ticket.ticketNumber}`, 'Ticket number copied')}
 			>
 				{#snippet trigger(props)}<button
 						{...props}
-						class="ticket-number"
+						class="-ml-[5px] rounded-[5px] px-[5px] py-px font-semibold text-foreground hover:bg-muted hover:text-foreground"
 						aria-label={`Copy ticket number #${ticket.ticketNumber}`}>#{ticket.ticketNumber}</button
 					>{/snippet}
 			</TooltipWrapper>
@@ -165,7 +167,7 @@
 			{formatDateTime(ticket.updatedAt)}
 		</p>
 	</div>
-	{#if listPosition}<span class="toolbar-position muted small"
+	{#if listPosition}<span class="muted small leading-9 whitespace-nowrap max-md:ml-auto"
 			>{listPosition.index + 1} of {listPosition.total}</span
 		>{/if}<TooltipIconButton
 		label="Previous ticket"
@@ -186,11 +188,11 @@
 <div class="conversation-scroll">
 	<div class="ticket-heading">
 		<button
-			class="mobile-details text-link"
+			class="text-link hidden max-md:inline-flex max-md:gap-1.5 max-md:px-0 max-md:py-0.5 max-md:text-[12px]"
 			onclick={() => (showTicketDetails = !showTicketDetails)}
 			>{showTicketDetails ? 'Hide details' : 'Show details'} <span>⌄</span></button
 		>
-		<div class="ticket-metadata" class:expanded={showTicketDetails}>
+		<div class="field-row" class:expanded={showTicketDetails}>
 			{#if isStaffUser && !isTicketClosed}<TicketFieldSelect
 					field="statusCode"
 					label="Status"
@@ -218,18 +220,20 @@
 					value={ticket.categoryId}
 					options={categoryOptions}
 					disabled={isLoading}
-				/>{:else}<StatusBadge status={ticket.statusCode} /><span class="metadata-pill"
-					>Priority <strong>{ticket.priority}</strong></span
-				><span class="metadata-pill"
-					>Assignee <strong
+				/>{:else}<StatusBadge status={ticket.statusCode} /><span class={METADATA_PILL_CLASS}
+					>Priority <strong class="text-foreground capitalize">{ticket.priority}</strong></span
+				><span class={METADATA_PILL_CLASS}
+					>Assignee <strong class="text-foreground capitalize"
 						>{isLoading
 							? '…'
 							: ticket.assignedToUserId
 								? directory.getPersonName(ticket.assignedToUserId)
 								: 'Unassigned'}</strong
 					></span
-				><span class="metadata-pill"
-					>Category <strong>{directory.getCategoryName(ticket.categoryId)}</strong></span
+				><span class={METADATA_PILL_CLASS}
+					>Category <strong class="text-foreground capitalize"
+						>{directory.getCategoryName(ticket.categoryId)}</strong
+					></span
 				>{/if}
 		</div>
 	</div>
@@ -241,10 +245,15 @@
 		body={ticket.description}
 	/>
 	{#if isLoading}<ConversationSkeleton />{:else}
-		{#if hiddenEntryCount}<div class="hidden-messages">
-				<span class="count-pill">{hiddenEntryCount}</span><span
-					>Earlier comments and activity hidden</span
-				><button class="text-link" onclick={() => (showAllActivity = true)}>Show all</button>
+		{#if hiddenEntryCount}<div
+				class="flex items-center gap-3 border-b border-dashed border-input py-3 text-[13px] text-muted-foreground"
+			>
+				<span class="rounded-[16px] border border-input px-3 py-0.5 text-[12px]"
+					>{hiddenEntryCount}</span
+				><span>Earlier comments and activity hidden</span><button
+					class="text-link ml-auto whitespace-nowrap"
+					onclick={() => (showAllActivity = true)}>Show all</button
+				>
 			</div>{/if}
 		{#each visibleTimeline as timelineEntry (`${timelineEntry.kind}-${timelineEntry.id}`)}{#if timelineEntry.kind === 'comment'}<CommentMessage
 					authorName={directory.getPersonName(timelineEntry.authorId)}
@@ -259,11 +268,11 @@
 				authorName={directory.getPersonName(currentUser.id)}
 				authorRoleLabel={getRoleLabel(directory.getPersonRole(currentUser.id))}
 				{isStaffUser}
-			/>{:else}<div class="closed-banner">
+			/>{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
 				<LockKeyhole size={18} />
 				<div>
 					<strong>This ticket is closed</strong>
-					<p>
+					<p class="mt-[5px] text-[12px] text-muted-foreground">
 						Closed tickets are read-only.{isAdministrator
 							? ' You can reopen this ticket below.'
 							: ''}
@@ -280,7 +289,7 @@
 						isReopening = false;
 					};
 				}}
-				class="reopen"
+				class="mt-4"
 			>
 				<input type="hidden" name="field" value="statusCode" /><input
 					type="hidden"

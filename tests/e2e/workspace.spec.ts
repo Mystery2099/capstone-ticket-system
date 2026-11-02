@@ -131,12 +131,12 @@ test('sidebar category shows that category’s open tickets', async ({ page }) =
 	await signIn(page, 'priya.raman@example.test');
 	await page.getByRole('link', { name: /^Hardware/ }).click();
 	await expect(page.getByRole('heading', { name: /^Open · Hardware/ })).toBeVisible();
-	await expect(page.locator('a.ticket-row .status', { hasText: 'Resolved' })).toHaveCount(0);
-	const firstTicketRow = page.locator('a.ticket-row').first();
+	await expect(page.locator('a.list-row .status', { hasText: 'Resolved' })).toHaveCount(0);
+	const firstTicketRow = page.locator('a.list-row').first();
 	const ticketHref = await firstTicketRow.getAttribute('href');
 	await firstTicketRow.click();
 	await choose(page, 'Status', 'Resolved');
-	await expect(page.locator(`a.ticket-row[href="${ticketHref}"]`)).toHaveCount(0);
+	await expect(page.locator(`a.list-row[href="${ticketHref}"]`)).toHaveCount(0);
 });
 
 test('phone workspace fits and administrator can open user editor', async ({ page }) => {
@@ -160,12 +160,12 @@ test('administrator adds and edits records in the pane beside the list', async (
 	await page.getByLabel('Category name').fill('Facilities');
 	await page.getByRole('button', { name: 'Add category', exact: true }).click();
 	await expect(page).toHaveURL(/\?id=/);
-	await expect(page.locator('a.ticket-row', { hasText: 'Facilities' })).toHaveClass(/selected/);
+	await expect(page.locator('a.list-row', { hasText: 'Facilities' })).toHaveClass(/selected/);
 	await choose(page, 'State', 'Inactive');
 	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
 	await expect(page.locator('input[name=active]')).toHaveValue('false');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.locator('a.ticket-row', { hasText: 'Facilities' })).toContainText('Inactive');
+	await expect(page.locator('a.list-row', { hasText: 'Facilities' })).toContainText('Inactive');
 	await page.getByRole('button', { name: 'Revert', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
 	await page.goto('/app/settings');
@@ -199,15 +199,13 @@ test('user and category drafts survive a reload without storing the password', a
 	await expect(drafts).toContainText('2');
 
 	await drafts.click();
-	await expect(page.locator('a.ticket-row', { hasText: 'Category draft' })).toContainText(
-		'Security'
-	);
-	await page.locator('a.ticket-row', { hasText: 'User draft' }).click();
+	await expect(page.locator('a.list-row', { hasText: 'Category draft' })).toContainText('Security');
+	await page.locator('a.list-row', { hasText: 'User draft' }).click();
 	await expect(page.getByLabel('Display name')).toHaveValue('Nina Patel');
 	await page.getByLabel('Initial password').fill('Temporary-Password-1');
 	await page.getByRole('button', { name: 'Create account', exact: true }).click();
 	await expect(page).toHaveURL(/\?id=/);
-	await expect(page.locator('a.ticket-row', { hasText: 'Nina Patel' })).toHaveClass(/selected/);
+	await expect(page.locator('a.list-row', { hasText: 'Nina Patel' })).toHaveClass(/selected/);
 	await expect(drafts).toContainText('1');
 });
 
@@ -234,11 +232,11 @@ test('saving a name keeps role and account state, and Revert restores saved valu
 	await signIn(page, 'jordan.ellis@example.test');
 	await page.goto('/app/admin/users');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
-	await page.locator('a.ticket-row', { hasText: 'Theo Brandt' }).click();
+	await page.locator('a.list-row', { hasText: 'Theo Brandt' }).click();
 	await choose(page, 'Role', 'Agent');
 	await page.getByLabel('Display name').fill('Theo B');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
-	await expect(page.locator('a.ticket-row', { hasText: 'Theo B' })).toContainText('Agent');
+	await expect(page.locator('a.list-row', { hasText: 'Theo B' })).toContainText('Agent');
 	await expect(page.getByRole('button', { name: 'Role', exact: true })).toHaveText('Agent');
 	await expect(page.getByRole('button', { name: 'Account', exact: true })).toHaveText('Enabled');
 	await page.getByLabel('Display name').fill('Someone else');
