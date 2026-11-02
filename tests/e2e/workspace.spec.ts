@@ -1,7 +1,29 @@
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { authenticatorCode } from '../fixtures/totp';
 import { test, expect, type Page } from '@playwright/test';
 
-let administratorKey = '';
+/**
+ * The administrator enrolls an authenticator once per run, so its key must outlive the
+ * worker. Playwright replaces the worker after any failed test, which would lose a variable
+ * and fail every later administrator sign-in. The output folder is emptied for each run.
+ */
+function getAdministratorKeyPath(): string {
+	return join(test.info().project.outputDir, 'administrator-authenticator-key.txt');
+}
+
+function saveAdministratorKey(administratorKey: string): void {
+	mkdirSync(dirname(getAdministratorKeyPath()), { recursive: true });
+	writeFileSync(getAdministratorKeyPath(), administratorKey);
+}
+
+function readAdministratorKey(): string {
+	try {
+		return readFileSync(getAdministratorKeyPath(), 'utf8');
+	} catch {
+		return '';
+	}
+}
 
 async function signIn(page: Page, email: string) {
 	await page.goto('/login');
@@ -36,12 +58,12 @@ async function signIn(page: Page, email: string) {
 				expect(downloadedCodes).toContain(code);
 			expect(downloadedCodes).not.toContain((await page.locator('code').first().textContent())!);
 			await expect(page.getByRole('button', { name: 'Verify', exact: true })).toBeDisabled();
-			administratorKey = (await page.locator('code').first().textContent())!;
+			saveAdministratorKey((await page.locator('code').first().textContent())!);
 			await page.getByLabel('I saved my recovery codes').check();
 		}
 		await page
 			.getByLabel('Authenticator code', { exact: true })
-			.fill(authenticatorCode(administratorKey));
+			.fill(authenticatorCode(readAdministratorKey()));
 		await page.getByRole('button', { name: 'Verify', exact: true }).click();
 	}
 	await expect(page).toHaveURL(/\/app\/tickets/);
