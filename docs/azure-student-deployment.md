@@ -130,8 +130,13 @@ Keep the authentication secret backed up securely.
    Under Certificates & secrets → Federated credentials, add a GitHub Actions
    credential for owner `Mystery2099`, repository `capstone-ticket-system`, entity
    **Environment**, environment **azure**. Subject must be
-   `repo:Mystery2099/capstone-ticket-system:environment:azure`, audience
+   `repo:Mystery2099@54286204/capstone-ticket-system@1440190391:environment:azure`, audience
    `api://AzureADTokenExchange`. No client secret is needed.
+   This repository uses GitHub's immutable subject format, including owner and
+   repository IDs. Use the exact subject above rather than the name-only format
+   shown in older examples. When configuring a different repository, check its
+   actual subject in the Azure Login action's token details.
+   [GitHub's subject format reference](https://docs.github.com/actions/reference/security/oidc#immutable-subject-claims).
 3. On the dedicated resource group → Access control (IAM), grant that application's
    service principal **Container Apps Contributor**. Keep its scope to this group.
 4. Set these GitHub **repository Actions variables** (Settings → Secrets and
