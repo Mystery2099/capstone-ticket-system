@@ -132,6 +132,11 @@ test('sidebar category shows that category’s open tickets', async ({ page }) =
 	await page.getByRole('link', { name: /^Hardware/ }).click();
 	await expect(page.getByRole('heading', { name: /^Open · Hardware/ })).toBeVisible();
 	await expect(page.locator('a.ticket-row .status', { hasText: 'Resolved' })).toHaveCount(0);
+	const firstTicketRow = page.locator('a.ticket-row').first();
+	const ticketHref = await firstTicketRow.getAttribute('href');
+	await firstTicketRow.click();
+	await choose(page, 'Status', 'Resolved');
+	await expect(page.locator(`a.ticket-row[href="${ticketHref}"]`)).toHaveCount(0);
 });
 
 test('phone workspace fits and administrator can open user editor', async ({ page }) => {

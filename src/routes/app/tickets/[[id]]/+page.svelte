@@ -48,6 +48,7 @@
 	let isLoadingMore = $state(false);
 	let loadMoreError = $state('');
 	let loadedListKey = '';
+	let loadedTicketRoute: string | undefined;
 	let resetListOnLoad = false;
 	let listResetVersion = $state(0);
 	let listRequestVersion = 0;
@@ -62,13 +63,17 @@
 		const initialRows = data.tickets;
 		const initialNextPageHref = data.nextPageHref;
 		const currentListKey = listKey;
+		const currentTicketRoute = data.isNewTicket ? 'new' : (data.selectedTicket?.id ?? '');
 		untrack(() => {
 			listRequestController?.abort();
 			listRequestVersion++;
 			isLoadingMore = false;
 			loadMoreError = '';
-			if (resetListOnLoad || loadedListKey !== currentListKey || !ticketRows.length) {
-				if (resetListOnLoad) listResetVersion++;
+			// Only navigation between conversations keeps later batches. A reload of the
+			// same route is authoritative: actions may have changed view membership.
+			const shouldResetList = resetListOnLoad || loadedTicketRoute === currentTicketRoute;
+			if (shouldResetList || loadedListKey !== currentListKey || !ticketRows.length) {
+				if (shouldResetList) listResetVersion++;
 				ticketRows = initialRows;
 				nextPageHref = initialNextPageHref;
 			} else {
@@ -76,6 +81,7 @@
 				ticketRows = [...initialRows, ...ticketRows.filter((row) => !updatedRows.has(row.id))];
 			}
 			loadedListKey = currentListKey;
+			loadedTicketRoute = currentTicketRoute;
 			resetListOnLoad = false;
 		});
 	});
@@ -358,6 +364,8 @@
 		isRefreshing = true;
 		listRequestController?.abort();
 		listRequestVersion++;
+		isLoadingMore = false;
+		loadMoreError = '';
 		resetListOnLoad = true;
 		try {
 			await invalidateAll();
