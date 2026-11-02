@@ -14,6 +14,12 @@ is provisioned explicitly; subsequent accounts are created through audited
 administrator actions. Ordinary profile changes, account deletion, and disabling
 MFA over HTTP are closed so they cannot bypass application rules.
 
+Enrollment displays a QR code generated locally in the browser from the TOTP setup URI,
+with a manual setup key as a fallback. Recovery codes can be downloaded as a text file;
+the file contains only the codes and storage instructions, not the authenticator secret.
+Users must confirm they saved the codes before verification. Downloading does not
+mark that confirmation automatically.
+
 Administrators must enroll MFA before workspace access. Enrollment revokes older
 password-only sessions, and future sign-ins require a second factor. Administrative
 writes require a session created in the last 15 minutes. Role/email changes and
