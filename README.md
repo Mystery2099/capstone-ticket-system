@@ -69,7 +69,9 @@ select a suggestion, Enter without a selection for full results, `/` to focus, a
 to clear the field. Recent searches are stored per account in this browser and can be cleared.
 Search options include status, priority, category, dates, and visible comments; staff can also
 choose requester or assignee. Submitting search covers all statuses unless explicitly filtered.
-Results offer highlighted excerpts and best-match or newest-first ordering. Lists contain
+Results offer highlighted excerpts and best-match or newest-first ordering. Name and
+category matches include labels such as “Assigned to”, “Requested by”, or “Category”
+in both suggestions and full results, with the matching words highlighted. Lists contain
 up to 50 tickets per page; newest-first uses a ticket-number cursor, relevance uses page numbers.
 Requesters see only their tickets and public comments, including in suggestions and snippets.
 

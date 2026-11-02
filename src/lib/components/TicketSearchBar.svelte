@@ -21,6 +21,7 @@
 		statusCode: string;
 		subjectSegments?: Segment[];
 		snippetSegments?: Segment[];
+		metadataMatches?: { label: string; segments: Segment[] }[];
 	};
 	let searchText = $state('');
 	let isFocused = $state(false);
@@ -220,7 +221,9 @@
 									segments={record.subjectSegments ?? null}
 									fallbackText={record.subject}
 								/></strong
-							><small>{record.statusCode.replaceAll('_', ' ')}</small
+							>{#each record.metadataMatches ?? [] as match (match.label)}<span
+									>{match.label} <HighlightedText segments={match.segments} fallbackText="" /></span
+								>{/each}<small>{record.statusCode.replaceAll('_', ' ')}</small
 							>{#if record.snippetSegments}<span
 									><HighlightedText segments={record.snippetSegments} fallbackText="" /></span
 								>{/if}</button

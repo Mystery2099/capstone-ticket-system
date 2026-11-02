@@ -644,6 +644,12 @@
 										: formatDate(row.updatedAt)}</time
 								>
 							</div>
+							{#if row.searchMetadataMatches.length}<div class="search-match-reasons">
+									{#each row.searchMetadataMatches as match (match.label)}<span
+											>{match.label}
+											<HighlightedText segments={match.segments} fallbackText="" /></span
+										>{/each}
+								</div>{/if}
 							<div class="row-meta">
 								<StatusBadge status={row.statusCode} /><span class="row-requester"
 									>{getPersonName(row.requesterId)} · #{row.ticketNumber}</span
@@ -987,3 +993,14 @@
 	</section>
 </div>
 <a class="mobile-new new-ticket" href="/app/tickets/new"><SquarePen size={23} /> New ticket</a>
+
+<style>
+	.search-match-reasons {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 4px 12px;
+		margin-top: 4px;
+		color: var(--muted-fg);
+		font-size: 12px;
+	}
+</style>

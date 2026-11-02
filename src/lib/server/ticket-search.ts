@@ -22,6 +22,7 @@ export type TicketSearchHighlight = {
 	subjectSegments: HighlightSegment[] | null;
 	snippetSegments: HighlightSegment[] | null;
 	snippetAuthorId: string | null;
+	metadataMatches: { label: string; segments: HighlightSegment[] }[];
 };
 
 /** What the person typed, prepared once for every part of the search. */
@@ -139,9 +140,15 @@ export class TicketSearchQuery {
 		const highlightsByTicketId = new Map<string, TicketSearchHighlight>();
 		if (!this.tsQueryText || !ticketIds.length) return highlightsByTicketId;
 
+		const requesterName = sql`coalesce((select ${user.name} from ${user} where ${user.id} = ${ticket.requesterId}), '')`;
+		const assigneeName = sql`coalesce((select ${user.name} from ${user} where ${user.id} = ${ticket.assignedToUserId}), '')`;
+		const categoryName = sql`coalesce((select ${category.name} from ${category} where ${category.id} = ${ticket.categoryId}), '')`;
 		const ticketHeadlines = await db
 			.select({
 				id: ticket.id,
+				requesterHeadline: sql<string>`ts_headline('english', ${requesterName}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS})`,
+				assigneeHeadline: sql<string>`ts_headline('english', ${assigneeName}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS})`,
+				categoryHeadline: sql<string>`ts_headline('english', ${categoryName}, ${this.tsQuery()}, ${SUBJECT_HEADLINE_OPTIONS})`,
 				subjectHeadline: sql<
 					string | null
 				>`case when to_tsvector('english', ${ticket.subject}) @@ ${this.tsQuery()}
@@ -181,7 +188,17 @@ export class TicketSearchQuery {
 				snippetSegments: snippetHeadline
 					? TicketSearchQuery.toHighlightSegments(snippetHeadline)
 					: null,
-				snippetAuthorId: commentHeadline?.authorId ?? null
+				snippetAuthorId: commentHeadline?.authorId ?? null,
+				metadataMatches: [
+					{ label: 'Assigned to', headline: ticketHeadline.assigneeHeadline },
+					{ label: 'Requested by', headline: ticketHeadline.requesterHeadline },
+					{ label: 'Category', headline: ticketHeadline.categoryHeadline }
+				]
+					.filter((match) => match.headline.includes(HIGHLIGHT_START))
+					.map((match) => ({
+						label: match.label,
+						segments: TicketSearchQuery.toHighlightSegments(match.headline)
+					}))
 			});
 		}
 		return highlightsByTicketId;

@@ -257,7 +257,8 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 			preview: latestPublicComment?.body || ticketRecord.description,
 			previewAuthor: previewAuthorId ? previewAuthor?.name.split(' ')[0] || 'Support team' : null,
 			subjectHighlight: searchHighlight?.subjectSegments ?? null,
-			previewHighlight: searchHighlight?.snippetSegments ?? null
+			previewHighlight: searchHighlight?.snippetSegments ?? null,
+			searchMetadataMatches: searchHighlight?.metadataMatches ?? []
 		};
 	});
 
