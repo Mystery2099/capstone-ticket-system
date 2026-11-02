@@ -1,4 +1,5 @@
 import { relations } from 'drizzle-orm';
+import { applicationRole } from './role-schema';
 import { pgTable, text, timestamp, boolean, index, integer } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('user', {
@@ -12,12 +13,12 @@ export const user = pgTable('user', {
 		.defaultNow()
 		.$onUpdate(() => /* @__PURE__ */ new Date())
 		.notNull(),
-	role: text('role').default('requester'),
+	role: text('role').default('requester').references(() => applicationRole.id, { onDelete: 'restrict' }),
 	twoFactorEnabled: boolean('two_factor_enabled').default(false),
 	banned: boolean('banned').default(false),
 	banReason: text('ban_reason'),
 	banExpires: timestamp('ban_expires')
-});
+}, (table) => [index('user_role_idx').on(table.role)]);
 
 export const session = pgTable(
 	'session',

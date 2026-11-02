@@ -8,6 +8,7 @@ import { TicketEventType } from '../status';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission, type Permission } from '../permissions';
 import { db } from './db';
+import { applyRolePermissions, loadRoles } from './roles';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
 import {
 	createTicketSchema,
@@ -30,21 +31,21 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 export async function createTicket(actor: Person, formData: FormData): Promise<Ticket> {
 	// Permission first: requesters may only create tickets at Normal priority.
 	if (
-		!hasPermission(actor.role, 'setTicketPriority') &&
+		!hasPermission(actor, 'setTicketPriority') &&
 		formData.has('priority') &&
 		formData.get('priority') !== 'normal'
 	)
 		error(403, 'Requesters create tickets at Normal priority.');
 	// Staff can open tickets for someone else. Everyone else is always their own requester.
 	const requesterId = String(formData.get('requesterId') || actor.id);
-	if (requesterId !== actor.id && !hasPermission(actor.role, 'createTicketsForOthers'))
+	if (requesterId !== actor.id && !hasPermission(actor, 'createTicketsForOthers'))
 		error(403, 'Only support staff can open tickets for someone else.');
 	const assignedToUserId = String(formData.get('assignedToUserId') || '') || null;
-	if (assignedToUserId && !hasPermission(actor.role, 'assignTickets'))
+	if (assignedToUserId && !hasPermission(actor, 'assignTickets'))
 		error(403, 'Only support staff can assign tickets.');
 
 	const requestedStatus = String(formData.get('statusCode') ?? 'open');
-	if (requestedStatus !== 'open' && !hasPermission(actor.role, 'setTicketStatus'))
+	if (requestedStatus !== 'open' && !hasPermission(actor, 'setTicketStatus'))
 		error(403, 'You cannot choose the initial ticket status.');
 	const statusCode = parseTicketUpdateValue('statusCode', requestedStatus);
 	const priority = parseTicketUpdateValue('priority', String(formData.get('priority') ?? 'normal'));
@@ -67,7 +68,7 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 	}
 	if (assignedToUserId) {
 		const [assignee] = await db.select().from(user).where(eq(user.id, assignedToUserId));
-		requireAssignable(assignee);
+		requireAssignable(assignee ? applyRolePermissions(assignee, await loadRoles()) : undefined);
 	}
 
 	return db.transaction(async (transaction) => {
@@ -110,7 +111,7 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 
 /** @throws 400 unless the person is an enabled agent or administrator */
 function requireAssignable(person: Person | undefined): void {
-	if (!person || person.banned || !hasPermission(person.role, 'receiveAssignments'))
+	if (!person || person.banned || !hasPermission(person, 'receiveAssignments'))
 		error(400, 'Choose an enabled agent or administrator.');
 }
 
@@ -123,7 +124,7 @@ async function insertComment(
 ): Promise<void> {
 	if (ticketRecord.statusCode === 'closed') error(403, 'Closed tickets are read-only.');
 	const isInternal = formData.get('internal') === 'true';
-	if (isInternal && !hasPermission(actor.role, 'useInternalNotes'))
+	if (isInternal && !hasPermission(actor, 'useInternalNotes'))
 		error(403, 'Internal notes are for the support team.');
 	const { body } = parseFormInput(commentSchema, { body: formData.get('body') });
 
@@ -159,14 +160,14 @@ async function applyFieldChange(
 		(ticketRecord.statusCode === 'resolved' || ticketRecord.statusCode === 'closed');
 	if (
 		ticketRecord.statusCode === 'closed' &&
-		!(hasPermission(actor.role, 'reopenClosedTickets') && isReopening)
+		!(hasPermission(actor, 'reopenClosedTickets') && isReopening)
 	)
 		error(403, 'You do not have permission to reopen a Closed ticket.');
 	const isReopeningOwnResolvedTicket =
 		isReopening &&
 		ticketRecord.statusCode === 'resolved' &&
 		ticketRecord.requesterId === actor.id &&
-		hasPermission(actor.role, 'reopenOwnResolvedTickets');
+		hasPermission(actor, 'reopenOwnResolvedTickets');
 	const fieldPermissions: Record<typeof field, Permission> = {
 		statusCode: 'setTicketStatus',
 		priority: 'setTicketPriority',
@@ -176,9 +177,9 @@ async function applyFieldChange(
 	const canReopenClosedTicket =
 		isReopening &&
 		ticketRecord.statusCode === 'closed' &&
-		hasPermission(actor.role, 'reopenClosedTickets');
+		hasPermission(actor, 'reopenClosedTickets');
 	if (
-		!hasPermission(actor.role, fieldPermissions[field]) &&
+		!hasPermission(actor, fieldPermissions[field]) &&
 		!isReopeningOwnResolvedTicket &&
 		!canReopenClosedTicket
 	)
@@ -194,7 +195,7 @@ async function applyFieldChange(
 	}
 	if (field === 'assignedToUserId' && rawValue) {
 		const [assignee] = await transaction.select().from(user).where(eq(user.id, rawValue));
-		requireAssignable(assignee);
+		requireAssignable(assignee ? applyRolePermissions(assignee, await loadRoles()) : undefined);
 	}
 
 	const previousValue = ticketRecord[field];

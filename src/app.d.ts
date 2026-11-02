@@ -9,7 +9,7 @@ declare global {
 			}
 		}
 		interface Locals {
-			user: typeof user.$inferSelect | null;
+			user: import('$lib/server/access').Person | null;
 		}
 	}
 }

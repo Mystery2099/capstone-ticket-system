@@ -3,6 +3,7 @@ import { hashPassword } from 'better-auth/crypto';
 import { error } from '@sveltejs/kit';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from './db';
+import { requireAssignableRole } from './roles';
 import { account, category, securityEvent, session, user } from './schema';
 import type { AdminCreateUserInput, AdminUpdateUserInput, AdminCategoryInput } from './validation';
 
@@ -13,6 +14,7 @@ export async function createManagedUser(
 ): Promise<string> {
 	const passwordHash = await hashPassword(input.password);
 	return db.transaction(async (transaction) => {
+		await requireAssignableRole(transaction, input.role);
 		const userId = randomUUID();
 		await transaction.insert(user).values({
 			id: userId,
@@ -45,6 +47,7 @@ export async function updateManagedUser(
 	if (id === actorId && (role !== 'admin' || !enabled))
 		error(400, 'You cannot remove your own administrator access.');
 	await db.transaction(async (transaction) => {
+		await requireAssignableRole(transaction, role);
 		await transaction.execute(
 			sql`SELECT id FROM "user" WHERE role = 'admin' ORDER BY id FOR UPDATE`
 		);

@@ -1,6 +1,7 @@
 import { hasPermission } from '$lib/permissions';
 import { building } from '$app/environment';
 import { db } from '$lib/server/db';
+import { applyRolePermissions, loadRoles } from '$lib/server/roles';
 import { user } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { applySecurityHeaders, RequestLimiter } from '$lib/server/security';
@@ -17,10 +18,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 	event.locals.user = null;
 	if (session) {
 		const [person] = await db.select().from(user).where(eq(user.id, session.user.id));
-		if (person && !person.banned) event.locals.user = person;
+		if (person && !person.banned) event.locals.user = applyRolePermissions(person, await loadRoles());
 	}
 	if (
-		hasPermission(event.locals.user?.role, 'manageAdministration') &&
+		hasPermission(event.locals.user, 'manageAdministration') &&
 		!event.locals.user?.twoFactorEnabled &&
 		event.url.pathname.startsWith('/app')
 	)

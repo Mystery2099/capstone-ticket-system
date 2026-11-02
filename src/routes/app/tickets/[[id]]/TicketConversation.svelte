@@ -99,14 +99,14 @@
 		if (hasUnsentReply && !confirm('Discard your unsent text and leave this page?')) cancel();
 	});
 
-	let canUseInternalNotes = $derived(hasPermission(currentUser.role, 'useInternalNotes'));
-	let canReopenClosedTickets = $derived(hasPermission(currentUser.role, 'reopenClosedTickets'));
+	let canUseInternalNotes = $derived(hasPermission(currentUser, 'useInternalNotes'));
+	let canReopenClosedTickets = $derived(hasPermission(currentUser, 'reopenClosedTickets'));
 	let isTicketClosed = $derived(ticket.statusCode === 'closed');
 	let canReopen = $derived(
 		(ticket.statusCode === 'resolved' &&
-			(hasPermission(currentUser.role, 'setTicketStatus') ||
+			(hasPermission(currentUser, 'setTicketStatus') ||
 				(ticket.requesterId === currentUser.id &&
-					hasPermission(currentUser.role, 'reopenOwnResolvedTickets')))) ||
+					hasPermission(currentUser, 'reopenOwnResolvedTickets')))) ||
 			(isTicketClosed && canReopenClosedTickets)
 	);
 	let categoryOptions = $derived(
@@ -197,7 +197,7 @@
 			>{showTicketDetails ? 'Hide details' : 'Show details'} <span>⌄</span></button
 		>
 		<div class="field-row" class:expanded={showTicketDetails}>
-			{#if !isTicketClosed && hasPermission(currentUser.role, 'setTicketStatus')}
+			{#if !isTicketClosed && hasPermission(currentUser, 'setTicketStatus')}
 				<TicketFieldSelect
 					field="statusCode"
 					label="Status"
@@ -206,7 +206,7 @@
 					disabled={isLoading}
 				/>
 			{:else}<StatusBadge status={ticket.statusCode} />{/if}
-			{#if !isTicketClosed && hasPermission(currentUser.role, 'setTicketPriority')}
+			{#if !isTicketClosed && hasPermission(currentUser, 'setTicketPriority')}
 				<TicketFieldSelect
 					field="priority"
 					label="Priority"
@@ -217,7 +217,7 @@
 			{:else}<span class={METADATA_PILL_CLASS}
 					>Priority <strong class="text-foreground capitalize">{ticket.priority}</strong></span
 				>{/if}
-			{#if !isTicketClosed && hasPermission(currentUser.role, 'assignTickets')}
+			{#if !isTicketClosed && hasPermission(currentUser, 'assignTickets')}
 				<TicketFieldSelect
 					field="assignedToUserId"
 					label="Assignee"
@@ -237,7 +237,7 @@
 								: 'Unassigned'}</strong
 					></span
 				>{/if}
-			{#if !isTicketClosed && hasPermission(currentUser.role, 'setTicketCategory')}
+			{#if !isTicketClosed && hasPermission(currentUser, 'setTicketCategory')}
 				<TicketFieldSelect
 					field="categoryId"
 					label="Category"

@@ -37,14 +37,14 @@
 	// This layout remounts when the user changes, so reading the id once is correct.
 	// svelte-ignore state_referenced_locally
 	const drafts = setDrafts(
-		new Drafts(data.user.id, hasPermission(data.user.role, 'manageAdministration'))
+		new Drafts(data.user.id, hasPermission(data.user, 'manageAdministration'))
 	);
 	drafts.startBrowserPersistence();
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
 	let isSidebarOpen = $state(data.isSidebarOpen);
 
-	let isStaffUser = $derived(hasPermission(data.user.role, 'viewAllTickets'));
+	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));
 	// Navigation highlights follow the destination, so clicks register before data arrives.
 	let activeUrl = $derived(navigating.to?.url ?? page.url);
 	let activeView = $derived(
@@ -191,7 +191,7 @@
 	<AppSidebar
 		{navigationViews}
 		openTicketCountsByCategory={data.openTicketCountsByCategory}
-		isAdmin={hasPermission(data.user.role, 'manageAdministration')}
+		isAdmin={hasPermission(data.user, 'manageAdministration')}
 		{activeUrl}
 		{activeView}
 		{activeCategoryId}

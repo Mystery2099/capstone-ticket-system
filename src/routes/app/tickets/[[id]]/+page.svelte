@@ -41,7 +41,7 @@
 
 	let { data, form } = $props();
 
-	let isStaffUser = $derived(hasPermission(data.user.role, 'viewAllTickets'));
+	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));
 	let directory = $derived(new TicketDirectory(data.people, data.categories));
 
 	// ---- Ticket list ----
@@ -153,7 +153,7 @@
 			.sort((firstPerson, secondPerson) => firstPerson.name.localeCompare(secondPerson.name))
 	);
 	let assignees = $derived(
-		requesters.filter((person) => hasPermission(person.role, 'receiveAssignments'))
+		requesters.filter((person) => hasPermission(person, 'receiveAssignments'))
 	);
 	let categoryOptions = $derived(
 		data.categories.map(({ id, name, active }) => ({ value: id, label: name, active }))
@@ -295,7 +295,7 @@
 					draft={activeDraft}
 					ticketDrafts={drafts.tickets}
 					{listHref}
-					userRole={data.user.role}
+					permissionSubject={data.user}
 					requesterOptions={requesters.map(toPersonOption)}
 					assigneeOptions={assignees.map(toPersonOption)}
 					categoryOptions={categoryOptions.filter((option) => option.active)}

@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { ticket, user } from './schema';
 import { hasPermission } from '../permissions';
 
-export type Person = typeof user.$inferSelect;
+export type Person = typeof user.$inferSelect & { permissions?: import('../permissions').Permission[]; roleName?: string };
 type Ticket = typeof ticket.$inferSelect;
 
 /**
@@ -22,7 +22,7 @@ export function requireUser(person: Person | null): Person {
  */
 export function requireAdministrator(person: Person | null): Person {
 	const administrator = requireUser(person);
-	if (!hasPermission(administrator.role, 'manageAdministration') || !administrator.twoFactorEnabled)
+	if (!hasPermission(administrator, 'manageAdministration') || !administrator.twoFactorEnabled)
 		error(403, 'Administrator access required.');
 	return administrator;
 }
@@ -33,6 +33,6 @@ export function requireAdministrator(person: Person | null): Person {
  * @throws 404 rather than 403, so requesters can't tell which ticket numbers exist
  */
 export function requireTicketAccess(actor: Person, ticketRecord: Ticket): void {
-	if (!hasPermission(actor.role, 'viewAllTickets') && ticketRecord.requesterId !== actor.id)
+	if (!hasPermission(actor, 'viewAllTickets') && ticketRecord.requesterId !== actor.id)
 		error(404, 'Ticket not found.');
 }

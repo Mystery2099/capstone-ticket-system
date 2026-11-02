@@ -113,7 +113,7 @@ export type TicketUpdateInput = z.output<typeof ticketUpdateSchema>;
 
 // ------------------------------------------------------------------ admin ---
 
-export const roleSchema = z.enum(['requester', 'agent', 'admin'], 'Choose a valid role.');
+export const roleSchema = z.string().trim().min(1, 'Choose a valid role.').max(100);
 
 /** Trimmed, lower-cased email enforced before any address format check. */
 const adminEmailSchema = z

@@ -17,3 +17,5 @@ GRANT USAGE ON SEQUENCE public.ticket_ticket_number_seq TO capstone_runtime;
 -- Then grant capstone_runtime to your separately provisioned application login.
 -- Do not grant this login membership in the schema-owner/migration role.
 -- Reapply after schema changes; no broad default privileges are granted.
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON application_role TO capstone_runtime;

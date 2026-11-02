@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { hasPermission } from '$lib/permissions';
+	import { hasPermission, type PermissionSubject } from '$lib/permissions';
 	import { TICKET_STATUSES } from '$lib/status';
 	import { ArrowLeft, Send, X } from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
@@ -25,7 +25,7 @@
 		draft: TicketDraft;
 		ticketDrafts: DraftStore<TicketDraftFields, TicketDraft>;
 		listHref: string;
-		userRole: string | null;
+		permissionSubject: PermissionSubject;
 		requesterOptions: SelectOption[];
 		assigneeOptions: SelectOption[];
 		categoryOptions: SelectOption[];
@@ -35,7 +35,7 @@
 		draft,
 		ticketDrafts,
 		listHref,
-		userRole,
+		permissionSubject,
 		requesterOptions,
 		assigneeOptions,
 		categoryOptions
@@ -119,7 +119,7 @@
 	<div class="conversation-scroll flex flex-col">
 		<div class="ticket-heading">
 			<div class="field-row">
-				{#if hasPermission(userRole, 'createTicketsForOthers')}
+				{#if hasPermission(permissionSubject, 'createTicketsForOthers')}
 					<div class="metadata-control">
 						<span>Requester</span><Combobox
 							name="requesterId"
@@ -131,7 +131,7 @@
 						/>
 					</div>
 				{/if}
-				{#if hasPermission(userRole, 'assignTickets')}
+				{#if hasPermission(permissionSubject, 'assignTickets')}
 					<div class="metadata-control">
 						<span>Assignee</span><Combobox
 							name="assignedToUserId"
@@ -143,7 +143,7 @@
 						/>
 					</div>
 				{/if}
-				{#if hasPermission(userRole, 'setTicketPriority')}
+				{#if hasPermission(permissionSubject, 'setTicketPriority')}
 					<div class="metadata-control">
 						<span>Priority</span><Combobox
 							name="priority"
@@ -159,7 +159,7 @@
 						/>
 					</div>
 				{/if}
-				{#if hasPermission(userRole, 'setTicketStatus')}
+				{#if hasPermission(permissionSubject, 'setTicketStatus')}
 					<div class="metadata-control">
 						<span>Status</span><Combobox
 							name="statusCode"

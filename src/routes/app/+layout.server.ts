@@ -10,7 +10,7 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 	const currentUser = locals.user;
 	if (!currentUser) redirect(303, '/login');
 
-	const isStaffUser = hasPermission(currentUser.role, 'viewAllTickets');
+	const isStaffUser = hasPermission(currentUser, 'viewAllTickets');
 	const [ticketCountGroups, categories] = await Promise.all([
 		db
 			.select({
