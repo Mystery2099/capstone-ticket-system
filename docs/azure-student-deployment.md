@@ -1,180 +1,118 @@
-# Low-cost student deployment
+# Free student deployment
 
-Use Azure Container Apps Consumption with zero minimum replicas, one maximum
-replica, and a public image in GitHub Container Registry (GHCR). Keep the existing
-Azure PostgreSQL server. This is an alternative to the App Service instructions
-in [azure-deployment.md](azure-deployment.md); its database preparation,
-account provisioning, and acceptance checks still apply.
+The app uses **Azure App Service F1 Free**, Linux / Node 24, with the existing
+Azure PostgreSQL database. The deployed URL is:
 
-## Current deployment (November 2, 2026)
+[capstone-tickets-mkb.azurewebsites.net](https://capstone-tickets-mkb.azurewebsites.net)
 
-The app is deployed at
-[capstone-tickets](https://capstone-tickets.thankfulground-fa892d65.canadacentral.azurecontainerapps.io).
-The repository remains private; the built application image is public on GHCR.
+## Cost and limits
 
-- Hosting resource group: `rg-capstone-web`, Canada Central.
-- Environment: `cae-capstone`. Azure provisioned the Express environment variant,
-  which uses the same Consumption billing/free grant. The standard-environment
-  instructions below remain an alternative for a fresh deployment.
-- App: `capstone-tickets`, 0.25 vCPU / 0.5 GiB, minimum zero / maximum one replica.
-- Deployment identity: `id-capstone-github`, with Container Apps Contributor on
-  the hosting resource group only; GitHub environment `azure` accepts `main`.
-- Database login: `capstone_web`, inheriting the restricted `capstone_runtime`
-  role. The existing database and authentication secret are preserved, so use
-  your existing sign-in and authenticator.
-- Azure secrets: `postgres-password` and `auth-secret`; neither value is in GitHub.
-- Database firewall rule: `capstone-web-egress-1`, allowing the observed single
-  outbound address. No all-Azure-services or all-Internet rule was enabled.
-  Outbound addresses can change: if database connectivity fails after a cold
-  start or platform change, inspect the current egress address and update this
-  narrow rule. A guaranteed fixed address requires additional networking/cost.
+F1 hosting costs zero and includes 60 CPU minutes per day, 1 GiB memory, and
+1 GiB storage. This is CPU time, not 60 minutes of wall-clock availability.
+The app sleeps when idle and may start slowly. Hitting the daily CPU quota can
+make it unavailable until the quota resets. There is no uptime SLA or Always On.
+The database and GitHub Actions/artifact storage have their own billing/allowances.
+No paid App Service upgrade is performed by the workflow.
 
-Private runtime credential recovery data is in the deployment worktree's
-`.data/azure-deployment/runtime-secrets.json` (file mode 600, excluded from Git and
-Docker). Back it up to a password manager; do not copy it into tracked files.
-Azure also holds the runtime secrets. Keep the existing local `.env` private.
+[Microsoft's free Linux hosting limits](https://azure.microsoft.com/pricing/details/app-service/linux/).
+The hosting resource group has a monthly budget of 5 in the account's billing
+currency, with alerts at 20%, 80%, and 100% to the signed-in Azure account. Budget
+alerts do not stop spending; the existing database is outside this budget.
 
-[Express pricing and capabilities](https://learn.microsoft.com/azure/container-apps/express-faq)
-use the same free grant as standard Consumption. Express has a smaller supported
-configuration surface: avoid custom revision suffixes and explicit workload
-profile settings when updating this app. Public GHCR pulls work anonymously;
-do not add a registry entry containing only a server and no credentials.
+## How updates work
 
-## Cost and behavior
+`.github/workflows/azure.yml` checks types, runs unit tests, builds the SvelteKit
+Node server, and packages production dependencies. PRs validate without deploying.
+Passing pushes to `main` deploy automatically when `AZURE_DEPLOY_ENABLED=true`.
+Documentation/design-only changes are skipped to save build minutes.
 
-Container Apps includes 180,000 vCPU-seconds, 360,000 GiB-seconds, and two million
-requests per subscription per month. Light demo use may fit in that allowance;
-this is not a spending cap. The first request after idle time can have a cold
-start. Start at 0.25 vCPU / 0.5 GiB; increase memory if the app is killed for OOM.
-Use the Consumption workload profile, no dedicated profiles, no premium ingress,
-and no Log Analytics workspace initially. Live logs remain available, but there
-is no persisted log history with this setup. Do not use an uptime monitor that
-continually wakes the app. PostgreSQL, network traffic, GitHub Actions usage, and
-any optional services have their own billing. Azure for Students credit is finite.
+The release ZIP contains `application.tar.gz` and `start.sh`. The startup script
+extracts the application to local temporary storage before starting Node, so pnpm
+symlinks remain intact and dependency reads avoid App Service's shared filesystem.
+All persistent application data lives in PostgreSQL. Startup never runs migrations.
+GitHub retains release artifacts for seven days. No container registry is needed.
 
-References: [Container Apps billing](https://learn.microsoft.com/azure/container-apps/billing),
-[student offer](https://learn.microsoft.com/azure/education-hub/about-azure-for-students),
-[logging options](https://learn.microsoft.com/azure/container-apps/log-options).
+## Azure resources and configuration
 
-## 1. Publish the first container
+| Setting             | Value                                                  |
+| ------------------- | ------------------------------------------------------ |
+| Resource group      | `rg-capstone-web`, Canada Central                      |
+| App Service plan    | `asp-capstone-free`, **F1 / Free**                     |
+| Web app             | `capstone-tickets-mkb`                                 |
+| Runtime             | Linux, `NODE\|24-lts`                                  |
+| Startup command     | `bash /home/site/wwwroot/start.sh`                     |
+| HTTPS only          | Enabled                                                |
+| Always On           | Disabled (F1 requirement)                              |
+| Deployment identity | `id-capstone-github`                                   |
+| Identity permission | Website Contributor on the hosting resource group only |
+| GitHub environment  | `azure`, deployment branch `main` only                 |
 
-Push this branch, open a PR, and merge it to `main`. The workflow checks TypeScript,
-runs unit tests, builds the Dockerfile, and publishes an image on `main`. PRs build
-without publishing or deploying. No Azure resources are created by the workflow.
+App Service application settings hold the restricted PostgreSQL login and stable
+`BETTER_AUTH_SECRET`, together with `ORIGIN` set to the exact public HTTPS URL.
+They are not included in GitHub, build artifacts, or the public application.
+`NODE_ENV=production`, `HOST=0.0.0.0`, and `PORT=8080` configure the server.
+`SCM_DO_BUILD_DURING_DEPLOYMENT=false` and `ENABLE_ORYX_BUILD=false` keep builds in
+GitHub. The GitHub runner receives no database or authentication secrets.
 
-The first run intentionally skips deployment: `AZURE_DEPLOY_ENABLED` is unset.
-In GitHub, open your profile's Packages, select `capstone-ticket-system`, then
-Package settings → Change visibility → Public. The image contains application
-code; only make it public if that is acceptable. Never include credentials or
-private data in the image. The existing Docker ignore excludes `.env` files.
-If public images are unsuitable, configure GHCR read authentication separately
-before enabling deployment.
+The runtime login is `capstone_web`, inheriting `capstone_runtime`; it is not the
+schema owner and does not inherit the deployment/admin login. Existing accounts,
+passwords, MFA enrollment, and the authentication secret are preserved. Sign in
+with your existing account and authenticator.
 
-Copy the full commit-tagged image from the workflow, for example:
-`ghcr.io/mystery2099/capstone-ticket-system:<full-main-commit-sha>`.
-There is deliberately no mutable `latest` tag.
+PostgreSQL firewall rules named `capstone-appservice-*` allow the web app's
+published outbound IP set, rather than all Azure services or the whole Internet.
+Normal code deployment does not require changing these rules. Recheck the full
+outbound IP set after a hosting-plan/region change or an Azure infrastructure
+change. [App Service outbound IP behavior](https://learn.microsoft.com/azure/app-service/app-service-ip-addresses).
 
-## 2. Create the Azure app once
+The earlier Container Apps trial was replaced because its outbound IP changed
+on deployment, breaking narrow database firewall rules. Its resources and rules
+should be removed after the F1 deployment is verified. The existing Dockerfile
+remains available for optional container hosting; the workflow no longer publishes
+container images. The GitHub repository stays private.
 
-In the Azure portal, select the **Azure for Students** subscription and a region
-allowed by that subscription, preferably the same region as PostgreSQL (the
-existing server was in Canada Central at preparation time).
+## Deployment identity
 
-1. Create a dedicated resource group, such as `rg-capstone-web`.
-2. Create a standard Container Apps environment with the **Consumption** workload
-   profile. Disable Log Analytics / select no log destination. Do not create a
-   dedicated workload profile or a container registry. Review the pricing summary.
-3. Create a Container App named, for example, `capstone-tickets`, using the public
-   GHCR image from step 1, Linux amd64, 0.25 CPU, and 0.5 GiB memory.
-4. Enable external HTTP ingress, target port **3000**, HTTPS only. Set revision
-   mode to **Single**, minimum replicas **0**, maximum replicas **1**. Avoid HTTP
-   liveness probes that depend on the database; `/health` checks database access.
-5. Store the restricted runtime database URL and a newly generated, stable
-   authentication secret as Container App secrets. Map environment variables:
+GitHub authenticates to Azure using a user-assigned managed identity and a
+federated credential, without a client password. Its exact trust subject is:
 
-   | Variable             | Value                                                      |
-   | -------------------- | ---------------------------------------------------------- |
-   | `DATABASE_URL`       | Secret reference; runtime login, TLS `sslmode=verify-full` |
-   | `BETTER_AUTH_SECRET` | Secret reference; random value of at least 32 characters   |
-   | `ORIGIN`             | Exact `https://` application hostname, no trailing slash   |
+```text
+repo:Mystery2099@54286204/capstone-ticket-system@1440190391:environment:azure
+```
 
-   Node production mode, host, and port are already set in the Dockerfile.
-   The first revision may fail until the hostname is known and ORIGIN is saved;
-   save the settings to create a corrected revision. Never set `DATA_DIR`.
+Issuer: `https://token.actions.githubusercontent.com`.
+Audience: `api://AzureADTokenExchange`.
+GitHub uses the immutable IDs in this repository's subject; older name-only
+examples will not match. [GitHub subject format](https://docs.github.com/actions/reference/security/oidc#immutable-subject-claims).
 
-6. Configure PostgreSQL network access for the app's actual outbound addresses.
-   Do not open `0.0.0.0–255.255.255.255`. Azure's “allow Azure services” option
-   permits other Azure tenants too; prefer specific rules. Outbound addresses are not guaranteed and can
-   change over time, including during platform maintenance: recheck them if connectivity fails.
-   If the server is private-only, the environment needs a compatible VNet path.
-7. Apply pending migrations from a trusted local checkout with Node 24 / pnpm,
-   using deployment credentials: `pnpm install --frozen-lockfile`, then
-   `pnpm db:migrate`. Enable `PG_TRGM`, apply runtime grants, and provision the
-   first administrator as described in `azure-deployment.md`. Do not give the web
-   app the deployment login. Verify `/health` and complete the hosted acceptance
-   checks there, including MFA and proxy behavior.
+GitHub Actions repository variables:
 
-Do not paste credentials into tracked files, issue comments, or shell command
-arguments. Supply migration credentials through your private local environment.
-Keep the authentication secret backed up securely.
+- `AZURE_CLIENT_ID`: deployment identity's client ID.
+- `AZURE_TENANT_ID`: Azure directory ID.
+- `AZURE_SUBSCRIPTION_ID`: student subscription ID.
+- `AZURE_RESOURCE_GROUP`: `rg-capstone-web`.
+- `AZURE_WEBAPP_NAME`: `capstone-tickets-mkb`.
+- `AZURE_DEPLOY_ENABLED`: `true` when hosting is ready; `false` to pause deployments.
 
-## 3. Connect GitHub to Azure without a deployment password
+## Migrations and recovery
 
-1. In GitHub repository Settings → Environments, create **azure**. Restrict its
-   deployment branches to `main`. Required approvals are optional; adding them
-   means deployments will wait for approval.
-2. Use a user-assigned managed identity (as in the current deployment), or create
-   an application for this repo in Microsoft Entra ID → App registrations.
-   For a managed identity, add its federated credential under the identity's
-   Federated credentials page and use its client ID in GitHub. For an app registration:
-   Under Certificates & secrets → Federated credentials, add a GitHub Actions
-   credential for owner `Mystery2099`, repository `capstone-ticket-system`, entity
-   **Environment**, environment **azure**. Subject must be
-   `repo:Mystery2099@54286204/capstone-ticket-system@1440190391:environment:azure`, audience
-   `api://AzureADTokenExchange`. No client secret is needed.
-   This repository uses GitHub's immutable subject format, including owner and
-   repository IDs. Use the exact subject above rather than the name-only format
-   shown in older examples. When configuring a different repository, check its
-   actual subject in the Azure Login action's token details.
-   [GitHub's subject format reference](https://docs.github.com/actions/reference/security/oidc#immutable-subject-claims).
-3. On the dedicated resource group → Access control (IAM), grant that application's
-   service principal **Container Apps Contributor**. Keep its scope to this group.
-4. Set these GitHub **repository Actions variables** (Settings → Secrets and
-   variables → Actions → Variables). They are identifiers, not passwords:
+Before merging code that needs new database migrations, run `pnpm db:migrate`
+from a trusted checkout with deployment credentials in your private environment.
+Reapply `scripts/runtime-grants.sql` after relevant schema changes. See
+[database provisioning and recovery](azure-deployment.md) for administrator setup,
+MFA recovery, runtime privileges, backup/restore, and hosted acceptance checks.
+Use backward-compatible schema changes: rolling back code does not roll back data.
 
-   | Variable                | Value                                         |
-   | ----------------------- | --------------------------------------------- |
-   | `AZURE_CLIENT_ID`       | Application/client ID from app registration   |
-   | `AZURE_TENANT_ID`       | Directory/tenant ID                           |
-   | `AZURE_SUBSCRIPTION_ID` | Student subscription ID                       |
-   | `AZURE_RESOURCE_GROUP`  | `rg-capstone-web`, or your chosen group       |
-   | `AZURE_CONTAINER_APP`   | `capstone-tickets`, or your chosen app        |
-   | `AZURE_DEPLOY_ENABLED`  | `true`, only after app and database are ready |
+To redeploy, run the Azure deployment workflow on `main`. To roll back, download
+an earlier `azure-release` artifact and deploy its `release.zip` to the existing
+web app with `az webapp deploy --type zip`, using the hosting group and app name
+above. This works only while that artifact is retained. For older releases, revert
+the relevant changes on `main` to trigger a fresh build, or rebuild the earlier
+revision with its lockfile and deploy the resulting ZIP. Keep secret settings
+stable across deployments. A failed health check
+fails the workflow; it does not automatically restore the previous release.
 
-5. Open Actions → Azure container deployment → Run workflow, selecting `main`.
-   It publishes the current commit and updates only the existing app's image and
-   replica limits. Database secrets and ORIGIN stay in Azure. It checks `/health`;
-   a failed check fails the workflow and does not automatically roll back.
-
-See [Azure GitHub Actions/OIDC guidance](https://learn.microsoft.com/azure/container-apps/github-actions).
-Your account may require an administrator to create app registrations or role
-assignments; this is an account permission requirement, not a code change.
-
-## Normal updates and recovery
-
-Push/merge passing changes to `main`; Azure then follows automatically. Before
-merging changes with new database migrations, run them manually with deployment
-credentials and reapply grants if needed. Use backward-compatible schema changes.
-The workflow deliberately has no database credentials and never runs migrations.
-Keep application secret values stable across releases.
-
-To stop automatic deployments, set `AZURE_DEPLOY_ENABLED=false`. To roll back,
-select a previous working image tag in Azure Container App → Containers → Edit
-and deploy (or update the image with Azure CLI). Schema changes are separate and
-are not reversed by an image rollback. A failed revision may leave the old app
-serving; inspect revision status and live logs rather than assuming an outage.
-
-Create a small monthly Azure budget with email alerts, and review Cost Analysis
-and the student credit balance after your first few demos. Alerts do not stop
-spending. The workflow itself does not create Azure resources, federated identities, or
-role assignments; the current deployment above was provisioned separately.
+Private runtime recovery settings are in the deployment worktree's
+`.data/azure-deployment/runtime-secrets.json`, file mode 600, excluded from Git and
+Docker. Back them up to a password manager. The existing local `.env` also remains
+private. Never copy either file into a tracked directory or build artifact.

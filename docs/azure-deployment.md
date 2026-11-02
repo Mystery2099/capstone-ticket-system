@@ -1,7 +1,8 @@
 # Production deployment
 
-For a student-budget setup with scale-to-zero hosting and automatic GitHub
-deployments, start with [the Container Apps guide](azure-student-deployment.md).
+For free F1 hosting with automatic GitHub deployments, start with
+[the student deployment guide](azure-student-deployment.md). The container-based
+App Service option below requires a plan that supports custom containers.
 
 Run the Linux container on Azure App Service with Azure Database for PostgreSQL.
 The application uses the same authentication and permissions in every environment.
