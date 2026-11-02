@@ -1,4 +1,7 @@
 <script lang="ts">
+	import { parse } from 'devalue';
+	import { untrack } from 'svelte';
+	import VirtualTicketRows from '$lib/components/VirtualTicketRows.svelte';
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { enhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
@@ -37,6 +40,69 @@
 	import { createDelayedFlag } from '$lib/delayed.svelte';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
 	let { data, form } = $props();
+
+	// svelte-ignore state_referenced_locally
+	let ticketRows = $state<typeof data.tickets>(data.tickets);
+	// svelte-ignore state_referenced_locally
+	let nextPageHref = $state<string | null>(data.nextPageHref);
+	let isLoadingMore = $state(false);
+	let loadMoreError = $state('');
+	let loadedListKey = '';
+	let listRequestVersion = 0;
+	let listRequestController: AbortController | undefined;
+	let listKey = $derived.by(() => {
+		const parameters = new URLSearchParams(page.url.searchParams);
+		parameters.delete('draft');
+		parameters.sort();
+		return parameters.toString();
+	});
+	$effect(() => {
+		const initialRows = data.tickets;
+		const initialNextPageHref = data.nextPageHref;
+		const currentListKey = listKey;
+		untrack(() => {
+			listRequestController?.abort();
+			listRequestVersion++;
+			isLoadingMore = false;
+			loadMoreError = '';
+			if (loadedListKey !== currentListKey || !ticketRows.length) {
+				ticketRows = initialRows;
+				nextPageHref = initialNextPageHref;
+			} else {
+				const updatedRows = new Map(initialRows.map((row) => [row.id, row]));
+				ticketRows = [...initialRows, ...ticketRows.filter((row) => !updatedRows.has(row.id))];
+			}
+			loadedListKey = currentListKey;
+		});
+	});
+	async function loadMoreTickets() {
+		if (!nextPageHref || isLoadingMore) return;
+		const requestVersion = listRequestVersion;
+		const controller = new AbortController();
+		listRequestController = controller;
+		isLoadingMore = true;
+		loadMoreError = '';
+		try {
+			const url = new URL(nextPageHref, page.url);
+			url.pathname = '/app/tickets/list';
+			const response = await fetch(url, { signal: controller.signal });
+			if (!response.ok) throw new Error('Ticket list request failed');
+			const batch = parse(await response.text()) as {
+				tickets: typeof data.tickets;
+				nextPageHref: string | null;
+			};
+			if (requestVersion !== listRequestVersion) return;
+			const existingIds = new Set(ticketRows.map((row) => row.id));
+			ticketRows = [...ticketRows, ...batch.tickets.filter((row) => !existingIds.has(row.id))];
+			nextPageHref = batch.nextPageHref;
+		} catch {
+			if (requestVersion === listRequestVersion && !controller.signal.aborted)
+				loadMoreError = 'Couldn’t load more tickets.';
+		} finally {
+			if (requestVersion === listRequestVersion) isLoadingMore = false;
+		}
+	}
+	$effect(() => () => listRequestController?.abort());
 
 	/** Events the conversation already shows as a message, so the timeline skips them. */
 	const CONVERSATION_EVENT_TYPES: string[] = [
@@ -157,7 +223,7 @@
 	);
 	let targetTicketRow = $derived(
 		targetTicketId && !isListChanging
-			? data.tickets.find((row) => String(row.ticketNumber) === targetTicketId)
+			? ticketRows.find((row) => String(row.ticketNumber) === targetTicketId)
 			: undefined
 	);
 	let slowNavigation = createDelayedFlag(() => !!navigationTarget && !isOpeningNewTicket);
@@ -258,7 +324,7 @@
 		}))
 	]);
 	let listHeading = $derived(activeCategory ? `Open · ${activeCategory.name}` : viewTitle);
-	let ticketIndex = $derived(data.tickets.findIndex((row) => row.id === ticket?.id));
+	let ticketIndex = $derived(ticketRows.findIndex((row) => row.id === ticket?.id));
 	let conversationTimeline = $derived(
 		[
 			...data.comments.map((comment) => ({ ...comment, kind: 'comment' as const })),
@@ -286,8 +352,15 @@
 	}
 	async function refreshTickets() {
 		isRefreshing = true;
-		await invalidateAll();
-		isRefreshing = false;
+		listRequestController?.abort();
+		listRequestVersion++;
+		ticketRows = [];
+		nextPageHref = null;
+		try {
+			await invalidateAll();
+		} finally {
+			isRefreshing = false;
+		}
 	}
 	async function copyToClipboard(text: string, label: string) {
 		try {
@@ -550,7 +623,12 @@
 		<div class="list-top">
 			<h1>
 				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
-					<span>{isShowingDrafts ? draftRows.length : data.tickets.length}</span>{/if}
+					<span
+						>{isShowingDrafts ? draftRows.length : ticketRows.length}{!isShowingDrafts &&
+						nextPageHref
+							? '+'
+							: ''}</span
+					>{/if}
 			</h1>
 			{#if !isShowingDrafts}<Tooltip.Root>
 					<Tooltip.Trigger onclick={refreshTickets}>
@@ -567,7 +645,7 @@
 				</Tooltip.Root>{/if}
 		</div>
 		{#if data.searchText}<div class="filters" aria-label="Search result controls">
-				<span>{data.tickets.length}{data.nextPageHref ? '+' : ''} results on this page</span>
+				<span>{ticketRows.length}{nextPageHref ? '+' : ''} results loaded</span>
 				<Combobox
 					label="Sort search results"
 					value={data.searchSort ?? 'newest'}
@@ -622,66 +700,59 @@
 						<p>Anything you start but don’t finish is saved here.</p>
 						<a href="/app/tickets" class="text-link">Back to tickets</a>
 					</div>{/each}
-			</div>{:else if isListLoading}<TicketRowsSkeleton />{:else}<div
-				class="rows"
-				aria-busy={isRefreshing}
-			>
-				{#each data.tickets as row (row.id)}<a
-						href={buildTicketHref(row.ticketNumber)}
-						class="ticket-row"
-						class:selected={highlightedTicketId === row.id}
-						><span class="avatar row-avatar">{getInitials(getPersonName(row.requesterId))}</span>
-						<div class="row-content">
-							<div class="row-title">
-								{#if row.priority === 'high'}<ChevronsUp class="high" size={17} />{/if}<strong
-									><HighlightedText
-										segments={row.subjectHighlight}
-										fallbackText={row.subject}
-									/></strong
-								><time
-									>{new Date(row.updatedAt).toDateString() === new Date().toDateString()
-										? formatTime(row.updatedAt)
-										: formatDate(row.updatedAt)}</time
-								>
-							</div>
-							{#if row.searchMetadataMatches.length}<div class="search-match-reasons">
-									{#each row.searchMetadataMatches as match (match.label)}<span
-											>{match.label}
-											<HighlightedText segments={match.segments} fallbackText="" /></span
-										>{/each}
-								</div>{/if}
-							<div class="row-meta">
-								<StatusBadge status={row.statusCode} /><span class="row-requester"
-									>{getPersonName(row.requesterId)} · #{row.ticketNumber}</span
-								><span class="row-preview"
-									>— {row.previewAuthor ? row.previewAuthor + ': ' : ''}<HighlightedText
-										segments={row.previewHighlight}
-										fallbackText={row.preview}
-									/></span
-								>
-							</div>
-						</div></a
-					>{:else}<div class="empty">
-						<Inbox size={36} />
-						<h2>{data.searchText ? 'No matching tickets' : 'No tickets here'}</h2>
-						<p>
-							{data.searchText
-								? 'Try fewer words, another spelling, or broader search options.'
-								: 'Try another view or change your filters.'}
-						</p>
-						<a href="/app/tickets" class="text-link">Clear filters</a>
-					</div>{/each}
-				{#if data.firstPageHref || data.nextPageHref}
-					<nav aria-label="Ticket list pages" class="flex items-center justify-between gap-4 p-4">
-						{#if data.firstPageHref}<a class="text-link" href={data.firstPageHref}
-								>{data.searchSort === 'relevance' ? 'Top results' : 'Newest tickets'}</a
-							>{/if}
-						{#if data.nextPageHref}<a class="text-link" href={data.nextPageHref}
-								>{data.searchSort === 'relevance' ? 'More results' : 'Older tickets'}</a
-							>{/if}
-					</nav>
-				{/if}
-			</div>{/if}
+			</div>{:else if isListLoading}<TicketRowsSkeleton />{:else}{#key listKey}<VirtualTicketRows
+					rows={ticketRows}
+					hasMore={!!nextPageHref}
+					loading={isLoadingMore || isRefreshing}
+					error={loadMoreError}
+					loadMore={loadMoreTickets}
+				>
+					{#snippet children(row)}<a
+							href={buildTicketHref(row.ticketNumber)}
+							class="ticket-row"
+							class:selected={highlightedTicketId === row.id}
+							><span class="avatar row-avatar">{getInitials(getPersonName(row.requesterId))}</span>
+							<div class="row-content">
+								<div class="row-title">
+									{#if row.priority === 'high'}<ChevronsUp class="high" size={17} />{/if}<strong
+										><HighlightedText
+											segments={row.subjectHighlight}
+											fallbackText={row.subject}
+										/></strong
+									><time
+										>{new Date(row.updatedAt).toDateString() === new Date().toDateString()
+											? formatTime(row.updatedAt)
+											: formatDate(row.updatedAt)}</time
+									>
+								</div>
+								{#if row.searchMetadataMatches.length}<div class="search-match-reasons">
+										{#each row.searchMetadataMatches as match (match.label)}<span
+												>{match.label}
+												<HighlightedText segments={match.segments} fallbackText="" /></span
+											>{/each}
+									</div>{/if}
+								<div class="row-meta">
+									<StatusBadge status={row.statusCode} /><span class="row-requester"
+										>{getPersonName(row.requesterId)} · #{row.ticketNumber}</span
+									><span class="row-preview"
+										>— {row.previewAuthor ? row.previewAuthor + ': ' : ''}<HighlightedText
+											segments={row.previewHighlight}
+											fallbackText={row.preview}
+										/></span
+									>
+								</div>
+							</div></a
+						>{/snippet}{#snippet empty()}<div class="empty">
+							<Inbox size={36} />
+							<h2>{data.searchText ? 'No matching tickets' : 'No tickets here'}</h2>
+							<p>
+								{data.searchText
+									? 'Try fewer words, another spelling, or broader search options.'
+									: 'Try another view or change your filters.'}
+							</p>
+							<a href="/app/tickets" class="text-link">Clear filters</a>
+						</div>{/snippet}
+				</VirtualTicketRows>{/key}{/if}
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">
 		{#if isComposing}{#key activeDraft.id}{@render composeTicketForm()}{/key}{:else if isPaneLoading && !ticket}<div
@@ -721,7 +792,7 @@
 					</p>
 				</div>
 				{#if ticketIndex >= 0}<span class="toolbar-position muted small"
-						>{ticketIndex + 1} of {data.tickets.length}</span
+						>{ticketIndex + 1} of {ticketRows.length}</span
 					>{/if}<Tooltip.Root>
 					<Tooltip.Trigger>
 						{#snippet child({ props })}
@@ -731,7 +802,7 @@
 								aria-label="Previous ticket"
 								aria-disabled={ticketIndex <= 0}
 								href={ticketIndex > 0
-									? buildTicketHref(data.tickets[ticketIndex - 1].ticketNumber)
+									? buildTicketHref(ticketRows[ticketIndex - 1].ticketNumber)
 									: undefined}><ChevronLeft size={20} /></a
 							>
 						{/snippet}
@@ -744,9 +815,9 @@
 								{...props}
 								class="icon-button"
 								aria-label="Next ticket"
-								aria-disabled={ticketIndex < 0 || ticketIndex >= data.tickets.length - 1}
-								href={ticketIndex >= 0 && ticketIndex < data.tickets.length - 1
-									? buildTicketHref(data.tickets[ticketIndex + 1].ticketNumber)
+								aria-disabled={ticketIndex < 0 || ticketIndex >= ticketRows.length - 1}
+								href={ticketIndex >= 0 && ticketIndex < ticketRows.length - 1
+									? buildTicketHref(ticketRows[ticketIndex + 1].ticketNumber)
 									: undefined}><ChevronRight size={20} /></a
 							>
 						{/snippet}
@@ -984,10 +1055,10 @@
 				<p>Select a ticket to read the conversation<br />and keep things moving.</p>
 				{#if !isListLoading}<span class="small muted"
 						>{activeCategory
-							? `${data.tickets.length} open ${activeCategory.name} tickets`
+							? `${ticketRows.length} open ${activeCategory.name} tickets`
 							: isShowingDrafts
 								? `${draftRows.length} drafts`
-								: `${data.tickets.length} tickets · ${viewTitle}`}</span
+								: `${ticketRows.length} tickets · ${viewTitle}`}</span
 					>{/if}
 			</div>{/if}
 	</section>
