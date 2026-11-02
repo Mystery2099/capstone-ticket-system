@@ -36,3 +36,8 @@ Local HTTP checks cover MFA enrollment, stale-session revocation, subsequent MFA
 sign-in, single-use recovery codes, disabled accounts, and blocked administrative
 endpoints. Hosted proxy/IP handling, secure cookies over the actual HTTPS origin,
 and cross-instance login throttling still require deployment verification.
+
+## Setup screenshot
+
+[Redacted MFA setup screen](screenshots/mfa-setup-redacted.png), suitable for the course demonstration.
+The QR code and recovery codes are hidden.
