@@ -200,8 +200,21 @@ test('ticket creation persists Normal priority and audit event together', async 
 	assert.equal(events.length, 1);
 	assert.equal(events[0].eventType, 'created');
 });
-test('requester priority injection and private notes are rejected', async () => {
+test('requester forgery is rejected: priority, another requester, and private notes', async () => {
 	const cats = await db.select().from(schema.category);
+	await assert.rejects(
+		() =>
+			service.createTicket(
+				people.marcus,
+				form({
+					subject: 'Spoofed',
+					description: 'Not mine',
+					categoryId: cats[0].id,
+					requesterId: 'rosa'
+				})
+			),
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
+	);
 	await assert.rejects(
 		() =>
 			service.createTicket(
@@ -286,6 +299,35 @@ test('failed foreign key rolls back ticket and audit rows', async () => {
 	);
 	assert.equal((await db.select().from(schema.ticket)).length, before);
 	await assert.rejects(() => db.execute(sql`UPDATE ticket SET priority = 'urgent'`));
+});
+test('malformed input fails with a controlled 400 and leaves the ticket unchanged', async () => {
+	const isBadRequest = (e: unknown) =>
+		typeof e === 'object' && e !== null && 'status' in e && e.status === 400;
+	const [cat] = await db.select().from(schema.category);
+	for (const fields of [
+		{ subject: '   ', description: 'Valid description', categoryId: cat.id },
+		{ subject: 'x'.repeat(181), description: 'Valid description', categoryId: cat.id },
+		{ subject: 'Test', description: 'Test', categoryId: 'invalid' }
+	])
+		await assert.rejects(() => service.createTicket(people.marcus, form(fields)), isBadRequest);
+	await assert.rejects(
+		() => service.addTicketComment(people.priya, 1046, form({ body: '  ' })),
+		isBadRequest
+	);
+	const url = new URL('http://localhost/app/tickets');
+	const before = (await service.loadTicketWorkspace(people.priya, url, '1046')).selectedTicket;
+	for (const values of [
+		{ field: 'priority', value: 'urgent' },
+		{ field: 'categoryId', value: 'not-a-uuid' },
+		{ field: 'statusCode', value: 'unknown' }
+	])
+		await assert.rejects(
+			() => service.updateTicketField(people.priya, 1046, form(values)),
+			isBadRequest
+		);
+	const after = (await service.loadTicketWorkspace(people.priya, url, '1046')).selectedTicket;
+	assert.equal(after?.priority, before?.priority);
+	assert.equal(after?.statusCode, before?.statusCode);
 });
 test('assignment rejects requesters and disabled agents, and successful changes are audited', async () => {
 	const { eq } = await import('drizzle-orm');

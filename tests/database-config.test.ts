@@ -7,7 +7,7 @@ const azure = {
 	PGPORT: '5432',
 	PGPASSWORD: 'test #$ password'
 };
-test('separate Azure settings preserve special password characters and verify TLS', () => {
+test('Azure settings keep special password characters, verify TLS, and reject bad values', () => {
 	const config = resolveDatabaseConfig(azure);
 	expect(config.kind).toBe('postgres');
 	if (config.kind === 'postgres') {
@@ -15,22 +15,16 @@ test('separate Azure settings preserve special password characters and verify TL
 		expect(config.options.ssl.rejectUnauthorized).toBe(true);
 		expect(config.options.username).toBe('admin');
 	}
-});
-test('empty Azure password fails without silently selecting a local database', () => {
 	expect(() => resolveDatabaseConfig({ ...azure, PGPASSWORD: '' })).toThrow('PGPASSWORD');
+	expect(() => resolveDatabaseConfig({ ...azure, PGPORT: 'oops' })).toThrow('PGPORT');
+	expect(resolveDatabaseConfig({ ...azure, DATABASE_URL: 'postgres://example' }).kind).toBe('url');
 });
-test('explicit test storage stays isolated from Azure settings', () => {
+
+test('local storage is used only when asked for, and never in production', () => {
 	expect(resolveDatabaseConfig({ ...azure, DATA_DIR: '.data/test' })).toEqual({
 		kind: 'local',
 		directory: '.data/test'
 	});
-});
-test('connection URL takes precedence and invalid ports fail', () => {
-	expect(resolveDatabaseConfig({ ...azure, DATABASE_URL: 'postgres://example' }).kind).toBe('url');
-	expect(() => resolveDatabaseConfig({ ...azure, PGPORT: 'oops' })).toThrow('PGPORT');
-});
-
-test('production refuses embedded storage and implicit local fallback', () => {
 	expect(() => resolveDatabaseConfig({ NODE_ENV: 'production', DATA_DIR: '.data/db' })).toThrow(
 		'hosted PostgreSQL'
 	);
