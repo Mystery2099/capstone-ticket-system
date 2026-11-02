@@ -382,6 +382,7 @@ test('search options remain accessible at the upper mobile breakpoint', async ({
 test('administrator creates a custom role and account that can sign in with its permissions', async ({
 	page
 }) => {
+	test.setTimeout(60000);
 	await signIn(page, 'jordan.ellis@example.test');
 	await page.goto('/app/admin/roles?new');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
@@ -389,6 +390,7 @@ test('administrator creates a custom role and account that can sign in with its 
 	await page.getByLabel('Role name', { exact: true }).fill('Field Technician');
 	await page.getByRole('button', { name: 'Create role', exact: true }).click();
 	await expect(page).toHaveURL(/roles\?id=/);
+	const roleDetailsUrl = page.url();
 	await expect(page.getByLabel('Role name', { exact: true })).toHaveValue('Field Technician');
 	await page.goto('/app/admin/users?new');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
@@ -407,4 +409,22 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(page.getByRole('button', { name: 'Status', exact: true })).toBeVisible();
 	await page.goto('/app/admin/roles');
 	await expect(page.getByText('Administrator access required.', { exact: false })).toBeVisible();
+	await page.goto('/app/settings');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await signIn(page, 'jordan.ellis@example.test');
+	await page.goto(roleDetailsUrl);
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
+	await page.getByLabel('Role name', { exact: true }).fill('Service Technician');
+	await page.getByLabel('Read and write internal notes', { exact: true }).uncheck();
+	await page.getByRole('button', { name: 'Save role', exact: true }).click();
+	await expect(
+		page.getByRole('heading', { name: 'Service Technician', exact: true })
+	).toBeVisible();
+	await page.getByLabel('Reassign users to', { exact: true }).selectOption({ label: 'Requester' });
+	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
+	await expect(page).toHaveURL(/\/app\/admin\/roles$/);
+	await expect(page.getByRole('link', { name: /Service Technician/ })).toHaveCount(0);
+	await page.goto('/app/admin/users');
+	await expect(page.getByRole('link', { name: /Test Technician Requester/ })).toBeVisible();
 });
