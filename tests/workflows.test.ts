@@ -183,10 +183,10 @@ test('agents and administrators can create every status with matching timestamps
 	);
 });
 test('capability checks deny unknown roles and keep ticket visibility separate from internal notes', async () => {
-	assert.equal(permissions.hasPermission('unknown', 'viewAllTickets'), false);
-	assert.equal(permissions.hasPermission('toString', 'manageAdministration'), false);
+	assert.equal(permissions.hasPermission({ role: 'unknown' }, 'viewAllTickets'), false);
+	assert.equal(permissions.hasPermission({ role: 'toString' }, 'manageAdministration'), false);
 	assert.equal(permissions.hasPermission(null, 'setTicketStatus'), false);
-	assert.equal(permissions.hasPermission('agent', 'manageAdministration'), false);
+	assert.equal(permissions.hasPermission({ role: 'agent' }, 'manageAdministration'), false);
 	const originalPermissionCheck = permissions.hasPermission;
 	const permissionCheck = vi
 		.spyOn(permissions, 'hasPermission')

@@ -54,6 +54,10 @@
 		isNavigating: () => !!navigating.to
 	});
 	let userDraft = $derived(draftBinding.activeDraft);
+	$effect(() => {
+		if (userDraft.role && !data.roles.some((role) => role.id === userDraft.role))
+			userDraft.role = '';
+	});
 	afterNavigate(() => {
 		password = '';
 	});

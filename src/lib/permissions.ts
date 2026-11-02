@@ -32,18 +32,14 @@ export const ROLE_PERMISSIONS: Readonly<Record<PersonRole, readonly Permission[]
 	admin: [...SUPPORT_PERMISSIONS, 'reopenClosedTickets', 'manageAdministration']
 };
 
-/** Request subjects use fresh database grants; bare role names expose built-in defaults only. */
+/** Only hydrated request subjects authorize actions; missing grants fail closed. */
 export type PermissionSubject = { role: string | null; permissions?: readonly Permission[] };
 
 export function hasPermission(
-	subject: string | PermissionSubject | null | undefined,
+	subject: PermissionSubject | null | undefined,
 	permission: Permission
 ): boolean {
-	if (subject && typeof subject === 'object')
-		return subject.permissions?.includes(permission) ?? false;
-	const role = subject;
-	if (!role || !Object.hasOwn(ROLE_PERMISSIONS, role)) return false;
-	return ROLE_PERMISSIONS[role as PersonRole].includes(permission);
+	return subject?.permissions?.includes(permission) ?? false;
 }
 
 /** Human-readable labels for the role editor. Administration stays reserved for Administrator. */

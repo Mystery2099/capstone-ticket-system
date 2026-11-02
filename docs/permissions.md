@@ -20,8 +20,8 @@ role never changes its ID. Role assignment and deletion lock role records.
 Requests load saved grants in `hooks.server.ts` and pass the hydrated user to
 `hasPermission(user, permission)`. UI and server use the same checks. There is no
 process-global permission cache: edits take effect on the next request. Subjects
-without loaded grants fail closed. Bare role-name checks describe built-in defaults
-and must not be used to authorize runtime requests.
+without loaded grants fail closed. Authorization accepts hydrated users rather
+than bare role names.
 
 Ticket visibility and internal-note access are separate capabilities. Removing
 internal-note access filters comments, activity, snippets, counts and search matches

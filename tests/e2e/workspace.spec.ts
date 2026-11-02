@@ -402,6 +402,7 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(page).toHaveURL(/users\?id=/);
 	await page.getByRole('button', { name: 'Account menu', exact: true }).click();
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await expect(page).toHaveURL(/\/login$/);
 	await signIn(page, 'technician@example.test');
 	await openNewTicket(page);
 	await expect(page.getByRole('button', { name: 'Requester', exact: true })).toBeVisible();
@@ -412,6 +413,7 @@ test('administrator creates a custom role and account that can sign in with its 
 	await page.goto('/app/settings');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await expect(page).toHaveURL(/\/login$/);
 	await signIn(page, 'jordan.ellis@example.test');
 	await page.goto(roleDetailsUrl);
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
