@@ -237,6 +237,27 @@
 					options={[{ value: '', label: 'Any category' }, ...categoryOptions]}
 					onchange={(value) => applyListFilter('category', value)}
 				/>
+				{#if isStaffUser}<Combobox
+						label="Filter by requester"
+						class="max-w-[48%]"
+						variant="filter"
+						placeholder="Requester"
+						value={page.url.searchParams.get('requester') || ''}
+						options={[{ value: '', label: 'Any requester' }, ...requesters.map(toPersonOption)]}
+						onchange={(value) => applyListFilter('requester', value)}
+					/><Combobox
+						label="Filter by assignee"
+						class="max-w-[48%]"
+						variant="filter"
+						placeholder="Assignee"
+						value={page.url.searchParams.get('assignee') || ''}
+						options={[
+							{ value: '', label: 'Any assignee' },
+							{ value: 'none', label: 'Unassigned' },
+							...assignees.map(toPersonOption)
+						]}
+						onchange={(value) => applyListFilter('assignee', value)}
+					/>{/if}
 			</div>{/if}
 		{#if isShowingDrafts}<DraftList
 				{drafts}
