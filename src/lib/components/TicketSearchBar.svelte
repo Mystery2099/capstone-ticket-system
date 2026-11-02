@@ -412,4 +412,21 @@
 		flex-direction: row;
 		align-items: center;
 	}
+	@media (max-width: 700px) {
+		.ticket-search {
+			max-width: none;
+			width: 100%;
+		}
+		.search-bar {
+			padding-right: 92px;
+		}
+		.search-bar button[aria-label='Search options'] {
+			display: inline-flex;
+			position: absolute;
+			right: 48px;
+		}
+		.search-options {
+			grid-template-columns: 1fr;
+		}
+	}
 </style>
