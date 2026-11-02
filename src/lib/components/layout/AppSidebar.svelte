@@ -10,6 +10,7 @@
 	import { cn } from '$lib/utils';
 	import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
+	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 
 	type Props = {
 		navigationViews: { key: string; label: string; hint: string; icon: Component; count: number }[];
@@ -62,10 +63,9 @@
 		class="relative flex h-full min-h-0 flex-col px-3 py-1 max-md:p-4 md:max-lg:px-2 lg:in-[.rail]:px-2"
 	>
 		<div class="mb-6 hidden items-center justify-between text-[18px] font-[650] max-md:flex">
-			<span>Ticket System</span><button
-				class="icon-button"
-				aria-label="Close navigation"
-				onclick={closeMobileSidebar}><X /></button
+			<span>Ticket System</span><TooltipIconButton
+				label="Close navigation"
+				onclick={closeMobileSidebar}><X /></TooltipIconButton
 			>
 		</div>
 		<a class="new-ticket" href={newTicketHref} onclick={closeMobileSidebar}
@@ -105,14 +105,21 @@
 						<Collapsible.Root bind:open={isCategoryListOpen}>
 							<div class="relative">
 								{@render viewNavigationLink()}
-								<Collapsible.Trigger
-									class={cn(
-										'absolute top-1 right-2 grid size-8 place-items-center rounded-full text-muted-foreground transition-[rotate,background-color] duration-(--motion-fast) ease-out hover:bg-secondary data-[state=closed]:-rotate-90',
-										HIDDEN_WHEN_COMPACT
-									)}
-									aria-label={isCategoryListOpen ? 'Hide categories' : 'Show categories'}
-									><ChevronDown size={18} /></Collapsible.Trigger
+								<TooltipWrapper
+									content={isCategoryListOpen ? 'Hide categories' : 'Show categories'}
 								>
+									{#snippet trigger(props)}
+										<Collapsible.Trigger
+											{...props}
+											class={cn(
+												'absolute top-1 right-2 grid size-8 place-items-center rounded-full text-muted-foreground transition-[rotate,background-color] duration-(--motion-fast) ease-out hover:bg-secondary data-[state=closed]:-rotate-90',
+												HIDDEN_WHEN_COMPACT
+											)}
+											aria-label={isCategoryListOpen ? 'Hide categories' : 'Show categories'}
+											><ChevronDown size={18} /></Collapsible.Trigger
+										>
+									{/snippet}
+								</TooltipWrapper>
 							</div>
 							<Collapsible.Content
 								class={cn(

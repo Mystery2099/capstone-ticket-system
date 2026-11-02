@@ -4,6 +4,8 @@
 	import { onMount } from 'svelte';
 	import { Search, SlidersHorizontal } from '@lucide/svelte';
 	import HighlightedText from './HighlightedText.svelte';
+	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
+	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import TicketSearchOptions from './TicketSearchOptions.svelte';
 	import { RecentSearchStore } from './recent-search-store.svelte';
 	import {
@@ -160,19 +162,22 @@
 			onfocus={() => (isFocused = true)}
 			onkeydown={handleKeydown}
 		/>
-		<button type="submit" class="icon-button" aria-label="Submit search"
-			><Search size={18} /></button
-		>
+		<TooltipWrapper content="Search all matching tickets">
+			{#snippet trigger(props)}
+				<button {...props} type="submit" class="icon-button" aria-label="Submit search"
+					><Search size={18} /></button
+				>
+			{/snippet}
+		</TooltipWrapper>
 		<kbd>/</kbd>
-		<button
-			type="button"
-			class="icon-button"
-			aria-label="Search options"
+		<TooltipIconButton
+			label="Search options"
+			tooltip="Filter by status, priority, category, and more"
 			aria-expanded={showOptions}
 			onclick={() => {
 				showOptions = !showOptions;
 				isFocused = false;
-			}}><SlidersHorizontal size={21} /></button
+			}}><SlidersHorizontal size={21} /></TooltipIconButton
 		>
 	</form>
 	{#if isFocused}
@@ -284,7 +289,7 @@
 			}
 			.search-bar > :global(svg),
 			.search-bar kbd,
-			.search-bar button {
+			.search-bar :global(button) {
 				display: none;
 			}
 			.search-bar input::placeholder {
@@ -363,7 +368,7 @@
 		.search-bar {
 			padding-right: 92px;
 		}
-		.search-bar button[aria-label='Search options'] {
+		.search-bar :global(button[aria-label='Search options']) {
 			display: inline-flex;
 			position: absolute;
 			right: 48px;

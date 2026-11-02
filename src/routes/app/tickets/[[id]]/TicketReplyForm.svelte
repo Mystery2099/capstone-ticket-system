@@ -3,6 +3,7 @@
 	import { LockKeyhole, MessageSquare, Send } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils';
+	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import CommentMessage from './CommentMessage.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
 
@@ -65,17 +66,34 @@
 	use:enhanceReply
 >
 	<div class="flex gap-1.5 px-2.5 py-2">
-		<button
-			type="button"
-			class={buildTabClass(!isInternalNote)}
-			disabled={$isSendingComment}
-			onclick={() => (isInternalNote = false)}><MessageSquare size={16} /> Comment</button
-		>{#if isStaffUser}<button
-				type="button"
-				class={buildTabClass(isInternalNote)}
-				disabled={$isSendingComment}
-				onclick={() => (isInternalNote = true)}><LockKeyhole size={16} /> Internal note</button
-			>{/if}
+		<TooltipWrapper
+			content="Visible to the requester and support team"
+			onclick={() => (isInternalNote = false)}
+		>
+			{#snippet trigger(props)}
+				<button
+					{...props}
+					type="button"
+					class={buildTabClass(!isInternalNote)}
+					disabled={$isSendingComment}><MessageSquare size={16} /> Comment</button
+				>
+			{/snippet}
+		</TooltipWrapper>
+		{#if isStaffUser}
+			<TooltipWrapper
+				content="Only visible to the support team; hidden from the requester"
+				onclick={() => (isInternalNote = true)}
+			>
+				{#snippet trigger(props)}
+					<button
+						{...props}
+						type="button"
+						class={buildTabClass(isInternalNote)}
+						disabled={$isSendingComment}><LockKeyhole size={16} /> Internal note</button
+					>
+				{/snippet}
+			</TooltipWrapper>
+		{/if}
 	</div>
 	<input type="hidden" name="internal" value={isInternalNote} /><textarea
 		name="body"

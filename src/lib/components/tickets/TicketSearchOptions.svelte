@@ -1,6 +1,7 @@
 <!-- The advanced search filters under the search bar. The search bar owns the filter values. -->
 <script lang="ts">
 	import { X } from '@lucide/svelte';
+	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { TICKET_STATUSES } from '$lib/status';
 	import Combobox from '$lib/components/Combobox.svelte';
 
@@ -65,11 +66,8 @@
 	}}
 >
 	<div class="search-options-heading">
-		<strong>Search options</strong><button
-			type="button"
-			class="icon-button"
-			aria-label="Close search options"
-			onclick={onClose}><X size={18} /></button
+		<strong>Search options</strong><TooltipIconButton label="Close search options" onclick={onClose}
+			><X size={18} /></TooltipIconButton
 		>
 	</div>
 	<label
