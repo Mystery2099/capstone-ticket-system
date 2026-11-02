@@ -5,13 +5,16 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, desc, eq, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { OPEN_STATUSES, TicketEventType } from '../status';
-import { isStaff, requireTicketAccess, type Person } from './access';
+import { requireTicketAccess, type Person } from './access';
+import { hasPermission } from '../permissions';
 import { db } from './db';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
 import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
 import { parseTicketNumber } from './validation';
 
 const TICKET_PAGE_SIZE = 50;
+/** List rows show the preview on one line, so longer comment text is never sent. */
+const PREVIEW_MAX_LENGTH = 200;
 
 type Ticket = typeof ticket.$inferSelect;
 type Category = typeof category.$inferSelect;
@@ -31,7 +34,8 @@ export async function findTicketSearchRedirect(actor: Person, url: URL): Promise
 		.from(ticket)
 		.where(eq(ticket.ticketNumber, searchQuery.ticketNumber));
 	if (!ticketRecord) return null;
-	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) return null;
+	if (!hasPermission(actor.role, 'viewAllTickets') && ticketRecord.requesterId !== actor.id)
+		return null;
 	const redirectUrl = new URL(url);
 	redirectUrl.pathname = `/app/tickets/${ticketRecord.ticketNumber}`;
 	redirectUrl.searchParams.delete('q');
@@ -49,7 +53,8 @@ function buildTicketListConditions(
 	searchQuery: TicketSearchQuery | null
 ): (SQL | undefined)[] {
 	const conditions: (SQL | undefined)[] = [];
-	if (!isStaff(actor)) conditions.push(eq(ticket.requesterId, actor.id));
+	if (!hasPermission(actor.role, 'viewAllTickets'))
+		conditions.push(eq(ticket.requesterId, actor.id));
 	if (view === 'mine') conditions.push(eq(ticket.requesterId, actor.id));
 	if (view === 'queue') conditions.push(eq(ticket.assignedToUserId, actor.id));
 	if (view === 'unassigned') conditions.push(sql`${ticket.assignedToUserId} is null`);
@@ -84,7 +89,7 @@ function buildTicketListConditions(
 	if (url.searchParams.get('hasComments') === 'true')
 		conditions.push(sql`exists (
 		select 1 from ${ticketComment} where ${ticketComment.ticketId} = ${ticket.id}
-		and ${isStaff(actor) ? sql`true` : sql`${ticketComment.isInternal} = false`}
+		and ${hasPermission(actor.role, 'useInternalNotes') ? sql`true` : sql`${ticketComment.isInternal} = false`}
 	)`);
 	const filters = [
 		['status', ticket.statusCode],
@@ -99,7 +104,8 @@ function buildTicketListConditions(
 		conditions.push(eq(column, value));
 	}
 
-	if (searchQuery) conditions.push(searchQuery.buildMatchCondition(isStaff(actor)));
+	if (searchQuery)
+		conditions.push(searchQuery.buildMatchCondition(hasPermission(actor.role, 'useInternalNotes')));
 	return conditions;
 }
 
@@ -116,7 +122,7 @@ async function loadConversation(
 	if (!ticketRecord) error(404, 'Ticket not found.');
 	requireTicketAccess(actor, ticketRecord);
 
-	const canViewInternalContent = isStaff(actor);
+	const canViewInternalContent = hasPermission(actor.role, 'useInternalNotes');
 	const comments = await db
 		.select()
 		.from(ticketComment)
@@ -153,9 +159,10 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 	const people = await db
 		.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
 		.from(user);
-	const view = url.searchParams.get('view') || (isStaff(actor) ? 'open' : 'mine');
+	const view =
+		url.searchParams.get('view') || (hasPermission(actor.role, 'viewAllTickets') ? 'open' : 'mine');
 	const searchQuery = TicketSearchQuery.fromUrl(url);
-	const canViewInternalContent = isStaff(actor);
+	const canViewInternalContent = hasPermission(actor.role, 'useInternalNotes');
 	const conditions = buildTicketListConditions(actor, url, view, categories, searchQuery);
 	const searchSort = searchQuery && url.searchParams.get('sort') !== 'newest' ? 'relevance' : null;
 
@@ -203,7 +210,11 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 		: new Map<string, TicketSearchHighlight>();
 	const latestPublicComments = tickets.length
 		? await db
-				.selectDistinctOn([ticketComment.ticketId])
+				.selectDistinctOn([ticketComment.ticketId], {
+					ticketId: ticketComment.ticketId,
+					authorId: ticketComment.authorId,
+					body: sql<string>`left(${ticketComment.body}, ${PREVIEW_MAX_LENGTH})`
+				})
 				.from(ticketComment)
 				.where(
 					and(
@@ -246,14 +257,17 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 	}
 
 	const assigneeId = selectedTicket?.assignedToUserId;
-	const visiblePeople = isStaff(actor)
-		? people
-		: people.filter(
-				(person) =>
-					person.id === actor.id ||
-					comments.some((comment) => comment.authorId === person.id) ||
-					person.id === assigneeId
-			);
+	const visiblePeople =
+		hasPermission(actor.role, 'viewAllTickets') ||
+		hasPermission(actor.role, 'createTicketsForOthers') ||
+		hasPermission(actor.role, 'assignTickets')
+			? people
+			: people.filter(
+					(person) =>
+						person.id === actor.id ||
+						comments.some((comment) => comment.authorId === person.id) ||
+						person.id === assigneeId
+				);
 	return {
 		tickets: ticketRows,
 		nextPageHref: hasMoreTickets ? nextPageUrl.pathname + nextPageUrl.search : null,
@@ -273,7 +287,7 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 
 /** Returns only ticket content the actor may open, shared by the suggestion endpoint. */
 export async function loadTicketSuggestions(actor: Person, query: TicketSearchQuery) {
-	const includeInternalNotes = isStaff(actor);
+	const includeInternalNotes = hasPermission(actor.role, 'useInternalNotes');
 	const tickets = await db
 		.select({
 			id: ticket.id,

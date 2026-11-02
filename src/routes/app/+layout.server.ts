@@ -1,7 +1,7 @@
 import { redirect, type ServerLoadEvent } from '@sveltejs/kit';
 import { asc, eq, sql } from 'drizzle-orm';
 import { SIDEBAR_COOKIE_NAME } from '$lib/components/ui/sidebar/constants';
-import { isStaff } from '$lib/server/access';
+import { hasPermission } from '$lib/permissions';
 import { db } from '$lib/server/db';
 import { category, ticket, user } from '$lib/server/schema';
 import { OPEN_STATUSES } from '$lib/status';
@@ -10,7 +10,7 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 	const currentUser = locals.user;
 	if (!currentUser) redirect(303, '/login');
 
-	const isStaffUser = isStaff(currentUser);
+	const isStaffUser = hasPermission(currentUser.role, 'viewAllTickets');
 	const [ticketCountGroups, categories] = await Promise.all([
 		db
 			.select({

@@ -86,6 +86,7 @@ test('agent opens an assigned ticket for a requester and posts a public comment'
 	await choose(page, 'Requester', 'Marcus Lee');
 	await choose(page, 'Assignee', 'Priya Raman (you)');
 	await choose(page, 'Priority', 'High');
+	await choose(page, 'Status', 'In progress');
 	await choose(page, 'Category', 'Hardware');
 	await page.getByRole('button', { name: 'Create ticket', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Playwright classroom display' })).toBeVisible();
@@ -94,6 +95,9 @@ test('agent opens an assigned ticket for a requester and posts a public comment'
 		'Priya Raman'
 	);
 	await expect(page.getByRole('button', { name: 'Priority', exact: true })).toContainText('High');
+	await expect(page.getByRole('button', { name: 'Status', exact: true })).toContainText(
+		'In progress'
+	);
 	await page
 		.getByRole('textbox', { name: 'Comment', exact: true })
 		.fill('I will check the cable this afternoon.');

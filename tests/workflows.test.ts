@@ -1,4 +1,5 @@
-import { test, beforeAll, afterAll } from 'vitest';
+import { test, beforeAll, afterAll, vi } from 'vitest';
+import * as permissions from '../src/lib/permissions';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -141,6 +142,67 @@ test('staff can assign a ticket and choose priority when creating it', async () 
 		() => service.createTicket(people.marcus, form({ ...fields, assignedToUserId: 'priya' })),
 		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
 	);
+});
+test('agents and administrators can create every status with matching timestamps', async () => {
+	const [selectedCategory] = await db.select().from(schema.category);
+	for (const actor of [people.priya, people.jordan]) {
+		for (const statusCode of ['open', 'in_progress', 'on_hold', 'resolved', 'closed']) {
+			const createdTicket = await service.createTicket(
+				actor,
+				form({
+					subject: 'Initial status',
+					description: 'Logged by support',
+					categoryId: selectedCategory.id,
+					statusCode
+				})
+			);
+			assert.equal(createdTicket.statusCode, statusCode);
+			assert.equal(createdTicket.resolvedAt !== null, statusCode === 'resolved');
+			assert.equal(createdTicket.closedAt !== null, statusCode === 'closed');
+		}
+	}
+	const fields = {
+		subject: 'Status validation',
+		description: 'Test',
+		categoryId: selectedCategory.id
+	};
+	await assert.rejects(
+		() => service.createTicket(people.priya, form({ ...fields, statusCode: 'invalid' })),
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 400
+	);
+	await assert.rejects(
+		() => service.createTicket(people.marcus, form({ ...fields, statusCode: 'closed' })),
+		(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
+	);
+});
+test('capability checks deny unknown roles and keep ticket visibility separate from internal notes', async () => {
+	assert.equal(permissions.hasPermission('unknown', 'viewAllTickets'), false);
+	assert.equal(permissions.hasPermission('toString', 'manageAdministration'), false);
+	assert.equal(permissions.hasPermission(null, 'setTicketStatus'), false);
+	assert.equal(permissions.hasPermission('agent', 'manageAdministration'), false);
+	const originalPermissionCheck = permissions.hasPermission;
+	const permissionCheck = vi
+		.spyOn(permissions, 'hasPermission')
+		.mockImplementation(
+			(role, permission) =>
+				permission !== 'useInternalNotes' && originalPermissionCheck(role, permission)
+		);
+	try {
+		const workspace = await service.loadTicketWorkspace(
+			people.priya,
+			new URL('http://localhost/app/tickets'),
+			'1046'
+		);
+		assert(workspace.tickets.some((ticket) => ticket.requesterId !== people.priya.id));
+		assert(!workspace.comments.some((comment) => comment.isInternal));
+		await assert.rejects(
+			() =>
+				service.addTicketComment(people.priya, 1046, form({ body: 'Private', internal: 'true' })),
+			(e: unknown) => typeof e === 'object' && e !== null && 'status' in e && e.status === 403
+		);
+	} finally {
+		permissionCheck.mockRestore();
+	}
 });
 test('requesters cannot open a ticket for someone else', async () => {
 	const [cat] = await db.select().from(schema.category);

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
+	import { hasPermission } from '$lib/permissions';
 	import { afterNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { RefreshCw, SquarePen } from '@lucide/svelte';
@@ -40,7 +41,7 @@
 
 	let { data, form } = $props();
 
-	let isStaffUser = $derived(data.user.role !== 'requester');
+	let isStaffUser = $derived(hasPermission(data.user.role, 'viewAllTickets'));
 	let directory = $derived(new TicketDirectory(data.people, data.categories));
 
 	// ---- Ticket list ----
@@ -151,7 +152,9 @@
 			.filter((person) => !person.banned)
 			.sort((firstPerson, secondPerson) => firstPerson.name.localeCompare(secondPerson.name))
 	);
-	let assignees = $derived(requesters.filter((person) => person.role !== 'requester'));
+	let assignees = $derived(
+		requesters.filter((person) => hasPermission(person.role, 'receiveAssignments'))
+	);
 	let categoryOptions = $derived(
 		data.categories.map(({ id, name, active }) => ({ value: id, label: name, active }))
 	);
@@ -292,7 +295,7 @@
 					draft={activeDraft}
 					ticketDrafts={drafts.tickets}
 					{listHref}
-					{isStaffUser}
+					userRole={data.user.role}
 					requesterOptions={requesters.map(toPersonOption)}
 					assigneeOptions={assignees.map(toPersonOption)}
 					categoryOptions={categoryOptions.filter((option) => option.active)}

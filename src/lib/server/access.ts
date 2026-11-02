@@ -1,12 +1,9 @@
 import { error } from '@sveltejs/kit';
 import { ticket, user } from './schema';
+import { hasPermission } from '../permissions';
 
 export type Person = typeof user.$inferSelect;
 type Ticket = typeof ticket.$inferSelect;
-
-export function isStaff(person: Pick<Person, 'role'>): boolean {
-	return person.role === 'agent' || person.role === 'admin';
-}
 
 /**
  * Returns the signed-in person, or rejects the request.
@@ -25,7 +22,7 @@ export function requireUser(person: Person | null): Person {
  */
 export function requireAdministrator(person: Person | null): Person {
 	const administrator = requireUser(person);
-	if (administrator.role !== 'admin' || !administrator.twoFactorEnabled)
+	if (!hasPermission(administrator.role, 'manageAdministration') || !administrator.twoFactorEnabled)
 		error(403, 'Administrator access required.');
 	return administrator;
 }
@@ -36,5 +33,6 @@ export function requireAdministrator(person: Person | null): Person {
  * @throws 404 rather than 403, so requesters can't tell which ticket numbers exist
  */
 export function requireTicketAccess(actor: Person, ticketRecord: Ticket): void {
-	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) error(404, 'Ticket not found.');
+	if (!hasPermission(actor.role, 'viewAllTickets') && ticketRecord.requesterId !== actor.id)
+		error(404, 'Ticket not found.');
 }

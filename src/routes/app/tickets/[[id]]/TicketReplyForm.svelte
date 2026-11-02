@@ -12,14 +12,14 @@
 		isInternalNote: boolean;
 		authorName: string;
 		authorRoleLabel: string;
-		isStaffUser: boolean;
+		canUseInternalNotes: boolean;
 	};
 	let {
 		replyForm,
 		isInternalNote = $bindable(),
 		authorName,
 		authorRoleLabel,
-		isStaffUser
+		canUseInternalNotes
 	}: TicketReplyFormProps = $props();
 
 	// The conversation creates the form once, so reading it at setup is correct.
@@ -79,7 +79,7 @@
 				>
 			{/snippet}
 		</TooltipWrapper>
-		{#if isStaffUser}
+		{#if canUseInternalNotes}
 			<TooltipWrapper
 				content="Only visible to the support team; hidden from the requester"
 				onclick={() => (isInternalNote = true)}

@@ -1,3 +1,4 @@
+import { hasPermission } from '$lib/permissions';
 import { building } from '$app/environment';
 import { db } from '$lib/server/db';
 import { user } from '$lib/server/schema';
@@ -19,8 +20,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (person && !person.banned) event.locals.user = person;
 	}
 	if (
-		event.locals.user?.role === 'admin' &&
-		!event.locals.user.twoFactorEnabled &&
+		hasPermission(event.locals.user?.role, 'manageAdministration') &&
+		!event.locals.user?.twoFactorEnabled &&
 		event.url.pathname.startsWith('/app')
 	)
 		redirect(303, '/account-security');

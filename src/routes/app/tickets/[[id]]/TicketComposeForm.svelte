@@ -4,6 +4,8 @@
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { hasPermission } from '$lib/permissions';
+	import { TICKET_STATUSES } from '$lib/status';
 	import { ArrowLeft, Send, X } from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
@@ -23,7 +25,7 @@
 		draft: TicketDraft;
 		ticketDrafts: DraftStore<TicketDraftFields, TicketDraft>;
 		listHref: string;
-		isStaffUser: boolean;
+		userRole: string | null;
 		requesterOptions: SelectOption[];
 		assigneeOptions: SelectOption[];
 		categoryOptions: SelectOption[];
@@ -33,7 +35,7 @@
 		draft,
 		ticketDrafts,
 		listHref,
-		isStaffUser,
+		userRole,
 		requesterOptions,
 		assigneeOptions,
 		categoryOptions
@@ -117,7 +119,7 @@
 	<div class="conversation-scroll flex flex-col">
 		<div class="ticket-heading">
 			<div class="field-row">
-				{#if isStaffUser}
+				{#if hasPermission(userRole, 'createTicketsForOthers')}
 					<div class="metadata-control">
 						<span>Requester</span><Combobox
 							name="requesterId"
@@ -128,6 +130,8 @@
 							disabled={$isCreatingTicket}
 						/>
 					</div>
+				{/if}
+				{#if hasPermission(userRole, 'assignTickets')}
 					<div class="metadata-control">
 						<span>Assignee</span><Combobox
 							name="assignedToUserId"
@@ -138,6 +142,8 @@
 							disabled={$isCreatingTicket}
 						/>
 					</div>
+				{/if}
+				{#if hasPermission(userRole, 'setTicketPriority')}
 					<div class="metadata-control">
 						<span>Priority</span><Combobox
 							name="priority"
@@ -149,6 +155,21 @@
 								{ value: 'normal', label: 'Normal' },
 								{ value: 'high', label: 'High' }
 							]}
+							disabled={$isCreatingTicket}
+						/>
+					</div>
+				{/if}
+				{#if hasPermission(userRole, 'setTicketStatus')}
+					<div class="metadata-control">
+						<span>Status</span><Combobox
+							name="statusCode"
+							label="Status"
+							variant="inline"
+							bind:value={draft.statusCode}
+							options={Object.entries(TICKET_STATUSES).map(([value, status]) => ({
+								value,
+								label: status.label
+							}))}
 							disabled={$isCreatingTicket}
 						/>
 					</div>

@@ -1,6 +1,7 @@
 <!-- The reading pane for one ticket: its toolbar, details, timeline, and reply composer. -->
 <script lang="ts">
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { hasPermission } from '$lib/permissions';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Link, LockKeyhole } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -98,12 +99,15 @@
 		if (hasUnsentReply && !confirm('Discard your unsent text and leave this page?')) cancel();
 	});
 
-	let isStaffUser = $derived(currentUser.role !== 'requester');
-	let isAdministrator = $derived(currentUser.role === 'admin');
+	let canUseInternalNotes = $derived(hasPermission(currentUser.role, 'useInternalNotes'));
+	let canReopenClosedTickets = $derived(hasPermission(currentUser.role, 'reopenClosedTickets'));
 	let isTicketClosed = $derived(ticket.statusCode === 'closed');
 	let canReopen = $derived(
-		(ticket.statusCode === 'resolved' && (isStaffUser || ticket.requesterId === currentUser.id)) ||
-			(isTicketClosed && isAdministrator)
+		(ticket.statusCode === 'resolved' &&
+			(hasPermission(currentUser.role, 'setTicketStatus') ||
+				(ticket.requesterId === currentUser.id &&
+					hasPermission(currentUser.role, 'reopenOwnResolvedTickets')))) ||
+			(isTicketClosed && canReopenClosedTickets)
 	);
 	let categoryOptions = $derived(
 		categories
@@ -193,19 +197,28 @@
 			>{showTicketDetails ? 'Hide details' : 'Show details'} <span>⌄</span></button
 		>
 		<div class="field-row" class:expanded={showTicketDetails}>
-			{#if isStaffUser && !isTicketClosed}<TicketFieldSelect
+			{#if !isTicketClosed && hasPermission(currentUser.role, 'setTicketStatus')}
+				<TicketFieldSelect
 					field="statusCode"
 					label="Status"
 					value={ticket.statusCode}
 					options={STATUS_OPTIONS}
 					disabled={isLoading}
-				/><TicketFieldSelect
+				/>
+			{:else}<StatusBadge status={ticket.statusCode} />{/if}
+			{#if !isTicketClosed && hasPermission(currentUser.role, 'setTicketPriority')}
+				<TicketFieldSelect
 					field="priority"
 					label="Priority"
 					value={ticket.priority}
 					options={PRIORITY_OPTIONS}
 					disabled={isLoading}
-				/><TicketFieldSelect
+				/>
+			{:else}<span class={METADATA_PILL_CLASS}
+					>Priority <strong class="text-foreground capitalize">{ticket.priority}</strong></span
+				>{/if}
+			{#if !isTicketClosed && hasPermission(currentUser.role, 'assignTickets')}
+				<TicketFieldSelect
 					field="assignedToUserId"
 					label="Assignee"
 					value={ticket.assignedToUserId || ''}
@@ -214,15 +227,8 @@
 						...assignees.map((person) => ({ value: person.id, label: person.name }))
 					]}
 					disabled={isLoading}
-				/><TicketFieldSelect
-					field="categoryId"
-					label="Category"
-					value={ticket.categoryId}
-					options={categoryOptions}
-					disabled={isLoading}
-				/>{:else}<StatusBadge status={ticket.statusCode} /><span class={METADATA_PILL_CLASS}
-					>Priority <strong class="text-foreground capitalize">{ticket.priority}</strong></span
-				><span class={METADATA_PILL_CLASS}
+				/>
+			{:else}<span class={METADATA_PILL_CLASS}
 					>Assignee <strong class="text-foreground capitalize"
 						>{isLoading
 							? '…'
@@ -230,7 +236,16 @@
 								? directory.getPersonName(ticket.assignedToUserId)
 								: 'Unassigned'}</strong
 					></span
-				><span class={METADATA_PILL_CLASS}
+				>{/if}
+			{#if !isTicketClosed && hasPermission(currentUser.role, 'setTicketCategory')}
+				<TicketFieldSelect
+					field="categoryId"
+					label="Category"
+					value={ticket.categoryId}
+					options={categoryOptions}
+					disabled={isLoading}
+				/>
+			{:else}<span class={METADATA_PILL_CLASS}
 					>Category <strong class="text-foreground capitalize"
 						>{directory.getCategoryName(ticket.categoryId)}</strong
 					></span
@@ -267,13 +282,13 @@
 				bind:isInternalNote
 				authorName={directory.getPersonName(currentUser.id)}
 				authorRoleLabel={getRoleLabel(directory.getPersonRole(currentUser.id))}
-				{isStaffUser}
+				{canUseInternalNotes}
 			/>{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
 				<LockKeyhole size={18} />
 				<div>
 					<strong>This ticket is closed</strong>
 					<p class="mt-[5px] text-[12px] text-muted-foreground">
-						Closed tickets are read-only.{isAdministrator
+						Closed tickets are read-only.{canReopenClosedTickets
 							? ' You can reopen this ticket below.'
 							: ''}
 					</p>

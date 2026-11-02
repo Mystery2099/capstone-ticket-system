@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { hasPermission } from '$lib/permissions';
 	import { createHotkey } from '@tanstack/svelte-hotkeys';
 	import { onMount } from 'svelte';
 	import { navigating, page } from '$app/state';
@@ -35,13 +36,15 @@
 	});
 	// This layout remounts when the user changes, so reading the id once is correct.
 	// svelte-ignore state_referenced_locally
-	const drafts = setDrafts(new Drafts(data.user.id, data.user.role === 'admin'));
+	const drafts = setDrafts(
+		new Drafts(data.user.id, hasPermission(data.user.role, 'manageAdministration'))
+	);
 	drafts.startBrowserPersistence();
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
 	let isSidebarOpen = $state(data.isSidebarOpen);
 
-	let isStaffUser = $derived(data.user.role !== 'requester');
+	let isStaffUser = $derived(hasPermission(data.user.role, 'viewAllTickets'));
 	// Navigation highlights follow the destination, so clicks register before data arrives.
 	let activeUrl = $derived(navigating.to?.url ?? page.url);
 	let activeView = $derived(
@@ -188,7 +191,7 @@
 	<AppSidebar
 		{navigationViews}
 		openTicketCountsByCategory={data.openTicketCountsByCategory}
-		isAdmin={data.user.role === 'admin'}
+		isAdmin={hasPermission(data.user.role, 'manageAdministration')}
 		{activeUrl}
 		{activeView}
 		{activeCategoryId}
