@@ -2,12 +2,12 @@ import { fail, isHttpError, redirect } from '@sveltejs/kit';
 import { message, superValidate, type SuperValidated } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { createTicketSchema, commentSchema } from '$lib/server/validation';
+import { requireUser } from '$lib/server/access';
 import {
 	addTicketComment,
 	createTicket,
 	findTicketSearchRedirect,
 	loadTicketWorkspace,
-	requireUser,
 	updateTicketField
 } from '$lib/server/tickets';
 import type { Actions, PageServerLoad } from './$types';

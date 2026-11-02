@@ -10,7 +10,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import { getInitials } from '$lib/status';
+	import { getInitials } from '$lib/person';
 	import { getDrafts } from '$lib/ticket-draft.svelte';
 	import { toast } from 'svelte-sonner';
 
@@ -233,10 +233,10 @@
 		{#if secondaryAction.hint}
 			<span class="muted small compose-hint">{secondaryAction.hint}</span>
 		{/if}
-		<Button variant="ghost" size="sm" class="rounded-full px-4" onclick={secondaryAction.run}
+		<Button variant="ghost" size="pill-sm" onclick={secondaryAction.run}
 			>{secondaryAction.label}</Button
 		>
-		<Button type="submit" size="sm" class="rounded-full px-4" disabled={isSubmitting}
+		<Button type="submit" size="pill-sm" disabled={isSubmitting}
 			>{isSubmitting ? workingLabel : primaryLabel}</Button
 		>
 	</div>

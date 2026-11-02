@@ -2,23 +2,23 @@
 	import { signOutSession } from '$lib/auth-client';
 	import { onMount } from 'svelte';
 	import { LogOut } from '@lucide/svelte';
-	import { getInitials } from '$lib/status';
+	import { getInitials, getRoleLabel } from '$lib/person';
+	import { readThemePreference, saveThemePreference, type ThemePreference } from '$lib/theme';
 	import { Button } from '$lib/components/ui/button/index.js';
 	let { data } = $props();
-	let theme = $state('system'),
-		isSigningOut = $state(false);
-	function applyTheme(selectedTheme: string) {
-		theme = selectedTheme;
-		localStorage.setItem('ticket-theme', selectedTheme);
-		document.documentElement.dataset.theme =
-			selectedTheme === 'system'
-				? matchMedia('(prefers-color-scheme: dark)').matches
-					? 'dark'
-					: 'light'
-				: selectedTheme;
+	const THEME_OPTIONS: { value: ThemePreference; label: string; hint: string }[] = [
+		{ value: 'system', label: 'Follow system', hint: '(default)' },
+		{ value: 'light', label: 'Light', hint: '' },
+		{ value: 'dark', label: 'Dark', hint: '' }
+	];
+	let themePreference = $state<ThemePreference>('system');
+	let isSigningOut = $state(false);
+	function selectThemePreference(selectedThemePreference: ThemePreference): void {
+		themePreference = selectedThemePreference;
+		saveThemePreference(selectedThemePreference);
 	}
 	onMount(() => {
-		theme = localStorage.getItem('ticket-theme') || 'system';
+		themePreference = readThemePreference();
 	});
 	async function signOut(): Promise<void> {
 		isSigningOut = true;
@@ -36,13 +36,13 @@
 				<p>Remembered in this browser.</p>
 			</div>
 			<fieldset class="appearance-radios" aria-label="Appearance">
-				{#each [{ value: 'system', label: 'Follow system', hint: '(default)' }, { value: 'light', label: 'Light', hint: '' }, { value: 'dark', label: 'Dark', hint: '' }] as option (option.value)}<label
+				{#each THEME_OPTIONS as option (option.value)}<label
 						><input
 							type="radio"
 							name="theme"
 							value={option.value}
-							checked={theme === option.value}
-							onchange={() => applyTheme(option.value)}
+							checked={themePreference === option.value}
+							onchange={() => selectThemePreference(option.value)}
 						/>{option.label} <span class="muted small">{option.hint}</span></label
 					>{/each}
 			</fieldset>
@@ -59,15 +59,14 @@
 						<strong>{data.user.name}</strong>
 						<p>
 							{data.user.email} ·
-							<span style="text-transform:capitalize"
-								>{data.user.role === 'admin' ? 'Administrator' : data.user.role}</span
-							>
+							{getRoleLabel(data.user.role)}
 						</p>
 					</div>
 				</div>
 				<Button
 					variant="outline"
-					class="rounded-full h-9 px-5 mt-5"
+					size="pill"
+					class="mt-5"
 					onclick={signOut}
 					disabled={isSigningOut}
 				>

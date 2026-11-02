@@ -7,9 +7,9 @@ import {
 	updateManagedUser,
 	saveManagedCategory
 } from '$lib/server/administration';
+import { requireAdministrator, requireFreshAdministrator } from '$lib/server/access';
 import { db } from '$lib/server/db';
 import { user, category } from '$lib/server/schema';
-import { requireUser, type Person } from '$lib/server/tickets';
 import {
 	adminCategorySchema,
 	adminCreateUserSchema,
@@ -20,25 +20,6 @@ import type { Actions, PageServerLoad } from './$types';
 const createUserFormSchema = zod4(adminCreateUserSchema);
 const updateUserFormSchema = zod4(adminUpdateUserSchema);
 const categoryFormSchema = zod4(adminCategorySchema);
-
-/**
- * Returns the signed-in administrator. Every load and action here calls this first.
- *
- * @throws 403 when the signed-in person isn't an administrator
- */
-function requireAdministrator(currentUser: App.Locals['user']): Person {
-	const person = requireUser(currentUser);
-	if (person.role !== 'admin' || !person.twoFactorEnabled)
-		error(403, 'Administrator access required.');
-	return person;
-}
-
-function requireFreshAdministrator(locals: App.Locals): Person {
-	const actor = requireAdministrator(locals.user);
-	if (!locals.sessionCreatedAt || Date.now() - locals.sessionCreatedAt.getTime() > 15 * 60 * 1000)
-		error(403, 'Sign out and sign in again before changing accounts or categories.');
-	return actor;
-}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	requireAdministrator(locals.user);

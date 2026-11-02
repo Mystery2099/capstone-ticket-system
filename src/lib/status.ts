@@ -17,12 +17,3 @@ export const TicketEventType = {
 	INTERNAL_NOTE: 'internal_note',
 	STATUS: 'status'
 } as const;
-
-/** The first letters of up to two names, for avatars. */
-export function getInitials(name: string): string {
-	return name
-		.split(' ')
-		.map((word) => word[0])
-		.slice(0, 2)
-		.join('');
-}

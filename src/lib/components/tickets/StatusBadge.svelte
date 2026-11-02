@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { TICKET_STATUSES, type Status } from './status';
+	import { TICKET_STATUSES, type Status } from '$lib/status';
 	let { status }: { status: string } = $props();
 	let statusDefinition = $derived(TICKET_STATUSES[status as Status] || TICKET_STATUSES.open);
 </script>

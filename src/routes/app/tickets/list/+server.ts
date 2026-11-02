@@ -1,5 +1,6 @@
 import { stringify } from 'devalue';
-import { loadTicketWorkspace, requireUser } from '$lib/server/tickets';
+import { requireUser } from '$lib/server/access';
+import { loadTicketWorkspace } from '$lib/server/tickets';
 import type { RequestHandler } from './$types';
 
 /** Additional list batches use the same filters and access checks as the initial page. */

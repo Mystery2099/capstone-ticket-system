@@ -29,7 +29,11 @@
 					"size-6 rounded-[min(var(--radius-md),10px)] in-data-[slot=button-group]:rounded-lg [&_svg:not([class*='size-'])]:size-3",
 				'icon-sm':
 					'size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg',
-				'icon-lg': 'size-9'
+				'icon-lg': 'size-9',
+				// Rounded app actions: pill-sm for form footers, pill for standalone actions.
+				'pill-sm':
+					"h-7 gap-1 rounded-full px-4 text-[0.8rem] [&_svg:not([class*='size-'])]:size-3.5",
+				pill: 'h-9 gap-1.5 rounded-full px-5'
 			}
 		},
 		defaultVariants: {

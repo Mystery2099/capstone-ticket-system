@@ -3,21 +3,8 @@
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { onMount } from 'svelte';
-	onMount(() => {
-		const applyStoredTheme = () => {
-			const storedTheme = localStorage.getItem('ticket-theme') || 'system';
-			document.documentElement.dataset.theme =
-				storedTheme === 'system'
-					? matchMedia('(prefers-color-scheme: dark)').matches
-						? 'dark'
-						: 'light'
-					: storedTheme;
-		};
-		applyStoredTheme();
-		const darkModeQuery = matchMedia('(prefers-color-scheme: dark)');
-		darkModeQuery.addEventListener('change', applyStoredTheme);
-		return () => darkModeQuery.removeEventListener('change', applyStoredTheme);
-	});
+	import { watchThemePreference } from '$lib/theme';
+	onMount(watchThemePreference);
 	let { children } = $props();
 </script>
 

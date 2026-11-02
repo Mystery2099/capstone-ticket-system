@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { and, asc, desc, eq, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { OPEN_STATUSES, TicketEventType } from '../status';
+import { isStaff, type Person } from './access';
 import { db } from './db';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
 import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
@@ -15,26 +16,11 @@ import {
 
 const TICKET_PAGE_SIZE = 50;
 
-export type Person = typeof user.$inferSelect;
 type Ticket = typeof ticket.$inferSelect;
 type Category = typeof category.$inferSelect;
 type TicketComment = typeof ticketComment.$inferSelect;
 type TicketEvent = typeof ticketEvent.$inferSelect;
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-
-export function isStaff(person: Person): boolean {
-	return person.role === 'agent' || person.role === 'admin';
-}
-
-/**
- * Returns the signed-in person, or rejects the request.
- *
- * @throws 401 when nobody is signed in or the account is disabled
- */
-export function requireUser(person: Person | null): Person {
-	if (!person || person.banned) error(401, 'Please sign in.');
-	return person;
-}
 
 /**
  * Checks that a person may see a ticket.

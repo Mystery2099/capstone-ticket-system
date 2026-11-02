@@ -20,12 +20,12 @@
 		Settings,
 		LogOut
 	} from '@lucide/svelte';
-	import { getInitials } from '$lib/status';
-	import TicketSearchBar from '$lib/components/TicketSearchBar.svelte';
-	import AppSidebar from '$lib/components/AppSidebar.svelte';
-	import SidebarToggle from '$lib/components/SidebarToggle.svelte';
+	import { getInitials } from '$lib/person';
+	import TicketSearchBar from '$lib/components/tickets/TicketSearchBar.svelte';
+	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
+	import SidebarToggle from '$lib/components/layout/SidebarToggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { createDelayedFlag } from '$lib/delayed.svelte';
 	import { resolveMotionDuration } from '$lib/motion';
 	import { Drafts, setDrafts } from '$lib/ticket-draft.svelte';
@@ -197,16 +197,12 @@
 			categories={data.searchCategories}
 		/>
 		<div class="account-wrap">
-			<Tooltip.Root>
-				<Tooltip.Trigger onclick={() => (isAccountMenuOpen = !isAccountMenuOpen)}>
-					{#snippet child({ props })}
-						<button {...props} class="avatar" aria-label="Account menu"
-							>{getInitials(data.user.name)}</button
-						>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content side="bottom" sideOffset={6}>Account menu</Tooltip.Content>
-			</Tooltip.Root>{#if isAccountMenuOpen}<div
+			<TooltipIconButton
+				label="Account menu"
+				class="avatar"
+				onclick={() => (isAccountMenuOpen = !isAccountMenuOpen)}
+				>{getInitials(data.user.name)}</TooltipIconButton
+			>{#if isAccountMenuOpen}<div
 					class="account-menu"
 					transition:scale={{ start: 0.96, duration: resolveMotionDuration(120) }}
 				>

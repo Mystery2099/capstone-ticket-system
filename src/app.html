@@ -6,7 +6,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<script nonce="%sveltekit.nonce%">
 			// Applies the saved theme before first paint so dark mode users never see a light flash.
-			// Keep in sync with the theme logic in src/routes/+layout.svelte.
+			// Keep in sync with src/lib/theme.ts.
 			try {
 				const theme = localStorage.getItem('ticket-theme') || 'system';
 				document.documentElement.dataset.theme =

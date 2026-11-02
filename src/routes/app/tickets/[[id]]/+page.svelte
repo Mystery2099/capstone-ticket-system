@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { parse } from 'devalue';
 	import { untrack } from 'svelte';
-	import VirtualTicketRows from '$lib/components/VirtualTicketRows.svelte';
+	import VirtualTicketRows from '$lib/components/tickets/VirtualTicketRows.svelte';
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { enhance } from '$app/forms';
 	import { superForm } from 'sveltekit-superforms';
@@ -29,9 +29,10 @@
 		Inbox
 	} from '@lucide/svelte';
 	import Combobox from '$lib/components/Combobox.svelte';
-	import StatusBadge from '$lib/StatusBadge.svelte';
-	import HighlightedText from '$lib/components/HighlightedText.svelte';
-	import { TICKET_STATUSES, getInitials, TicketEventType } from '$lib/status';
+	import StatusBadge from '$lib/components/tickets/StatusBadge.svelte';
+	import HighlightedText from '$lib/components/tickets/HighlightedText.svelte';
+	import { TICKET_STATUSES, TicketEventType } from '$lib/status';
+	import { getInitials, getRoleLabel } from '$lib/person';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
@@ -555,19 +556,14 @@
 					<span class="compose-actions">
 						<Button
 							variant="ghost"
-							size="sm"
-							class="rounded-full px-4"
+							size="pill-sm"
 							disabled={$isCreatingTicket}
 							onclick={() => {
 								ticketDrafts.discardById(activeDraft.id);
 								void goto(listHref);
 							}}>Discard</Button
 						>
-						<Button
-							type="submit"
-							size="sm"
-							class="rounded-full px-4 whitespace-nowrap"
-							disabled={$isCreatingTicket}
+						<Button type="submit" size="pill-sm" disabled={$isCreatingTicket}
 							><Send size={15} />{$isCreatingTicket ? 'Creating…' : 'Create ticket'}</Button
 						>
 					</span>
@@ -588,11 +584,7 @@
 		<div class="message-content">
 			<div class="message-heading">
 				<strong>{getPersonName(authorId)}</strong><span class="role-tag"
-					>{getPersonRole(authorId) === 'requester'
-						? 'Requester'
-						: getPersonRole(authorId) === 'admin'
-							? 'Administrator'
-							: 'Agent'}</span
+					>{getRoleLabel(getPersonRole(authorId))}</span
 				><time>{timestampLabel}</time>
 			</div>
 			{#if isInternal}<p class="private-label">
@@ -1017,8 +1009,7 @@
 										: 'Visible to the requester and support team'}</span
 								><Button
 									type="submit"
-									size="sm"
-									class="rounded-full px-4 whitespace-nowrap"
+									size="pill-sm"
 									disabled={$isSendingComment || !$replyFields.body.trim()}
 									><Send size={15} />{$isSendingComment
 										? $isReplyDelayed
@@ -1056,11 +1047,8 @@
 								type="hidden"
 								name="value"
 								value="open"
-							/><Button
-								type="submit"
-								variant="outline"
-								class="rounded-full h-9 px-5"
-								disabled={isReopening}>{isReopening ? 'Reopening…' : 'Reopen ticket'}</Button
+							/><Button type="submit" variant="outline" size="pill" disabled={isReopening}
+								>{isReopening ? 'Reopening…' : 'Reopen ticket'}</Button
 							>
 						</form>{/if}
 				{/if}
