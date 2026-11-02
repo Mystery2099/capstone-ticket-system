@@ -3,12 +3,16 @@
 	import { enhance } from '$app/forms';
 	import { PERMISSION_LABELS } from '$lib/permissions';
 	import Combobox from '$lib/components/Combobox.svelte';
+	import EmptyState from '$lib/components/EmptyState.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import AdminWorkspace from './AdminWorkspace.svelte';
 	import AdminDetailsToolbar from './AdminDetailsToolbar.svelte';
 	import type { PageData, ActionData } from './$types';
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let filterText = $state('');
+	let filteredRoles = $derived(
+		data.roles.filter((role) => role.name.toLowerCase().includes(filterText.trim().toLowerCase()))
+	);
 	let copyRoleId = $state('');
 	let selectedRole = $derived(
 		data.roles.find((role) => role.id === page.url.searchParams.get('id'))
@@ -30,24 +34,31 @@
 <AdminWorkspace
 	title="Roles"
 	recordNoun="role"
-	recordCount={data.roles.length}
+	recordCount={filteredRoles.length}
 	isPaneOpen={isCreating || !!selectedRole}
 	bind:filterText
 >
 	{#snippet filters()}{/snippet}
 	{#snippet rows()}
-		{#each data.roles.filter((role) => role.name
-				.toLowerCase()
-				.includes(filterText.trim().toLowerCase())) as role (role.id)}
-			<a class="ticket-row" class:selected={selectedRole?.id === role.id} href={'?id=' + role.id}>
-				<strong>{role.name}</strong>
-				<span class="muted small"
-					>{data.users.filter((person) => person.role === role.id).length} users · {role.id ===
-					'admin'
-						? 'Protected'
-						: role.permissions.length + ' permissions'}</span
-				>
+		{#each filteredRoles as role (role.id)}
+			{@const memberCount = data.users.filter((person) => person.role === role.id).length}
+			<a class="list-row" class:selected={selectedRole?.id === role.id} href={'?id=' + role.id}>
+				<div class="row-content">
+					<div class="row-title"><strong>{role.name}</strong></div>
+					<div class="row-meta">
+						<span class="row-preview">
+							{memberCount}
+							{memberCount === 1 ? 'user' : 'users'} · {role.id === 'admin'
+								? 'Protected'
+								: `${role.permissions.length} ${role.permissions.length === 1 ? 'permission' : 'permissions'}`}
+						</span>
+					</div>
+				</div>
 			</a>
+		{:else}
+			<EmptyState title="No roles here">
+				{#snippet description()}Try another search.{/snippet}
+			</EmptyState>
 		{/each}
 	{/snippet}
 	{#snippet pane()}
