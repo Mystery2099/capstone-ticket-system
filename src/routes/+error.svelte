@@ -15,11 +15,7 @@
 					: 'Something went wrong'}
 		</h1>
 		<p class="muted" style="line-height:1.6">{page.error?.message}</p>
-		<Button
-			href="/app/tickets"
-			variant="outline"
-			class="rounded-full h-9 px-5 mt-6 text-foreground"
-		>
+		<Button href="/app/tickets" variant="outline" size="pill" class="mt-6 text-foreground">
 			<ArrowLeft size={16} /> Back to tickets
 		</Button>
 	</div>

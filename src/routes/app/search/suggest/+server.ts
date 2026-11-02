@@ -1,5 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { requireUser, loadTicketSuggestions } from '$lib/server/tickets';
+import { requireUser } from '$lib/server/access';
+import { loadTicketSuggestions } from '$lib/server/tickets';
 import { TicketSearchQuery } from '$lib/server/ticket-search';
 import type { RequestHandler } from './$types';
 

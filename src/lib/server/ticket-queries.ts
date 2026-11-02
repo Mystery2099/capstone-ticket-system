@@ -1,0 +1,298 @@
+/**
+ * Ticket reads: the workspace's list and open conversation, and search. Every read applies
+ * the actor's access, so requesters only ever see their own tickets.
+ */
+import { error } from '@sveltejs/kit';
+import { and, asc, desc, eq, inArray, lt, sql, type SQL } from 'drizzle-orm';
+import { OPEN_STATUSES, TicketEventType } from '../status';
+import { isStaff, requireTicketAccess, type Person } from './access';
+import { db } from './db';
+import { ticket, category, user, ticketComment, ticketEvent } from './schema';
+import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
+import { parseTicketNumber } from './validation';
+
+const TICKET_PAGE_SIZE = 50;
+
+type Ticket = typeof ticket.$inferSelect;
+type Category = typeof category.$inferSelect;
+type TicketComment = typeof ticketComment.$inferSelect;
+type TicketEvent = typeof ticketEvent.$inferSelect;
+
+/**
+ * Returns where a search should go instead of the results: the ticket itself, when the
+ * search is a ticket number the actor may open. Otherwise the search runs as usual, so
+ * requesters can't tell which ticket numbers exist.
+ */
+export async function findTicketSearchRedirect(actor: Person, url: URL): Promise<string | null> {
+	const searchQuery = TicketSearchQuery.fromUrl(url);
+	if (searchQuery?.ticketNumber == null) return null;
+	const [ticketRecord] = await db
+		.select()
+		.from(ticket)
+		.where(eq(ticket.ticketNumber, searchQuery.ticketNumber));
+	if (!ticketRecord) return null;
+	if (!isStaff(actor) && ticketRecord.requesterId !== actor.id) return null;
+	const redirectUrl = new URL(url);
+	redirectUrl.pathname = `/app/tickets/${ticketRecord.ticketNumber}`;
+	redirectUrl.searchParams.delete('q');
+	redirectUrl.searchParams.delete('before');
+	redirectUrl.searchParams.delete('page');
+	return redirectUrl.pathname + redirectUrl.search;
+}
+
+/** Builds the WHERE conditions for a view, its filters and the search box. */
+function buildTicketListConditions(
+	actor: Person,
+	url: URL,
+	view: string,
+	categories: Category[],
+	searchQuery: TicketSearchQuery | null
+): (SQL | undefined)[] {
+	const conditions: (SQL | undefined)[] = [];
+	if (!isStaff(actor)) conditions.push(eq(ticket.requesterId, actor.id));
+	if (view === 'mine') conditions.push(eq(ticket.requesterId, actor.id));
+	if (view === 'queue') conditions.push(eq(ticket.assignedToUserId, actor.id));
+	if (view === 'unassigned') conditions.push(sql`${ticket.assignedToUserId} is null`);
+	// A search also finds resolved and closed tickets, unless a status filter says otherwise.
+	if (!searchQuery && ['open', 'queue', 'unassigned'].includes(view))
+		conditions.push(inArray(ticket.statusCode, [...OPEN_STATUSES]));
+
+	for (const parameter of ['requester', 'assignee']) {
+		const value = url.searchParams.get(parameter);
+		if (value === 'none' && parameter === 'assignee')
+			conditions.push(sql`${ticket.assignedToUserId} is null`);
+		else if (value)
+			conditions.push(
+				eq(parameter === 'requester' ? ticket.requesterId : ticket.assignedToUserId, value)
+			);
+	}
+	for (const parameter of ['after', 'beforeDate']) {
+		const value = url.searchParams.get(parameter);
+		if (
+			!value ||
+			!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+			!Number.isFinite(Date.parse(value)) ||
+			new Date(value).toISOString().slice(0, 10) !== value
+		)
+			continue;
+		conditions.push(
+			parameter === 'after'
+				? sql`${ticket.createdAt} >= ${value}::date`
+				: sql`${ticket.createdAt} < ${value}::date + interval '1 day'`
+		);
+	}
+	if (url.searchParams.get('hasComments') === 'true')
+		conditions.push(sql`exists (
+		select 1 from ${ticketComment} where ${ticketComment.ticketId} = ${ticket.id}
+		and ${isStaff(actor) ? sql`true` : sql`${ticketComment.isInternal} = false`}
+	)`);
+	const filters = [
+		['status', ticket.statusCode],
+		['priority', ticket.priority],
+		['category', ticket.categoryId]
+	] as const;
+	for (const [parameter, column] of filters) {
+		const value = url.searchParams.get(parameter);
+		if (!value) continue;
+		if (parameter === 'category' && !categories.some((candidate) => candidate.id === value))
+			continue;
+		conditions.push(eq(column, value));
+	}
+
+	if (searchQuery) conditions.push(searchQuery.buildMatchCondition(isStaff(actor)));
+	return conditions;
+}
+
+/** Loads one ticket's conversation, leaving out private content for requesters. */
+async function loadConversation(
+	actor: Person,
+	ticketNumber: string
+): Promise<{ ticketRecord: Ticket; comments: TicketComment[]; events: TicketEvent[] }> {
+	const parsedTicketNumber = parseTicketNumber(Number(ticketNumber));
+	const [ticketRecord] = await db
+		.select()
+		.from(ticket)
+		.where(eq(ticket.ticketNumber, parsedTicketNumber));
+	if (!ticketRecord) error(404, 'Ticket not found.');
+	requireTicketAccess(actor, ticketRecord);
+
+	const canViewInternalContent = isStaff(actor);
+	const comments = await db
+		.select()
+		.from(ticketComment)
+		.where(
+			and(
+				eq(ticketComment.ticketId, ticketRecord.id),
+				...(canViewInternalContent ? [] : [eq(ticketComment.isInternal, false)])
+			)
+		)
+		.orderBy(asc(ticketComment.createdAt));
+	const events = await db
+		.select()
+		.from(ticketEvent)
+		.where(
+			and(
+				eq(ticketEvent.ticketId, ticketRecord.id),
+				...(canViewInternalContent
+					? []
+					: [sql`${ticketEvent.eventType} <> ${TicketEventType.INTERNAL_NOTE}`])
+			)
+		)
+		.orderBy(asc(ticketEvent.createdAt));
+	return { ticketRecord, comments, events };
+}
+
+/**
+ * Loads everything the ticket screen needs: the filtered list, plus the open ticket if any.
+ *
+ * @param routeTicketId the ticket number from the URL, or `new` for the compose pane
+ * @throws 404 when the ticket doesn't exist or the actor may not see it
+ */
+export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId?: string) {
+	const categories = await db.select().from(category).orderBy(asc(category.name));
+	const people = await db
+		.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
+		.from(user);
+	const view = url.searchParams.get('view') || (isStaff(actor) ? 'open' : 'mine');
+	const searchQuery = TicketSearchQuery.fromUrl(url);
+	const canViewInternalContent = isStaff(actor);
+	const conditions = buildTicketListConditions(actor, url, view, categories, searchQuery);
+	const searchSort = searchQuery && url.searchParams.get('sort') !== 'newest' ? 'relevance' : null;
+
+	// Newest-first lists page from the last ticket number shown. Relevance order pages by page number.
+	const beforeTicketNumber = searchSort ? null : url.searchParams.get('before');
+	if (beforeTicketNumber)
+		conditions.push(lt(ticket.ticketNumber, parseTicketNumber(Number(beforeTicketNumber))));
+	const requestedPageNumber = Number(url.searchParams.get('page'));
+	const pageNumber =
+		searchSort && Number.isSafeInteger(requestedPageNumber) && requestedPageNumber > 0
+			? Math.min(requestedPageNumber, 1000000)
+			: 1;
+	// Drafts live in the browser, so that view has no tickets to fetch.
+	const matchingTickets =
+		view === 'drafts'
+			? []
+			: await db
+					.select()
+					.from(ticket)
+					.where(and(...conditions))
+					.orderBy(
+						...(searchQuery && searchSort
+							? [desc(searchQuery.buildRankExpression(canViewInternalContent))]
+							: []),
+						desc(ticket.ticketNumber)
+					)
+					.limit(TICKET_PAGE_SIZE + 1)
+					.offset((pageNumber - 1) * TICKET_PAGE_SIZE);
+	const hasMoreTickets = matchingTickets.length > TICKET_PAGE_SIZE;
+	const tickets = matchingTickets.slice(0, TICKET_PAGE_SIZE);
+	const nextPageUrl = new URL(url);
+	nextPageUrl.pathname = '/app/tickets';
+	if (searchSort) nextPageUrl.searchParams.set('page', String(pageNumber + 1));
+	else if (tickets.length)
+		nextPageUrl.searchParams.set('before', String(tickets[tickets.length - 1].ticketNumber));
+	const firstPageUrl = new URL(url);
+	firstPageUrl.pathname = '/app/tickets';
+	firstPageUrl.searchParams.delete('before');
+	firstPageUrl.searchParams.delete('page');
+	const searchHighlights = searchQuery
+		? await searchQuery.loadHighlights(
+				tickets.map((ticketRecord) => ticketRecord.id),
+				canViewInternalContent
+			)
+		: new Map<string, TicketSearchHighlight>();
+	const latestPublicComments = tickets.length
+		? await db
+				.selectDistinctOn([ticketComment.ticketId])
+				.from(ticketComment)
+				.where(
+					and(
+						inArray(
+							ticketComment.ticketId,
+							tickets.map((ticketRecord) => ticketRecord.id)
+						),
+						eq(ticketComment.isInternal, false)
+					)
+				)
+				.orderBy(ticketComment.ticketId, desc(ticketComment.createdAt), desc(ticketComment.id))
+		: [];
+	const ticketRows = tickets.map((ticketRecord) => {
+		const latestPublicComment = latestPublicComments.find(
+			(comment) => comment.ticketId === ticketRecord.id
+		);
+		const searchHighlight = searchHighlights.get(ticketRecord.id);
+		const previewAuthorId = searchHighlight?.snippetSegments
+			? searchHighlight.snippetAuthorId
+			: latestPublicComment?.authorId;
+		const previewAuthor = people.find((person) => person.id === previewAuthorId);
+		return {
+			...ticketRecord,
+			preview: latestPublicComment?.body || ticketRecord.description,
+			previewAuthor: previewAuthorId ? previewAuthor?.name.split(' ')[0] || 'Support team' : null,
+			subjectHighlight: searchHighlight?.subjectSegments ?? null,
+			previewHighlight: searchHighlight?.snippetSegments ?? null,
+			searchMetadataMatches: searchHighlight?.metadataMatches ?? []
+		};
+	});
+
+	let selectedTicket: Ticket | null = null;
+	let comments: TicketComment[] = [];
+	let events: TicketEvent[] = [];
+	if (routeTicketId && routeTicketId !== 'new') {
+		const conversation = await loadConversation(actor, routeTicketId);
+		selectedTicket = conversation.ticketRecord;
+		comments = conversation.comments;
+		events = conversation.events;
+	}
+
+	const assigneeId = selectedTicket?.assignedToUserId;
+	const visiblePeople = isStaff(actor)
+		? people
+		: people.filter(
+				(person) =>
+					person.id === actor.id ||
+					comments.some((comment) => comment.authorId === person.id) ||
+					person.id === assigneeId
+			);
+	return {
+		tickets: ticketRows,
+		nextPageHref: hasMoreTickets ? nextPageUrl.pathname + nextPageUrl.search : null,
+		firstPageHref:
+			beforeTicketNumber || pageNumber > 1 ? firstPageUrl.pathname + firstPageUrl.search : null,
+		searchText: searchQuery?.searchText ?? null,
+		searchSort,
+		categories,
+		people: visiblePeople,
+		selectedTicket,
+		comments,
+		events,
+		view,
+		isNewTicket: routeTicketId === 'new'
+	};
+}
+
+/** Returns only ticket content the actor may open, shared by the suggestion endpoint. */
+export async function loadTicketSuggestions(actor: Person, query: TicketSearchQuery) {
+	const includeInternalNotes = isStaff(actor);
+	const tickets = await db
+		.select({
+			id: ticket.id,
+			ticketNumber: ticket.ticketNumber,
+			subject: ticket.subject,
+			statusCode: ticket.statusCode
+		})
+		.from(ticket)
+		.where(
+			and(
+				includeInternalNotes ? undefined : eq(ticket.requesterId, actor.id),
+				query.buildMatchCondition(includeInternalNotes)
+			)
+		)
+		.orderBy(desc(query.buildRankExpression(includeInternalNotes)), desc(ticket.ticketNumber))
+		.limit(6);
+	const highlights = await query.loadHighlights(
+		tickets.map((record) => record.id),
+		includeInternalNotes
+	);
+	return tickets.map((record) => ({ ...record, ...highlights.get(record.id) }));
+}

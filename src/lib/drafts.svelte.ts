@@ -1,8 +1,12 @@
-import { createContext } from 'svelte';
+import { createContext, onMount } from 'svelte';
+import { on } from 'svelte/events';
+
+/** How long typing has to pause before drafts are written to storage. */
+const SAVE_DELAY_MS = 300;
 
 const generateDraftId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
-type TicketDraftFields = {
+export type TicketDraftFields = {
 	id: string;
 	subject: string;
 	description: string;
@@ -184,6 +188,36 @@ export class Drafts {
 
 	get dirtyDraftCount() {
 		return this.stores.reduce((total, store) => total + store.dirtyDrafts.length, 0);
+	}
+
+	/**
+	 * Loads saved drafts and keeps them in sync with localStorage: saved after a pause in
+	 * typing, when the page is hidden, and reloaded when another tab changes them.
+	 * Call during component initialisation, since it registers lifecycle callbacks.
+	 */
+	startBrowserPersistence(): void {
+		onMount(() => this.stores.forEach((store) => store.load()));
+		// Debounced so typing costs one write after a pause, not one per keystroke.
+		$effect(() => {
+			const serializedDrafts = this.stores.map((store) => store.serialize());
+			const saveTimeout = setTimeout(
+				() => this.stores.forEach((store, index) => store.save(serializedDrafts[index])),
+				SAVE_DELAY_MS
+			);
+			return () => clearTimeout(saveTimeout);
+		});
+		$effect(() => {
+			const stopSavingOnPageHide = on(window, 'pagehide', () =>
+				this.stores.forEach((store) => store.save())
+			);
+			const stopReloadingOnStorage = on(window, 'storage', (event) =>
+				this.stores.find((store) => store.storageKey === event.key)?.load()
+			);
+			return () => {
+				stopSavingOnPageHide();
+				stopReloadingOnStorage();
+			};
+		});
 	}
 }
 

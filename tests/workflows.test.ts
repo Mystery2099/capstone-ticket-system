@@ -6,7 +6,7 @@ import { join } from 'node:path';
 let db: typeof import('../src/lib/server/db').db;
 let schema: typeof import('../src/lib/server/schema');
 let service: typeof import('../src/lib/server/tickets');
-let people: Record<string, import('../src/lib/server/tickets').Person>;
+let people: Record<string, import('../src/lib/server/access').Person>;
 let dir: string;
 const form = (obj: Record<string, string>) => {
 	const f = new FormData();
