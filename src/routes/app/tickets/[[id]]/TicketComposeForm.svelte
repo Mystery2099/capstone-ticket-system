@@ -1,19 +1,17 @@
 <!--
-	The new-ticket form. Its values live in a browser draft, so nothing typed is lost when the
-	form closes; Superforms only handles submitting it.
+	The new-ticket form's markup. Its values live in a browser draft, so nothing typed is lost
+	when the form closes. The page owns the Superforms form that submits it.
 -->
 <script lang="ts">
-	import { afterNavigate, goto } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { ArrowLeft, Send, X } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
-	import { superForm } from 'sveltekit-superforms';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import type { DraftStore, TicketDraft, TicketDraftFields } from '$lib/drafts.svelte';
+	import type { TicketCreateSuperForm } from './ticket-forms';
 	import type { SelectOption } from './ticket-types';
-	import type { PageData } from './$types';
 
 	const SUBJECT_MAX_LENGTH = 180;
 	const SUBJECT_COUNTER_FROM = 160;
@@ -21,7 +19,7 @@
 	const DESCRIPTION_COUNTER_FROM = 3600;
 
 	type TicketComposeFormProps = {
-		createFormData: PageData['createForm'];
+		createForm: TicketCreateSuperForm;
 		draft: TicketDraft;
 		ticketDrafts: DraftStore<TicketDraftFields, TicketDraft>;
 		listHref: string;
@@ -31,7 +29,7 @@
 		categoryOptions: SelectOption[];
 	};
 	let {
-		createFormData,
+		createForm,
 		draft,
 		ticketDrafts,
 		listHref,
@@ -42,36 +40,14 @@
 	}: TicketComposeFormProps = $props();
 
 	let formElement = $state<HTMLFormElement>();
-	let submittedDraftId: string | null = null;
+	// The page creates the form once, so reading it at setup is correct.
 	// svelte-ignore state_referenced_locally
-	const createForm = superForm(createFormData, {
-		resetForm: false,
-		taintedMessage: false,
-		applyAction: 'never',
-		multipleSubmits: 'prevent',
-		onSubmit() {
-			submittedDraftId = draft.id;
-		},
-		onResult({ result }) {
-			if (result.type === 'redirect' && submittedDraftId) {
-				ticketDrafts.discardById(submittedDraftId);
-				toast.success('Ticket created.');
-			}
-		},
-		onUpdated({ form }) {
-			if (form.message) toast.error(form.message.text, { duration: Infinity });
-		},
-		onError() {
-			toast.error('Couldn’t create the ticket. Your draft is still saved.', { duration: Infinity });
-		}
-	});
 	const {
 		enhance: enhanceCreate,
 		submitting: isCreatingTicket,
 		delayed: isCreateDelayed,
 		errors: createErrors
 	} = createForm;
-	afterNavigate(() => createForm.reset());
 
 	let isDescriptionNearLimit = $derived(draft.description.length > DESCRIPTION_COUNTER_FROM);
 	let footerHint = $derived(

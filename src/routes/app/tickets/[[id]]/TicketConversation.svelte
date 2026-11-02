@@ -1,6 +1,6 @@
 <!-- The reading pane for one ticket: its toolbar, details, timeline, and reply composer. -->
 <script lang="ts">
-	import { afterNavigate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Link, LockKeyhole } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -17,6 +17,7 @@
 	import TicketReplyForm from './TicketReplyForm.svelte';
 	import type { TicketDirectory } from './ticket-directory';
 	import { formatDateTime } from './ticket-formatting';
+	import { createTicketReplyForm } from './ticket-forms';
 	import type {
 		CategoryRecord,
 		DisplayedTicket,
@@ -80,9 +81,19 @@
 	let showAllActivity = $state(false);
 	let showTicketDetails = $state(false);
 	let isReopening = $state(false);
+	let isInternalNote = $state(false);
+	// svelte-ignore state_referenced_locally
+	const replyForm = createTicketReplyForm(replyFormData);
+	const { form: replyFields } = replyForm;
+	let hasUnsentReply = $derived(!!$replyFields.body.trim());
 	afterNavigate(() => {
+		replyForm.reset();
+		isInternalNote = false;
 		showAllActivity = false;
 		showTicketDetails = false;
+	});
+	beforeNavigate(({ cancel }) => {
+		if (hasUnsentReply && !confirm('Discard your unsent text and leave this page?')) cancel();
 	});
 
 	let isStaffUser = $derived(currentUser.role !== 'requester');
@@ -122,6 +133,15 @@
 		}
 	}
 </script>
+
+<svelte:window
+	onbeforeunload={(event) => {
+		if (hasUnsentReply) {
+			event.preventDefault();
+			event.returnValue = '';
+		}
+	}}
+/>
 
 <div class="reading-toolbar">
 	<TooltipIconButton label="Back to tickets" href={backHref} class="icon-button back"
@@ -233,7 +253,8 @@
 					isInternal={timelineEntry.isInternal}
 				/>{:else}<TicketActivityEntry event={timelineEntry} {directory} />{/if}{/each}
 		{#if !isTicketClosed}<TicketReplyForm
-				{replyFormData}
+				{replyForm}
+				bind:isInternalNote
 				authorName={directory.getPersonName(currentUser.id)}
 				authorRoleLabel={getRoleLabel(directory.getPersonRole(currentUser.id))}
 				{isStaffUser}

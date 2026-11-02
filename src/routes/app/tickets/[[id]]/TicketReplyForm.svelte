@@ -1,41 +1,27 @@
-<!--
-	The comment and internal-note composer under a conversation. Owns the unsent text, so it
-	also asks before leaving the page with text still in the box.
--->
+<!-- The comment and internal-note editor. The conversation owns the form and its text. -->
 <script lang="ts">
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { LockKeyhole, MessageSquare, Send } from '@lucide/svelte';
-	import { toast } from 'svelte-sonner';
-	import { superForm } from 'sveltekit-superforms';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import CommentMessage from './CommentMessage.svelte';
-	import type { PageData } from './$types';
+	import type { TicketReplySuperForm } from './ticket-forms';
 
 	type TicketReplyFormProps = {
-		replyFormData: PageData['replyForm'];
+		replyForm: TicketReplySuperForm;
+		isInternalNote: boolean;
 		authorName: string;
 		authorRoleLabel: string;
 		isStaffUser: boolean;
 	};
-	let { replyFormData, authorName, authorRoleLabel, isStaffUser }: TicketReplyFormProps = $props();
+	let {
+		replyForm,
+		isInternalNote = $bindable(),
+		authorName,
+		authorRoleLabel,
+		isStaffUser
+	}: TicketReplyFormProps = $props();
 
-	let isInternalNote = $state(false);
-
-	// Keep text until the server confirms it; Superforms resets only successful replies.
+	// The conversation creates the form once, so reading it at setup is correct.
 	// svelte-ignore state_referenced_locally
-	const replyForm = superForm(replyFormData, {
-		taintedMessage: false,
-		applyAction: 'never',
-		multipleSubmits: 'prevent',
-		onUpdated({ form }) {
-			if (!form.message) return;
-			if (form.message.failed) toast.error(form.message.text, { duration: Infinity });
-			else toast.success(form.message.text);
-		},
-		onError() {
-			toast.error('Couldn’t send. Your comment is still in the box below.', { duration: Infinity });
-		}
-	});
 	const {
 		form: replyFields,
 		enhance: enhanceReply,
@@ -53,24 +39,7 @@
 				? 'Add note'
 				: 'Send comment'
 	);
-
-	afterNavigate(() => {
-		replyForm.reset();
-		isInternalNote = false;
-	});
-	beforeNavigate(({ cancel }) => {
-		if (hasUnsentText && !confirm('Discard your unsent text and leave this page?')) cancel();
-	});
 </script>
-
-<svelte:window
-	onbeforeunload={(event) => {
-		if (hasUnsentText) {
-			event.preventDefault();
-			event.returnValue = '';
-		}
-	}}
-/>
 
 <!-- The editor is read-only while posting, so the optimistic message can use its values. -->
 {#if $isSendingComment && hasUnsentText}<CommentMessage

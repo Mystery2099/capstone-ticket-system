@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
+	import { afterNavigate, goto } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { Inbox, RefreshCw, SquarePen } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -19,6 +19,7 @@
 	import TicketConversation from './TicketConversation.svelte';
 	import TicketRow from './TicketRow.svelte';
 	import { TicketDirectory } from './ticket-directory';
+	import { createTicketCreateForm } from './ticket-forms';
 	import { TicketListLoader } from './ticket-list-loader.svelte';
 	import type { PersonSummary, SelectOption, TicketListRow } from './ticket-types';
 
@@ -129,6 +130,18 @@
 			navigationTarget ? navigationTarget.url.searchParams.get('draft') : undefined
 	});
 	let activeDraft = $derived(ticketDraftBinding.activeDraft);
+	// Lives here rather than in the form's markup, so a creation that finishes after the
+	// form has closed still discards its draft.
+	// svelte-ignore state_referenced_locally
+	const createForm = createTicketCreateForm(
+		data.createForm,
+		() => activeDraft.id,
+		(submittedDraftId) => {
+			drafts.tickets.discardById(submittedDraftId);
+			toast.success('Ticket created.');
+		}
+	);
+	afterNavigate(() => createForm.reset());
 
 	// ---- People and categories ----
 
@@ -251,7 +264,7 @@
 	</section>
 	<section class="reading-pane" aria-label="Ticket conversation">
 		{#if isComposing}{#key activeDraft.id}<TicketComposeForm
-					createFormData={data.createForm}
+					{createForm}
 					draft={activeDraft}
 					ticketDrafts={drafts.tickets}
 					{listHref}
