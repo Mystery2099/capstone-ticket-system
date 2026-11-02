@@ -2,7 +2,7 @@ import { redirect, type ServerLoadEvent } from '@sveltejs/kit';
 import { asc, eq, sql } from 'drizzle-orm';
 import { SIDEBAR_COOKIE_NAME } from '$lib/components/ui/sidebar/constants';
 import { db } from '$lib/server/db';
-import { category, ticket } from '$lib/server/schema';
+import { category, ticket, user } from '$lib/server/schema';
 import { OPEN_STATUSES } from '$lib/status';
 
 export const load = async ({ locals, cookies }: ServerLoadEvent) => {
@@ -45,6 +45,10 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 
 	return {
 		user: currentUser,
+		searchCategories: categories.map(({ id, name }) => ({ id, name })),
+		searchPeople: isStaff
+			? await db.select({ id: user.id, name: user.name }).from(user).orderBy(asc(user.name))
+			: [],
 		isSidebarOpen: cookies.get(SIDEBAR_COOKIE_NAME) !== 'false',
 		openTicketCountsByCategory,
 		ticketCounts: {

@@ -549,7 +549,7 @@
 	<section class="ticket-list" aria-label="Ticket list">
 		<div class="list-top">
 			<h1>
-				{listHeading}{#if !isListLoading}
+				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
 					<span>{isShowingDrafts ? draftRows.length : data.tickets.length}</span>{/if}
 			</h1>
 			{#if !isShowingDrafts}<Tooltip.Root>
@@ -566,6 +566,19 @@
 					<Tooltip.Content side="bottom" sideOffset={6}>Refresh tickets</Tooltip.Content>
 				</Tooltip.Root>{/if}
 		</div>
+		{#if data.searchText}<div class="filters" aria-label="Search result controls">
+				<span>{data.tickets.length}{data.nextPageHref ? '+' : ''} results on this page</span>
+				<Combobox
+					label="Sort search results"
+					value={data.searchSort ?? 'newest'}
+					options={[
+						{ value: 'relevance', label: 'Best match' },
+						{ value: 'newest', label: 'Newest first' }
+					]}
+					onchange={(value) => applyListFilter('sort', value)}
+				/>
+				<button class="text-link" onclick={() => applyListFilter('q', '')}>Clear search</button>
+			</div>{/if}
 		{#if !isShowingDrafts}<div class="filters">
 				<Combobox
 					label="Filter by status"
@@ -644,8 +657,12 @@
 						</div></a
 					>{:else}<div class="empty">
 						<Inbox size={36} />
-						<h2>No tickets here</h2>
-						<p>Try another view or change your filters.</p>
+						<h2>{data.searchText ? 'No matching tickets' : 'No tickets here'}</h2>
+						<p>
+							{data.searchText
+								? 'Try fewer words, another spelling, or broader search options.'
+								: 'Try another view or change your filters.'}
+						</p>
 						<a href="/app/tickets" class="text-link">Clear filters</a>
 					</div>{/each}
 				{#if data.firstPageHref || data.nextPageHref}

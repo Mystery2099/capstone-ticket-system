@@ -7,14 +7,12 @@
 		isHydrated = true;
 	});
 	import { navigating, page } from '$app/state';
-	import { goto, onNavigate } from '$app/navigation';
+	import { onNavigate } from '$app/navigation';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { scale } from 'svelte/transition';
 	import {
 		Ticket,
 		FilePen,
-		Search,
-		SlidersHorizontal,
 		UserRound,
 		UserRoundPlus,
 		Inbox,
@@ -23,6 +21,7 @@
 		LogOut
 	} from '@lucide/svelte';
 	import { getInitials } from '$lib/status';
+	import TicketSearchBar from '$lib/components/TicketSearchBar.svelte';
 	import AppSidebar from '$lib/components/AppSidebar.svelte';
 	import SidebarToggle from '$lib/components/SidebarToggle.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -50,7 +49,7 @@
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
 	let isSidebarOpen = $state(data.isSidebarOpen);
-	let searchQuery = $derived(page.url.searchParams.get('q') || '');
+
 	let isAccountMenuOpen = $state(false);
 	let isSigningOut = $state(false);
 	let isStaffUser = $derived(data.user.role !== 'requester');
@@ -163,17 +162,6 @@
 			transition.finished.finally(() => rootElement.classList.remove('page-transition'));
 		});
 	});
-	async function submitSearch(event: SubmitEvent) {
-		event.preventDefault();
-		const searchParams = new URLSearchParams(page.url.searchParams);
-		searchParams.delete('draft');
-		searchParams.delete('before');
-		searchParams.delete('page');
-		if (searchParams.get('view') === 'drafts') searchParams.delete('view');
-		if (searchQuery.trim()) searchParams.set('q', searchQuery.trim());
-		else searchParams.delete('q');
-		await goto('/app/tickets?' + searchParams);
-	}
 	async function signOut(): Promise<void> {
 		isSigningOut = true;
 		await signOutSession();
@@ -203,30 +191,11 @@
 		<SidebarToggle /><a class="brand" href="/app/tickets"
 			><span class="logo"><Ticket size={22} /></span><strong>Ticket System</strong></a
 		>
-		<form class="search-bar" onsubmit={submitSearch}>
-			<Search size={23} /><input
-				aria-label="Search tickets"
-				placeholder="Search tickets, people, #number"
-				bind:value={searchQuery}
-			/><kbd>/</kbd><Tooltip.Root>
-				<Tooltip.Trigger
-					onclick={() => {
-						const statusFilterTrigger = document.querySelector<HTMLSelectElement>(
-							'[aria-label="Filter by status"]'
-						);
-						if (statusFilterTrigger) statusFilterTrigger.focus();
-						else goto('/app/tickets?view=' + activeView);
-					}}
-				>
-					{#snippet child({ props })}
-						<button {...props} class="icon-button" aria-label="Filter tickets" type="button"
-							><SlidersHorizontal size={21} /></button
-						>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content side="bottom" sideOffset={6}>Filter tickets</Tooltip.Content>
-			</Tooltip.Root>
-		</form>
+		<TicketSearchBar
+			userId={data.user.id}
+			people={data.searchPeople}
+			categories={data.searchCategories}
+		/>
 		<div class="account-wrap">
 			<Tooltip.Root>
 				<Tooltip.Trigger onclick={() => (isAccountMenuOpen = !isAccountMenuOpen)}>

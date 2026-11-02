@@ -448,3 +448,25 @@ test('ticket pages use a cursor and previews exclude newer private notes', async
 		);
 	}
 });
+
+test('live suggestions protect private content and options only count visible comments', async () => {
+	const { TicketSearchQuery } = await import('../src/lib/server/ticket-search');
+	const privateQuery = new TicketSearchQuery('escalating');
+	assert.equal(
+		(await service.loadTicketSuggestions(people.priya, privateQuery))[0].ticketNumber,
+		1046
+	);
+	assert.deepEqual(await service.loadTicketSuggestions(people.marcus, privateQuery), []);
+	assert.deepEqual(
+		await service.loadTicketSuggestions(people.rosa, new TicketSearchQuery('1046')),
+		[]
+	);
+	const optionsUrl = new URL(
+		'http://localhost/app/tickets?view=all&requester=marcus&hasComments=true'
+	);
+	const result = await service.loadTicketWorkspace(people.priya, optionsUrl);
+	assert(result.tickets.length > 0);
+	assert(result.tickets.every((record) => record.requesterId === 'marcus'));
+	optionsUrl.searchParams.set('after', '2099-01-01');
+	assert.deepEqual((await service.loadTicketWorkspace(people.priya, optionsUrl)).tickets, []);
+});

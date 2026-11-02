@@ -84,6 +84,35 @@ function buildTicketListConditions(
 	if (!searchQuery && ['open', 'queue', 'unassigned'].includes(view))
 		conditions.push(inArray(ticket.statusCode, [...OPEN_STATUSES]));
 
+	for (const parameter of ['requester', 'assignee']) {
+		const value = url.searchParams.get(parameter);
+		if (value === 'none' && parameter === 'assignee')
+			conditions.push(sql`${ticket.assignedToUserId} is null`);
+		else if (value)
+			conditions.push(
+				eq(parameter === 'requester' ? ticket.requesterId : ticket.assignedToUserId, value)
+			);
+	}
+	for (const parameter of ['after', 'beforeDate']) {
+		const value = url.searchParams.get(parameter);
+		if (
+			!value ||
+			!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+			!Number.isFinite(Date.parse(value)) ||
+			new Date(value).toISOString().slice(0, 10) !== value
+		)
+			continue;
+		conditions.push(
+			parameter === 'after'
+				? sql`${ticket.createdAt} >= ${value}::date`
+				: sql`${ticket.createdAt} < ${value}::date + interval '1 day'`
+		);
+	}
+	if (url.searchParams.get('hasComments') === 'true')
+		conditions.push(sql`exists (
+		select 1 from ${ticketComment} where ${ticketComment.ticketId} = ${ticket.id}
+		and ${isStaff(actor) ? sql`true` : sql`${ticketComment.isInternal} = false`}
+	)`);
 	const filters = [
 		['status', ticket.statusCode],
 		['priority', ticket.priority],
@@ -478,4 +507,30 @@ export async function updateTicketField(
 	return runWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
 		applyFieldChange(transaction, actor, ticketRecord, formData)
 	);
+}
+
+/** Returns only ticket content the actor may open, shared by the suggestion endpoint. */
+export async function loadTicketSuggestions(actor: Person, query: TicketSearchQuery) {
+	const includeInternalNotes = isStaff(actor);
+	const tickets = await db
+		.select({
+			id: ticket.id,
+			ticketNumber: ticket.ticketNumber,
+			subject: ticket.subject,
+			statusCode: ticket.statusCode
+		})
+		.from(ticket)
+		.where(
+			and(
+				includeInternalNotes ? undefined : eq(ticket.requesterId, actor.id),
+				query.buildMatchCondition(includeInternalNotes)
+			)
+		)
+		.orderBy(desc(query.buildRankExpression(includeInternalNotes)), desc(ticket.ticketNumber))
+		.limit(6);
+	const highlights = await query.loadHighlights(
+		tickets.map((record) => record.id),
+		includeInternalNotes
+	);
+	return tickets.map((record) => ({ ...record, ...highlights.get(record.id) }));
 }
