@@ -146,6 +146,7 @@ test('administrator adds and edits records in the pane beside the list', async (
 	await page.getByRole('button', { name: 'Revert', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
 	await page.goto('/app/settings');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 	await expect(page).toHaveURL(/\/login$/);
 	await signIn(page, 'jordan.ellis@example.test');
@@ -296,6 +297,7 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 }) => {
 	await signIn(page, 'priya.raman@example.test');
 	await page.goto('/app/tickets/1046');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	const editor = page.getByRole('textbox', { name: 'Comment', exact: true });
 	const text = 'Reply preserved after a connection failure';
 	await editor.fill(text);
@@ -338,6 +340,7 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 	await expect(editor).toHaveValue('');
 	await expect(page.locator('.message-body', { hasText: text })).toHaveCount(1);
 	await page.goto('/app/settings');
+	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 	await expect(page).toHaveURL(/\/login$/);
 });
