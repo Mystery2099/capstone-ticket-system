@@ -1,13 +1,32 @@
 # Better Auth integration
 
-Better Auth manages email/password authentication and sessions in PostgreSQL. Our application still controls ticket ownership, staff access, internal-note visibility and administrator operations.
+Better Auth manages password hashing, sessions, authenticator enrollment, MFA
+challenges, and recovery codes. Application code enforces ticket ownership, staff
+access, internal-note visibility, and administrator operations.
 
-We'll generate Better Auth's `user`, `session`, `account` and `verification` definitions from the installed version using its Drizzle integration. The `user` table gets server-controlled `role` and `enabled` extensions. User foreign keys in ticket records must match the generated `user.id` type, normally text.
+The browser uses one typed client in `src/lib/auth-client.ts`, configured with the
+two-factor client plugin. Sign-in, enrollment, authenticator/recovery verification,
+and sign-out use SDK methods. Components keep friendly failure messages instead
+of exposing raw server errors. Both sign-out buttons share the same flow.
 
-Public sign-up is disabled; fictional demonstration users will be created through supported server-side APIs. Check account enablement on every protected operation, including requests carrying an otherwise valid session. Do not expose role or enabled updates through ordinary profile editing.
+Public signup and direct admin-plugin routes are disabled. The first administrator
+is provisioned explicitly; subsequent accounts are created through audited
+administrator actions. Ordinary profile changes, account deletion, and disabling
+MFA over HTTP are closed so they cannot bypass application rules.
 
-The generated auth tables and our ticket tables should share one Drizzle migration workflow. No independent hand-written auth SQL migrations.
+Administrators must enroll MFA before workspace access. Enrollment revokes older
+password-only sessions, and future sign-ins require a second factor. Administrative
+writes require a session created in the last 15 minutes. Role/email changes and
+account disablement revoke sessions. Runtime requests re-read account state instead
+of trusting a role copied into the browser or an old session response.
 
-**Still to validate:** exact generated columns, SDK version, seed procedure, disabled-session revocation, tests against a running PostgreSQL database.
+The schema includes Better Auth's user, session, account, verification, and
+two-factor tables. Authenticator secrets and recovery material use Better Auth's
+storage protection; keep the deployment secret stable and backed up securely.
+The operator recovery procedure and separate database privileges are documented in
+[production deployment](azure-deployment.md).
 
-Official docs: https://www.better-auth.com/docs/concepts/database · https://www.better-auth.com/docs/adapters/drizzle · https://www.better-auth.com/docs/integrations/svelte-kit
+Local HTTP checks cover MFA enrollment, stale-session revocation, subsequent MFA
+sign-in, single-use recovery codes, disabled accounts, and blocked administrative
+endpoints. Hosted proxy/IP handling, secure cookies over the actual HTTPS origin,
+and cross-instance login throttling still require deployment verification.

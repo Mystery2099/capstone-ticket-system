@@ -1,4 +1,7 @@
 import { fail, isHttpError, redirect } from '@sveltejs/kit';
+import { message, superValidate, type SuperValidated } from 'sveltekit-superforms';
+import { zod4 } from 'sveltekit-superforms/adapters';
+import { createTicketSchema, commentSchema } from '$lib/server/validation';
 import {
 	addTicketComment,
 	createTicket,
@@ -8,44 +11,64 @@ import {
 } from '$lib/server/tickets';
 import type { Actions, PageServerLoad } from './$types';
 
+const createSchema = zod4(createTicketSchema);
+const replySchema = zod4(commentSchema);
+
 export const load: PageServerLoad = async ({ locals, url, params }) => {
-	return loadTicketWorkspace(requireUser(locals.user), url, params.id);
+	const actor = requireUser(locals.user);
+	const [workspace, createForm, replyForm] = await Promise.all([
+		loadTicketWorkspace(actor, url, params.id),
+		superValidate(createSchema, { id: 'ticket-create' }),
+		superValidate(replySchema, { id: 'ticket-reply' })
+	]);
+	return { ...workspace, createForm, replyForm };
 };
 
-/** Turns an expected error into a form failure, and rethrows anything else. */
-function toFormFailure(e: unknown) {
-	if (isHttpError(e)) return fail(e.status, { error: e.body.message });
-	throw e;
+/** Keep field errors and domain failures in the same Superforms response. */
+function formFailure<T extends Record<string, unknown>>(form: SuperValidated<T>, e: unknown) {
+	if (!isHttpError(e)) throw e;
+	form.message = { text: e.body.message, failed: true };
+	return fail(e.status, { form });
 }
 
 export const actions: Actions = {
 	create: async ({ locals, request }) => {
+		const actor = requireUser(locals.user);
+		const data = await request.formData();
+		const form = await superValidate(data, createSchema, { id: 'ticket-create' });
 		let created;
 		try {
-			created = await createTicket(requireUser(locals.user), await request.formData());
+			// The service checks permissions before input errors, including forged
+			// requester/assignee fields that do not belong to the public input schema.
+			created = await createTicket(actor, data);
 		} catch (e) {
-			return toFormFailure(e);
+			return formFailure(form, e);
 		}
-		// A ticket opened for someone else isn't in My requests, so stay in All open.
-		const view = created.requesterId === locals.user?.id ? 'mine' : 'open';
+		const view = created.requesterId === actor.id ? 'mine' : 'open';
 		redirect(303, `/app/tickets/${created.ticketNumber}?view=${view}`);
 	},
 	reply: async ({ locals, request, params }) => {
+		const actor = requireUser(locals.user);
+		const data = await request.formData();
+		const form = await superValidate(data, replySchema, { id: 'ticket-reply' });
 		try {
-			const actor = requireUser(locals.user);
-			await addTicketComment(actor, Number(params.id), await request.formData());
-			return { success: 'Comment posted.' };
+			await addTicketComment(actor, Number(params.id), data);
+			return message(form, { text: 'Comment posted.' });
 		} catch (e) {
-			return toFormFailure(e);
+			return formFailure(form, e);
 		}
 	},
 	update: async ({ locals, request, params }) => {
 		try {
-			const actor = requireUser(locals.user);
-			await updateTicketField(actor, Number(params.id), await request.formData());
+			await updateTicketField(
+				requireUser(locals.user),
+				Number(params.id),
+				await request.formData()
+			);
 			return { success: 'Ticket updated.' };
 		} catch (e) {
-			return toFormFailure(e);
+			if (isHttpError(e)) return fail(e.status, { error: e.body.message });
+			throw e;
 		}
 	}
 };

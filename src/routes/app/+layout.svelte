@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { signOutSession } from '$lib/auth-client';
 	import { createHotkey } from '@tanstack/svelte-hotkeys';
 	import { onMount } from 'svelte';
 	let hydrated = $state(false);
@@ -6,7 +7,7 @@
 		hydrated = true;
 	});
 	import { navigating, page } from '$app/state';
-	import { goto, invalidateAll, onNavigate } from '$app/navigation';
+	import { goto, onNavigate } from '$app/navigation';
 	import { prefersReducedMotion } from 'svelte/motion';
 	import { scale } from 'svelte/transition';
 	import {
@@ -163,15 +164,10 @@
 		query.trim() ? p.set('q', query.trim()) : p.delete('q');
 		await goto('/app/tickets?' + p);
 	}
-	async function signOut() {
+	async function signOut(): Promise<void> {
 		signingOut = true;
-		await fetch('/api/auth/sign-out', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: '{}'
-		});
-		await invalidateAll();
-		await goto('/login');
+		await signOutSession();
+		signingOut = false;
 	}
 
 	createHotkey(

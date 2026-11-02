@@ -22,7 +22,7 @@ Local development and testing come first. Azure App Service and Azure Database f
 
 ## Implementation boundaries
 
-- Public registration is disabled; demo users are created through a supported server-only setup procedure.
+- Public registration is disabled; a one-time operator command provisions the first administrator, with MFA enrollment required before workspace access. Migrations run separately from the web process.
 - Authentication schema is generated from the installed Better Auth version and incorporated into our Drizzle schema. Do not hand-maintain an independent SQL migration for it.
 - Ticket mutations that require audit events use a single transaction.
 - Server queries exclude private notes before responding to requesters.

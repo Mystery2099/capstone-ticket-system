@@ -110,3 +110,17 @@ export const ticketEvent = pgTable(
 	},
 	(t) => [index('ticket_event_ticket_created_idx').on(t.ticketId, t.createdAt)]
 );
+
+/** Security events are separate from ticket conversations and contain no credentials. */
+export const securityEvent = pgTable(
+	'security_event',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		actorId: text('actor_id').references(() => user.id, { onDelete: 'restrict' }),
+		action: text('action').notNull(),
+		targetId: text('target_id').notNull(),
+		details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+		createdAt: createdAt()
+	},
+	(table) => [index('security_event_created_idx').on(table.createdAt)]
+);

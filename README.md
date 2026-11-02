@@ -15,33 +15,38 @@ One full-stack SvelteKit app handles both the web UI and server logic. The brows
 
 ## Current status
 
-Implemented: project setup, PostgreSQL migrations and demo seed, Better Auth sign-in, the
-responsive ticket workspace, user and category administration, browser-saved ticket drafts,
-appearance settings, a `/health` endpoint and a container image, all backed by server-side
-permissions. Deployment to Azure App Service and a hosted backup restore have not been verified;
-see [docs/azure-deployment.md](docs/azure-deployment.md).
+Implemented: ticket workflows, account/category administration, server-side permissions,
+security headers, administrator MFA with recovery codes, transactional administrative
+audit records, cursor pagination, and explicit database provisioning. The application
+has no demo mode or automatic sample accounts. Hosted deployment and restore verification
+remain operational steps; see [production deployment](docs/azure-deployment.md).
 
 Use Node.js 24+ and pnpm 12.8.1:
 
 ```sh
 pnpm install --frozen-lockfile
-pnpm db:setup
+pnpm db:migrate
+pnpm admin:create --name "Your name" --email you@example.com --password-file /private/initial-password
 pnpm dev
 ```
 
-Sign in at `http://localhost:5173/login` with `priya.raman@example.test` (agent),
-`marcus.lee@example.test` (requester), or `jordan.ellis@example.test` (administrator).
-The fictional demo password is `Capstone2026!`. Local data lives in `.data/postgres`;
-setup applies migrations and seeds only an empty database.
+For local development, data lives in `.data/postgres` unless database settings select
+another database. Sign in at `http://localhost:5173/login`, complete administrator MFA
+enrollment, and create categories and individual accounts. Supply a private password
+file containing a unique password of 12–128 characters; remove it after provisioning.
+No default credentials are provided. Setup refuses to overwrite existing accounts.
 
-Run `pnpm check`, `pnpm test`, `pnpm test:e2e`, and `pnpm build` to verify the implementation.
-The workflow and browser tests use disposable databases in the system temporary directory.
-`TEST_BASE_URL=http://localhost:5173 pnpm test` adds the HTTP acceptance scenario, which briefly
-disables a demo account, so only point it at a disposable fictional server. Copy `.env.example`
-to `.env` to use hosted PostgreSQL. With those settings, `pnpm db:setup` and `pnpm dev` connect
-to that database and apply migrations.
-Production authentication requires `ORIGIN` and `BETTER_AUTH_SECRET`; the local demo
-fallbacks are for development only.
+Copy `.env.example` to `.env` for connection settings. Migrations use deployment
+credentials; the web process should use the restricted login described in the deployment
+runbook. Production requires an exact HTTPS `ORIGIN`, a strong `BETTER_AUTH_SECRET`,
+and hosted PostgreSQL. `pnpm db:setup` is a migration-only alias.
+
+Run `pnpm check`, `pnpm test`, and `pnpm build` for verification. Tests create fictional
+fixtures explicitly in disposable databases; fixtures cannot run outside `NODE_ENV=test`.
+`pnpm test:e2e` starts its own isolated test server. The optional
+`TEST_BASE_URL=http://localhost:5173 pnpm exec vitest run tests/http.test.ts` scenario
+changes seeded test accounts and MFA settings, so use it only with a disposable fixture
+server, never a personal or deployed database.
 
 The UI direction is a Gmail-inspired ticket workspace with responsive mobile layouts and a Plum & Apricot palette. The Claude-produced design mockups in [design/](design/) are implementation references developed alongside the app.
 
@@ -59,9 +64,8 @@ The UI direction is a Gmail-inspired ticket workspace with responsive mobile lay
 - [Diagrams](docs/diagrams/)
 - [Change log](docs/change-log.md)
 
-## Next development target
+## Operational follow-up
 
-Build the ticket list, conversation, creation form, and workspace shell.
-Then add administration and the remaining acceptance tests.
-
-**Scope:** No command palette, email integration, attachments, push notifications, real-time chat or offline/PWA functionality.
+Verify hosted HTTPS/proxy configuration and login throttling, apply restricted database
+grants, and complete a backup/restore drill before sharing the deployment. Use a shared
+rate limiter before scaling to multiple application instances.

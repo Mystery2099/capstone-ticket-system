@@ -29,3 +29,10 @@ test('connection URL takes precedence and invalid ports fail', () => {
 	expect(databaseConfig({ ...azure, DATABASE_URL: 'postgres://example' }).kind).toBe('url');
 	expect(() => databaseConfig({ ...azure, PGPORT: 'oops' })).toThrow('PGPORT');
 });
+
+test('production refuses embedded storage and implicit local fallback', () => {
+	expect(() => databaseConfig({ NODE_ENV: 'production', DATA_DIR: '.data/db' })).toThrow(
+		'hosted PostgreSQL'
+	);
+	expect(() => databaseConfig({ NODE_ENV: 'production' })).toThrow('hosted PostgreSQL');
+});

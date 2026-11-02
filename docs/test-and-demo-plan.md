@@ -35,7 +35,7 @@ I want to show a query that joins tickets with their requesters, assignees, cate
 
 First, sign in as a requester and create a ticket. Then switch to an agent account, locate that ticket in the unassigned queue, assign it, add a public reply and an internal note, and change its status. Finally, switch back to the requester account to confirm that the public reply is visible but the internal note isn't, and reopen the ticket after it has been resolved.
 
-After that, inspect the corresponding PostgreSQL records and show that the events match what happened in the interface. If there's time, demonstrate an invalid operation and a successful backup restoration. We should have a repeatable seed script so the demo doesn't depend on remembering what state the database was left in.
+After that, inspect the corresponding PostgreSQL records and show that the events match what happened in the interface. If there's time, demonstrate an invalid operation and a successful backup restoration. Automated tests use repeatable fixtures in disposable databases. The deployed application uses individual accounts and explicit setup; it never seeds sample accounts at startup.
 
 ## Responding to a change request
 

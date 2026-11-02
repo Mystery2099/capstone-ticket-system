@@ -1,18 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
 	applySecurityHeaders,
-	isDemoEnabled,
 	RequestLimiter,
 	validateProductionAuth
 } from '../src/lib/server/security';
 
 describe('production safeguards', () => {
-	it('requires an explicit demo opt-in', () => {
-		expect(isDemoEnabled({ SEED_DEMO: 'false' })).toBe(false);
-		expect(isDemoEnabled({ SEED_DEMO: '0' })).toBe(false);
-		expect(isDemoEnabled({ SEED_DEMO: '1' })).toBe(true);
-	});
-
 	it('rejects weak secrets and origins with paths or insecure protocols', () => {
 		const environment = {
 			NODE_ENV: 'production',

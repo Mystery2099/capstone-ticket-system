@@ -1,29 +1,21 @@
-import { isDemoEnabled } from './security';
-import { db } from './db';
-import { migrate } from 'drizzle-orm/pglite/migrator';
+import { db } from '../../src/lib/server/db';
 import { hashPassword } from 'better-auth/crypto';
 import { sql } from 'drizzle-orm';
 import {
 	user,
 	account,
 	category,
-	ticketStatus,
 	ticket,
 	ticketComment,
 	ticketEvent
-} from './schema';
-let pending: Promise<void> | undefined;
-export const initialize = () => (pending ??= setup());
-async function setup() {
-	await migrate(db, { migrationsFolder: './drizzle' });
-	if ((await db.select().from(user).limit(1)).length) return;
-	if (process.env.NODE_ENV === 'production' && !isDemoEnabled()) return;
-	if (
-		process.env.NODE_ENV === 'production' &&
-		(!process.env.DEMO_PASSWORD || process.env.DEMO_PASSWORD.length < 12)
-	)
-		throw new Error('Production demo seeding requires DEMO_PASSWORD with at least 12 characters');
-	const password = await hashPassword(process.env.DEMO_PASSWORD || 'Capstone2026!');
+} from '../../src/lib/server/schema';
+export async function seedTestData(): Promise<void> {
+	if (process.env.NODE_ENV !== 'test') throw new Error('Test fixtures require NODE_ENV=test');
+	if (!process.env.DATA_DIR || process.env.DATABASE_URL)
+		throw new Error('Test fixtures require an isolated DATA_DIR');
+	if ((await db.select().from(user).limit(1)).length)
+		throw new Error('Test fixtures require an empty database');
+	const password = await hashPassword('Capstone2026!');
 	await db.transaction(async (tx) => {
 		const people = [
 			['priya', 'Priya Raman', 'agent'],
@@ -53,13 +45,6 @@ async function setup() {
 				updatedAt: new Date()
 			});
 		}
-		await tx.insert(ticketStatus).values(
-			['open', 'in_progress', 'on_hold', 'resolved', 'closed'].map((code, i) => ({
-				code,
-				label: ['Open', 'In progress', 'On hold', 'Resolved', 'Closed'][i],
-				sortOrder: i
-			}))
-		);
 		const cats = await tx
 			.insert(category)
 			.values(

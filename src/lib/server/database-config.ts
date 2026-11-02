@@ -3,7 +3,13 @@ import { z } from 'zod';
 /** Explicit local storage keeps test processes isolated from hosted credentials. */
 export function databaseConfig(env: NodeJS.ProcessEnv) {
 	if (env.DATABASE_URL) return { kind: 'url' as const, url: env.DATABASE_URL };
-	if (env.DATA_DIR) return { kind: 'local' as const, directory: env.DATA_DIR };
+	if (env.DATA_DIR) {
+		if (env.NODE_ENV === 'production')
+			throw new Error(
+				'Production requires hosted PostgreSQL; DATA_DIR is only for development and tests.'
+			);
+		return { kind: 'local' as const, directory: env.DATA_DIR };
+	}
 	if (env.PGHOST) {
 		const result = z
 			.object({
@@ -36,7 +42,7 @@ export function databaseConfig(env: NodeJS.ProcessEnv) {
 	}
 	if (env.NODE_ENV === 'production')
 		throw new Error(
-			'Set DATABASE_URL or PGHOST/PGUSER/PGDATABASE/PGPASSWORD for hosted PostgreSQL, or DATA_DIR for an explicit local demo.'
+			'Set DATABASE_URL or PGHOST/PGUSER/PGDATABASE/PGPASSWORD for hosted PostgreSQL.'
 		);
 	return { kind: 'local' as const, directory: '.data/postgres' };
 }

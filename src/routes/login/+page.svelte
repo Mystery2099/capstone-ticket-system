@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { authClient } from '$lib/auth-client';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { onMount } from 'svelte';
 	let isHydrated = $state(false);
@@ -10,8 +11,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
-	let { data } = $props();
-	let email = $state('priya.raman@example.test'),
+	let email = $state(''),
 		password = $state(''),
 		isPasswordVisible = $state(false),
 		loginError = $state(''),
@@ -21,18 +21,21 @@
 		isSigningIn = true;
 		loginError = '';
 		try {
-			const response = await fetch('/api/auth/sign-in/email', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, password })
-			});
-			if (!response.ok) {
+			const { data, error } = await authClient.signIn.email({ email, password });
+			if (error) {
 				loginError =
-					response.status === 429
+					error.status === 429
 						? 'Too many sign-in attempts. Please wait a minute and try again.'
-						: response.status >= 500
+						: error.status >= 500
 							? 'Sign-in is temporarily unavailable. Please try again.'
-							: 'Email or password is incorrect, or this account is unavailable.';
+							: error.status === 0
+								? 'Could not connect. Please try again.'
+								: 'Email or password is incorrect, or this account is unavailable.';
+				return;
+			}
+			password = '';
+			if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect) {
+				await goto('/account-security');
 				return;
 			}
 			await invalidateAll();
@@ -110,15 +113,5 @@
 			</form>
 			<p class="login-help">Accounts are created by an administrator.</p>
 		</section>
-		<p class="login-footer">Fictional demo organization · no real user data</p>
-		{#if data.demo}<details class="demo-accounts">
-				<summary>Demo sign-in details</summary>
-				<p>Password: <code>Capstone2026!</code></p>
-				<button onclick={() => (email = 'priya.raman@example.test')}>Agent · Priya Raman</button
-				><button onclick={() => (email = 'marcus.lee@example.test')}>Requester · Marcus Lee</button
-				><button onclick={() => (email = 'jordan.ellis@example.test')}
-					>Administrator · Jordan Ellis</button
-				>
-			</details>{/if}
 	</div>
 </div>

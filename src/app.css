@@ -321,24 +321,7 @@
 		font-size: 12px;
 		margin-top: 18px;
 	}
-	.demo-accounts {
-		margin: 22px auto 0;
-		font-size: 12px;
-		color: var(--muted-fg);
-		max-width: 340px;
-	}
-	.demo-accounts summary {
-		cursor: pointer;
-		text-align: center;
-	}
-	.demo-accounts p {
-		margin: 12px 0;
-	}
-	.demo-accounts button {
-		display: block;
-		color: var(--primary);
-		padding: 6px 0;
-	}
+
 	.app-shell {
 		--sidebar-width: 240px;
 		--sidebar-width-icon: 76px;

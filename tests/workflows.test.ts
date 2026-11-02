@@ -20,8 +20,10 @@ beforeAll(async () => {
 	({ db } = await import('../src/lib/server/db'));
 	schema = await import('../src/lib/server/schema');
 	service = await import('../src/lib/server/tickets');
-	const { initialize } = await import('../src/lib/server/init');
-	await initialize();
+	const { migrateDatabase } = await import('../src/lib/server/migrations');
+	await migrateDatabase();
+	const { seedTestData } = await import('./fixtures/database');
+	await seedTestData();
 	people = Object.fromEntries((await db.select().from(schema.user)).map((p) => [p.id, p]));
 });
 afterAll(async () => {

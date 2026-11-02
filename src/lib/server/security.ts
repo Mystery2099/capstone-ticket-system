@@ -1,8 +1,3 @@
-/** Only an explicit opt-in enables production demo accounts. */
-export function isDemoEnabled(environment: NodeJS.ProcessEnv = process.env): boolean {
-	return environment.SEED_DEMO === '1' || environment.SEED_DEMO === 'true';
-}
-
 export function validateProductionAuth(environment: NodeJS.ProcessEnv): void {
 	if (environment.NODE_ENV !== 'production') return;
 	if (!environment.BETTER_AUTH_SECRET || environment.BETTER_AUTH_SECRET.length < 32)

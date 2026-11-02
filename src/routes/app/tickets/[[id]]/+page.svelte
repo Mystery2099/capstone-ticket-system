@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { enhance } from '$app/forms';
+	import { superForm } from 'sveltekit-superforms';
 	import { navigating, page } from '$app/state';
 	import {
 		goto,
@@ -42,20 +43,74 @@
 		TicketEventType.REPLY,
 		TicketEventType.INTERNAL_NOTE
 	];
-	let commentBody = $state('');
 	let isInternalNote = $state(false);
 	let showAllActivity = $state(false);
 	let showTicketDetails = $state(false);
-	let isSendingComment = $state(false);
 	let isRefreshing = $state(false);
 	let isReopening = $state(false);
-	// A comment awaiting the server, shown in the conversation right away.
-	let sendingMessage = $state<{ body: string; isInternal: boolean } | null>(null);
 	// Metadata values chosen but not yet confirmed, keyed by field.
 	let pendingFieldValues = $state<Record<string, string>>({});
+	let submittedDraftId: string | null = null;
+	// Draft values remain in the browser store. Superforms owns their submission lifecycle.
+	// svelte-ignore state_referenced_locally
+	const createForm = superForm(data.createForm, {
+		resetForm: false,
+		taintedMessage: false,
+		applyAction: 'never',
+		multipleSubmits: 'prevent',
+		onSubmit() {
+			submittedDraftId = activeDraft.id;
+		},
+		onResult({ result }) {
+			if (result.type === 'redirect' && submittedDraftId) {
+				ticketDrafts.discard(submittedDraftId);
+				toast.success('Ticket created.');
+			}
+		},
+		onUpdated({ form }) {
+			if (form.message) toast.error(form.message.text, { duration: Infinity });
+		},
+		onError() {
+			toast.error('Couldn’t create the ticket. Your draft is still saved.', { duration: Infinity });
+		}
+	});
+	const {
+		enhance: enhanceCreate,
+		submitting: creatingTicket,
+		delayed: createDelayed,
+		errors: createErrors
+	} = createForm;
+
+	// Keep text until the server confirms it; Superforms resets only successful replies.
+	// svelte-ignore state_referenced_locally
+	const replyForm = superForm(data.replyForm, {
+		taintedMessage: false,
+		applyAction: 'never',
+		multipleSubmits: 'prevent',
+		onUpdated({ form }) {
+			if (!form.message) return;
+			if (form.message.failed) toast.error(form.message.text, { duration: Infinity });
+			else toast.success(form.message.text);
+		},
+		onError() {
+			toast.error('Couldn’t send. Your comment is still in the box below.', { duration: Infinity });
+		}
+	});
+	const {
+		form: replyFields,
+		enhance: enhanceReply,
+		submitting: sendingComment,
+		delayed: replyDelayed,
+		errors: replyErrors
+	} = replyForm;
+	// The editor is read-only while posting, so the optimistic message can use its values.
+	let sendingMessage = $derived(
+		$sendingComment && $replyFields.body.trim()
+			? { body: $replyFields.body, isInternal: isInternalNote }
+			: null
+	);
 	const allDrafts = getDrafts();
 	const ticketDrafts = allDrafts.tickets;
-	let isCreatingTicket = $state(false);
 	let composeForm = $state<HTMLFormElement>();
 	let isStaffUser = $derived(data.user.role !== 'requester');
 
@@ -241,16 +296,17 @@
 		else if (form?.success) toast.success(form.success);
 	});
 	afterNavigate(() => {
-		commentBody = '';
+		createForm.reset();
+		replyForm.reset();
 		isInternalNote = false;
 		showAllActivity = false;
 		showTicketDetails = false;
-		isCreatingTicket = false;
 		promotedId = null;
 	});
 	beforeNavigate(({ cancel }) => {
 		// New-ticket drafts need no warning, because they're saved in this browser.
-		if (commentBody.trim() && !confirm('Discard your unsent text and leave this page?')) cancel();
+		if ($replyFields.body.trim() && !confirm('Discard your unsent text and leave this page?'))
+			cancel();
 	});
 
 	const createFormHotkeys = createHotkeysAttachment(
@@ -263,13 +319,13 @@
 				}
 			}
 		],
-		() => ({ enabled: isComposing && !isCreatingTicket, ignoreInputs: false })
+		() => ({ enabled: isComposing && !$creatingTicket, ignoreInputs: false })
 	);
 </script>
 
 <svelte:window
 	onbeforeunload={(e) => {
-		if (commentBody.trim()) {
+		if ($replyFields.body.trim()) {
 			e.preventDefault();
 			e.returnValue = '';
 		}
@@ -283,18 +339,7 @@
 		class="compose"
 		method="POST"
 		action="?/create"
-		use:enhance={() => {
-			const submitted = activeDraft;
-			isCreatingTicket = true;
-			return async ({ result, update }) => {
-				if (result.type === 'redirect') {
-					ticketDrafts.discard(submitted.id);
-					toast.success('Ticket created.');
-				}
-				await update({ reset: false });
-				isCreatingTicket = false;
-			};
-		}}
+		use:enhanceCreate
 	>
 		<div class="reading-toolbar">
 			<Tooltip.Root>
@@ -315,13 +360,18 @@
 					{@attach (input) => input.focus()}
 					class="compose-subject"
 					name="subject"
+					aria-invalid={!!$createErrors.subject}
+					aria-describedby={$createErrors.subject ? 'subject-error' : undefined}
 					aria-label="Subject"
 					placeholder="Subject"
 					bind:value={activeDraft.subject}
 					required
 					maxlength={180}
-					readonly={isCreatingTicket}
+					readonly={$creatingTicket}
 				/>
+				{#if $createErrors.subject}<p id="subject-error" class="error" role="alert">
+						{$createErrors.subject.join(' ')}
+					</p>{/if}
 				<p class="ticket-dates">
 					New ticket{activeDraft.subject.length > 160
 						? ` · ${activeDraft.subject.length} / 180`
@@ -352,7 +402,7 @@
 								label="Requester"
 								bind:value={activeDraft.requesterId}
 								options={requesters.map(personOption)}
-								disabled={isCreatingTicket}
+								disabled={$creatingTicket}
 							/>
 						</div>
 						<div class="metadata-control">
@@ -361,7 +411,7 @@
 								label="Assignee"
 								bind:value={activeDraft.assignedToUserId}
 								options={[{ value: '', label: 'Unassigned' }, ...assignees.map(personOption)]}
-								disabled={isCreatingTicket}
+								disabled={$creatingTicket}
 							/>
 						</div>
 					{/if}
@@ -372,7 +422,7 @@
 							placeholder="Choose"
 							bind:value={activeDraft.categoryId}
 							options={categoryOptions.filter((option) => option.active)}
-							disabled={isCreatingTicket}
+							disabled={$creatingTicket}
 							required
 						/>
 					</div>
@@ -381,19 +431,29 @@
 			<div class="composer">
 				<textarea
 					name="description"
+					aria-invalid={!!$createErrors.description}
+					aria-describedby={$createErrors.description ? 'description-error' : undefined}
 					aria-label="Description"
 					placeholder="What happened? Include when it started and what you’ve tried."
 					bind:value={activeDraft.description}
 					required
 					maxlength={4000}
 					rows={8}
-					readonly={isCreatingTicket}></textarea>
+					readonly={$creatingTicket}></textarea>
+				{#if $createErrors.description}<p id="description-error" class="error" role="alert">
+						{$createErrors.description.join(' ')}
+					</p>{/if}
+				{#if $createErrors.categoryId}<p class="error" role="alert">
+						{$createErrors.categoryId.join(' ')}
+					</p>{/if}
 				<div class="composer-footer">
 					<span
 						class="muted small"
-						class:compose-hint={!isCreatingTicket && activeDraft.description.length <= 3600}
-						>{isCreatingTicket
-							? 'Creating ticket…'
+						class:compose-hint={!$creatingTicket && activeDraft.description.length <= 3600}
+						>{$creatingTicket
+							? $createDelayed
+								? 'Still creating ticket…'
+								: 'Creating ticket…'
 							: activeDraft.description.length > 3600
 								? `${activeDraft.description.length} / 4000`
 								: 'Esc to close · Ctrl/Cmd+Enter to create'}</span
@@ -403,7 +463,7 @@
 							variant="ghost"
 							size="sm"
 							class="rounded-full px-4"
-							disabled={isCreatingTicket}
+							disabled={$creatingTicket}
 							onclick={() => {
 								ticketDrafts.discard(activeDraft.id);
 								void goto(listHref);
@@ -413,8 +473,8 @@
 							type="submit"
 							size="sm"
 							class="rounded-full px-4 whitespace-nowrap"
-							disabled={isCreatingTicket}
-							><Send size={15} />{isCreatingTicket ? 'Creating…' : 'Create ticket'}</Button
+							disabled={$creatingTicket}
+							><Send size={15} />{$creatingTicket ? 'Creating…' : 'Create ticket'}</Button
 						>
 					</span>
 				</div>
@@ -786,47 +846,42 @@
 					{#if !isClosed}<form
 							class="composer"
 							class:note-mode={isInternalNote}
+							aria-busy={$sendingComment}
 							method="POST"
 							action="?/reply"
-							use:enhance={() => {
-								const text = commentBody;
-								sendingMessage = { body: text, isInternal: isInternalNote };
-								isSendingComment = true;
-								commentBody = '';
-								return async ({ result, update }) => {
-									// A transport error would otherwise replace the page and lose the text.
-									if (result.type === 'error')
-										toast.error('Couldn’t send. Your comment is back in the box below.');
-									else await update({ reset: false });
-									sendingMessage = null;
-									isSendingComment = false;
-									if (result.type !== 'success') commentBody = text;
-								};
-							}}
+							use:enhanceReply
 						>
 							<div class="composer-tabs">
 								<button
 									type="button"
 									class:chosen={!isInternalNote}
+									disabled={$sendingComment}
 									onclick={() => (isInternalNote = false)}
 									><MessageSquare size={16} /> Comment</button
 								>{#if isStaffUser}<button
 										type="button"
 										class:chosen={isInternalNote}
+										disabled={$sendingComment}
 										onclick={() => (isInternalNote = true)}
 										><LockKeyhole size={16} /> Internal note</button
 									>{/if}
 							</div>
 							<input type="hidden" name="internal" value={isInternalNote} /><textarea
 								name="body"
+								aria-invalid={!!$replyErrors.body}
+								aria-describedby={$replyErrors.body ? 'reply-error' : undefined}
 								aria-label={isInternalNote ? 'Internal note' : 'Comment'}
 								placeholder={isInternalNote
 									? 'Add a private note for the support team…'
 									: 'Write a comment…'}
-								bind:value={commentBody}
+								bind:value={$replyFields.body}
 								required
 								maxlength={10000}
-								rows={4}></textarea>
+								rows={4}
+								readonly={$sendingComment}></textarea>
+							{#if $replyErrors.body}<p id="reply-error" class="error" role="alert">
+									{$replyErrors.body.join(' ')}
+								</p>{/if}
 							<div class="composer-footer">
 								<span class="muted small"
 									>{isInternalNote
@@ -836,9 +891,11 @@
 									type="submit"
 									size="sm"
 									class="rounded-full px-4 whitespace-nowrap"
-									disabled={isSendingComment || !commentBody.trim()}
-									><Send size={15} />{isSendingComment
-										? 'Sending…'
+									disabled={$sendingComment || !$replyFields.body.trim()}
+									><Send size={15} />{$sendingComment
+										? $replyDelayed
+											? 'Still sending…'
+											: 'Sending…'
 										: isInternalNote
 											? 'Add note'
 											: 'Send comment'}</Button

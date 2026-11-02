@@ -1,8 +1,8 @@
 <script lang="ts">
+	import { signOutSession } from '$lib/auth-client';
 	import { onMount } from 'svelte';
 	import { LogOut } from '@lucide/svelte';
 	import { initials } from '$lib/status';
-	import { goto, invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	let { data } = $props();
 	let theme = $state('system'),
@@ -20,15 +20,10 @@
 	onMount(() => {
 		theme = localStorage.getItem('ticket-theme') || 'system';
 	});
-	async function signOut() {
+	async function signOut(): Promise<void> {
 		signingOut = true;
-		await fetch('/api/auth/sign-out', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: '{}'
-		});
-		await invalidateAll();
-		await goto('/login');
+		await signOutSession();
+		signingOut = false;
 	}
 </script>
 

@@ -1,115 +1,134 @@
-# Azure deployment for a professor-accessible demo
+# Production deployment
 
-Database verification update: the configured Azure database `capstone_tickets` contains 8 fictional users, 10 tickets, 4 comments, and 11 events after initial setup. Azure App Service deployment and hosted backup recovery remain to be performed.
+Run the Linux container on Azure App Service with Azure Database for PostgreSQL.
+The application uses the same authentication and permissions in every environment.
+It has no demo mode, automatic account creation, or shared production password.
+Use fictional ticket content for the course, with individual accounts.
 
-This is a deployment path, not a claim that an Azure deployment has been tested. No Azure account, resources, registry, subscription, or credentials were accessed during implementation.
+## Deployment order
 
-## Recommended shape
+1. Provision a dedicated PostgreSQL database and separate schema-owner/deployment
+   and application logins. Keep their credentials outside version control.
+2. From a trusted source checkout with development dependencies installed, run
+   `pnpm db:migrate` using deployment credentials. This applies tracked migrations
+   and inserts the five required ticket statuses. It creates no users or tickets.
+3. Run `scripts/runtime-grants.sql` as the schema owner. Grant the resulting
+   `capstone_runtime` role to the separately provisioned application login. That
+   login must not own tables, be a superuser, inherit the deployment role, or have
+   extra privileges from another role. Reapply grants after relevant migrations.
+4. In a database with no accounts, run:
 
-Run the included Linux container on Azure App Service with Azure Database for PostgreSQL Flexible Server. Keep the application stateless and put durable records in PostgreSQL. Do not rely on a container's local PGlite directory for the hosted demonstration.
+   ```sh
+   pnpm admin:create --name "Administrator name" --email admin@example.com --password-file /private/admin-password
+   ```
 
-The Dockerfile builds the SvelteKit Node adapter output and copies production dependencies plus tracked migrations into a Node 24 runtime image. It listens on port 3000 and runs as the unprivileged `node` user. The build needs no database or secret.
+   Supply an independently chosen password of 12–128 characters through a private
+   file readable only by the operator. Do not put passwords in command arguments,
+   shell history, or the repository. Remove the file securely after provisioning.
+   This command is serialized and refuses to overwrite any existing account.
+
+5. Build and deploy the container. Give the web process only application database
+   credentials. Setup tools run from the trusted checkout, not the runtime image;
+   the image no longer contains migration files.
+6. Sign in as the first administrator and enroll an authenticator. Save the recovery
+   codes in a password manager before completing enrollment. Create individual
+   accounts and categories through Administration.
+
+`pnpm db:setup` remains an alias for migration-only setup. Web startup and `/health`
+never apply migrations. Deploy schema changes before code that requires them.
+For future breaking migrations, use an expand/migrate/contract rollout rather
+than deploying incompatible code and schema together.
 
 ## Application settings
 
-Configure these as App Service environment settings, rather than committing an `.env` file:
+| Setting                                        | Purpose                                                                                     |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                                     | `production`, already set in the image                                                      |
+| `HOST`, `PORT`                                 | `0.0.0.0`, `3000`, already set in the image                                                 |
+| `ORIGIN`                                       | Exact public HTTPS origin, without path or trailing slash                                   |
+| `BETTER_AUTH_SECRET`                           | Unique random secret of at least 32 characters; stable across restarts                      |
+| `PGHOST`, `PGUSER`, `PGDATABASE`, `PGPASSWORD` | Restricted application connection; separate fields verify TLS certificates                  |
+| `PGPORT`                                       | Optional, defaults to 5432                                                                  |
+| `DATABASE_URL`                                 | Alternative to separate fields; use certificate-verified TLS, such as `sslmode=verify-full` |
 
-| Setting              | Value / purpose                                                                                                         |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `NODE_ENV`           | `production` (already set in Dockerfile)                                                                                |
-| `HOST`               | `0.0.0.0` (already set)                                                                                                 |
-| `PORT`               | `3000` (already set)                                                                                                    |
-| `WEBSITES_PORT`      | `3000` for the traditional App Service custom-container configuration                                                   |
-| `ORIGIN`             | Exact public HTTPS origin, e.g. `https://your-app.azurewebsites.net`, without a trailing slash                          |
-| `BETTER_AUTH_SECRET` | A fresh strong random secret, at least 32 characters; keep stable across restarts                                       |
-| `DATABASE_URL`       | URL-encoded PostgreSQL connection string with TLS, e.g. `postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require` |
-| `SEED_DEMO`          | `1` for the first fictional-demo initialization                                                                         |
-| `DEMO_PASSWORD`      | Your chosen initial password, at least 12 characters, set before the first seed                                         |
+Use the hosting platform's secret settings. Never supply migration credentials to
+an application deployment slot. `DATABASE_URL` takes precedence over separate
+fields. Production rejects embedded `DATA_DIR` storage.
 
-If using App Service's newer sidecar-enabled container configuration, set the container target port to 3000 in that configuration. `WEBSITES_PORT` is for the traditional custom-container path. In all cases, Azure's forwarding port and the process's `PORT` must agree.
+Configure App Service's container target port as 3000. Traditional custom-container
+configuration uses `WEBSITES_PORT=3000`; sidecar configuration uses the container
+port setting. Enable HTTPS-only access and restrict database network access to
+trusted application and deployment paths.
 
-The port-setting distinction is documented by Microsoft: [configure custom containers](https://learn.microsoft.com/en-us/azure/app-service/configure-custom-container) and [Linux App Service FAQ](https://learn.microsoft.com/en-us/troubleshoot/azure/app-service/faqs-app-service-linux-new).
+## Security behavior
 
-The production server requires `ORIGIN` and `BETTER_AUTH_SECRET`. A remote `DATABASE_URL` is expected for hosted use. An explicit writable `DATA_DIR` can be used for intentional single-process local production smoke tests.
+- Public signup, direct admin-plugin routes, ordinary profile edits, account
+  deletion, and disabling MFA over HTTP are closed.
+- Administrators must enroll MFA before accessing the workspace. Enrollment
+  revokes older password-only sessions. Subsequent sign-ins require an authenticator
+  or single-use recovery code. Keep `BETTER_AUTH_SECRET` backed up securely: MFA
+  secrets and recovery material depend on it.
+- Administrator writes require a session established in the last 15 minutes.
+  Sign out and sign in again if asked. Account and category mutations commit with
+  their audit events. Passwords and MFA secrets are never included in these events.
+- Disabling an account or changing its role/email revokes its sessions. The last
+  enabled administrator and the current administrator's own access are protected.
+- Application responses use security headers and `Cache-Control: no-store`.
+  SvelteKit generates script CSP nonces; inline styles remain permitted for existing
+  components. HTTPS responses include HSTS.
+- Authenticated application writes are limited to 30 per minute per account, with
+  HTTP 429 and `Retry-After`. This bounded limiter is process-local. Before using
+  multiple instances, use a shared limiter/gateway and verify authentication rate
+  limits across instances. Validate client IP handling at the trusted proxy; do
+  not trust arbitrary forwarding headers from public clients.
+- Ticket lists use 50-row cursor pages and one latest public preview comment per
+  ticket. Full conversations are still loaded together.
 
-## Deployment sequence
+## Recovery and existing installations
 
-1. Create the PostgreSQL database and an application login with privileges to apply the initial migration. Configure networking so App Service can reach the database, and require TLS.
-2. Build and publish the Docker image to your chosen container registry. Docker was unavailable in the implementation environment, so the Dockerfile has not itself been built here.
-3. Create a Linux App Service using that image. Set the environment values above, enable HTTPS, and configure the container target port.
-4. Start with one application instance. Open `/health`; the first request applies tracked migrations and, when enabled, creates fictional users/tickets in one seed transaction.
-5. Confirm `/health` returns `{"status":"ok"}`, then sign in using the seeded email addresses and your `DEMO_PASSWORD`.
-6. Remove `SEED_DEMO` after initialization. Changing `DEMO_PASSWORD` later does not reset existing account passwords; the seed deliberately does not overwrite records.
-7. Give the professor the HTTPS URL and fictional demo credentials separately. Use the three roles to show access differences.
+Existing fictional accounts are not deleted or silently reset by migration. Their
+old passwords remain valid until explicitly changed. Before exposing an old seeded
+installation, replace those passwords individually or provision a fresh database.
+Do not treat changing or removing old seed environment variables as a password reset.
 
-To build the image on a machine with Docker:
+Users normally recover MFA using a saved single-use code. If both the authenticator
+and codes are lost, a trusted database operator must verify the person's identity
+outside the application and then run:
 
 ```sh
-docker build -t capstone-ticket-system:demo .
+pnpm account:recover --email user@example.com --password-file /private/new-password --reset-mfa
 ```
 
-To use the built Node output without Docker, install with pnpm, run `pnpm build`, deploy `build/`, production dependencies, `package.json`, and `drizzle/`, then use `node build` as the startup command. This alternative was smoke-tested locally; Azure itself was not.
+Omit `--reset-mfa` to reset only the password. Recovery revokes all sessions, pending
+MFA challenges, and remembered devices, and writes an operator audit event. It
+never enables a disabled account or changes a role. Administrators whose MFA was
+reset must enroll again before workspace access. Use deployment/operator credentials
+for this command; the web application cannot reset MFA through HTTP.
 
-## Hosted acceptance checklist
+## Hosted acceptance and backup drill
 
-- Refresh an authenticated ticket URL directly; verify the page and session survive restart.
-- Create a ticket as Marcus, assign and reply as Priya, add an internal note, and confirm Marcus cannot see it in page data.
-- Resolve the ticket and reopen it as Marcus. Close it and confirm only Jordan can reopen it.
-- Disable a fictional account and verify its existing session loses application access.
-- Confirm the new ticket and activity rows exist in the hosted PostgreSQL database.
-- Test both 390px and desktop widths, and check HTTPS cookies and application logs.
-- Verify Better Auth resolves client IPs through the trusted Azure proxy path. The local production smoke test used a shared rate-limit bucket when no client IP was available; configure the supported proxy/IP options before a multi-user demo.
-- Back up, restore into a fresh database, and verify records before calling the hosted demo ready.
+Before calling the deployment ready:
 
-## Backup and recovery
+- Confirm `/health` succeeds with the application login after migrations.
+- Check HTTPS redirects, secure/HttpOnly session cookies, CSP and security headers.
+- Confirm repeated failed logins are throttled per the actual trusted proxy path.
+- Enroll MFA, sign out, and verify both authenticator and single-use recovery login.
+- Create requester/agent accounts with individual passwords; verify ticket ownership,
+  internal-note secrecy, account disablement, and administrator audit events.
+- Restart the application and verify sessions and records survive.
+- Restore a backup into a separate database and verify users, ticket relationships,
+  comments, events, and schema before testing sign-in using the corresponding secret.
 
-The automated tests export a PGlite data directory and restore it into a fresh embedded instance, checking ticket counts and joined internal notes. That validates local recovery only.
-
-For the hosted PostgreSQL database, use PostgreSQL's own tools on a machine that has them installed:
+For example, from a trusted operator machine with PostgreSQL tools:
 
 ```sh
-pg_dump --format=custom --file=capstone-demo.dump "$DATABASE_URL"
-pg_restore --no-owner --dbname="$RESTORE_DATABASE_URL" capstone-demo.dump
+pg_dump --format=custom --file=capstone.dump "$DATABASE_URL"
+pg_restore --no-owner --dbname="$RESTORE_DATABASE_URL" capstone.dump
 ```
 
-`RESTORE_DATABASE_URL` must point to a separate, empty database. Do not restore over the live demo. Inspect ticket/user/comment/event counts and run the SQL examples in `architecture.md` against the restored instance. Neither `pg_dump` nor Azure recovery was executed here because those services/tools were unavailable.
-
-## Known deployment limits
-
-The external PostgreSQL connection path has now been exercised against the configured Azure PostgreSQL database with certificate-verified TLS. Migrations, fictional seed data, database identity/count queries, and the local application health endpoint succeeded. This verifies Azure database connectivity, not deployment of the web application to Azure App Service. The Docker image has been built and run locally with Podman, where it passed the health check and the HTTP acceptance scenario, but it has not been run on Azure. Initial migration/seed is intended for one replica; multi-instance release coordination, monitoring, and password-reset administration remain future work. Review those items before treating this course prototype as a general-purpose service.
-
-Configure Better Auth's trusted client IP before real users sign in. Until `advanced.ipAddress` is set for the actual proxy topology, every client shares one sign-in rate limit, so a few attempts from anyone can return 429 to everyone. Don't trust forwarded headers that public clients can set themselves.
-
-The admin plugin migrations (`0001` and `0002`) replace `user.enabled` with `banned`, carrying disabled accounts over. They apply the next time the app or `pnpm db:setup` connects to a database, so back up first and don't run an older build against a migrated database.
-
-## Application hardening
-
-Production startup rejects authentication secrets shorter than 32 characters, the
-prototype secret, and origins that are not exact HTTPS origins. Do not include a
-path or trailing slash in `ORIGIN`. Development localhost origins are excluded
-from the production authentication allowlist. Builds do not need these secrets.
-
-Demo initialization accepts only `SEED_DEMO=1` or `SEED_DEMO=true`; values such as
-`false` and `0` leave it disabled. Demo accounts still share their initial password,
-so use fictional data and remove the seed setting after initialization.
-
-Application and authentication responses use `Cache-Control: no-store`, frame
-restrictions, MIME sniffing protection, and a restrictive referrer/permissions
-policy. HTTPS responses include HSTS. SvelteKit supplies the script CSP nonce;
-inline styles remain allowed for existing components and transitions.
-
-Authenticated application writes are limited to 30 requests per minute per account.
-Rejected requests return HTTP 429 and `Retry-After`. This limiter has bounded,
-process-local storage: restarts reset it, and replicas each have their own limits.
-Before scaling out, use a shared gateway or shared rate-limit store. Authentication
-routes continue to use Better Auth's protections; verify trusted proxy/client IP
-handling as described in the acceptance checklist.
-
-Ticket lists use 50-row cursor pages, with links to older tickets and back to the
-newest page. Each preview query retrieves only the latest public comment per
-ticket. Full conversations are still loaded together; unusually large threads
-would need separate pagination.
-
-Further production work includes administrator MFA and recovery, administrative
-audit logs, separate deployment/runtime database credentials, and a hosted restore
-drill. Migrations still run during application initialization.
+Use an empty restore destination, keep dumps private, and never restore over the
+live database. Reapply runtime grants to the restored database as appropriate.
+Local tests cover migration, provisioning, restricted-role behavior, and embedded
+backup recovery. Azure configuration, hosted TLS/proxy behavior, container execution,
+and a hosted restore must be verified in the actual environment; they have not been
+performed by this implementation.

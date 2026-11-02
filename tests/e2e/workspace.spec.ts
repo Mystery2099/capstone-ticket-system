@@ -1,4 +1,7 @@
+import { authenticatorCode } from '../fixtures/totp';
 import { test, expect, type Page } from '@playwright/test';
+
+let administratorKey = '';
 
 async function signIn(page: Page, email: string) {
 	await page.goto('/login');
@@ -9,6 +12,20 @@ async function signIn(page: Page, email: string) {
 		.first()
 		.fill('Capstone2026!');
 	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+	if (email === 'jordan.ellis@example.test') {
+		await expect(page).toHaveURL(/\/account-security/);
+		if (await page.getByLabel('Current password', { exact: true }).isVisible()) {
+			await page.getByLabel('Current password', { exact: true }).fill('Capstone2026!');
+			await page.getByRole('button', { name: 'Start setup' }).click();
+			await expect(page.locator('code').first()).toBeVisible();
+			administratorKey = (await page.locator('code').first().textContent())!;
+			await page.getByLabel('I saved my recovery codes').check();
+		}
+		await page
+			.getByLabel('Authenticator code', { exact: true })
+			.fill(authenticatorCode(administratorKey));
+		await page.getByRole('button', { name: 'Verify', exact: true }).click();
+	}
 	await expect(page).toHaveURL(/\/app\/tickets/);
 }
 
@@ -122,10 +139,16 @@ test('administrator adds and edits records in the pane beside the list', async (
 	await expect(page).toHaveURL(/\?id=/);
 	await expect(page.locator('a.ticket-row', { hasText: 'Facilities' })).toHaveClass(/selected/);
 	await choose(page, 'State', 'Inactive');
+	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
+	await expect(page.locator('input[name=active]')).toHaveValue('false');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.locator('a.ticket-row', { hasText: 'Facilities' })).toContainText('Inactive');
 	await page.getByRole('button', { name: 'Revert', exact: true }).click();
 	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
+	await page.goto('/app/settings');
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await expect(page).toHaveURL(/\/login$/);
+	await signIn(page, 'jordan.ellis@example.test');
 });
 
 test('user and category drafts survive a reload without storing the password', async ({ page }) => {
@@ -266,4 +289,55 @@ test('hotkeys submit and close admin create forms', async ({ page }) => {
 	await name.fill('Keyboard category');
 	await name.press('ControlOrMeta+Enter');
 	await expect(page).toHaveURL(/\/app\/admin\/categories\?id=/);
+});
+
+test('a failed reply keeps its text and a pending retry cannot be submitted twice', async ({
+	page
+}) => {
+	await signIn(page, 'priya.raman@example.test');
+	await page.goto('/app/tickets/1046');
+	const editor = page.getByRole('textbox', { name: 'Comment', exact: true });
+	const text = 'Reply preserved after a connection failure';
+	await editor.fill(text);
+	await page.route(
+		(url) => url.search.includes('/reply'),
+		(route) => route.abort(),
+		{ times: 1 }
+	);
+	await page.getByRole('button', { name: 'Send comment', exact: true }).click();
+	await expect(
+		page.getByText('Couldn’t send. Your comment is still in the box below.')
+	).toBeVisible();
+	await expect(editor).toHaveValue(text);
+	await expect(page.locator('.message.sending')).toHaveCount(0);
+
+	let requests = 0;
+	let release: () => void = () => {};
+	const pending = new Promise<void>((resolve) => {
+		release = resolve;
+	});
+	await page.route(
+		(url) => url.search.includes('/reply'),
+		async (route) => {
+			requests++;
+			await pending;
+			await route.continue();
+		}
+	);
+	try {
+		await page.getByRole('button', { name: 'Send comment', exact: true }).click();
+		await expect(page.locator('.message.sending')).toContainText(text);
+		await page.locator('form[action="?/reply"]').evaluate((form) => {
+			(form as HTMLFormElement).requestSubmit();
+			(form as HTMLFormElement).requestSubmit();
+		});
+		await expect.poll(() => requests).toBe(1);
+	} finally {
+		release();
+	}
+	await expect(editor).toHaveValue('');
+	await expect(page.locator('.message-body', { hasText: text })).toHaveCount(1);
+	await page.goto('/app/settings');
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await expect(page).toHaveURL(/\/login$/);
 });

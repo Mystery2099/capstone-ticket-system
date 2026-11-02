@@ -30,3 +30,14 @@ export const db = new Proxy({} as Database, {
 		return typeof value === 'function' && key !== '$client' ? value.bind(connection) : value;
 	}
 });
+
+export async function closeDatabase(): Promise<void> {
+	if (!globals.ticketDb) return;
+	const client = globals.ticketDb.$client as unknown as {
+		close?: () => Promise<void>;
+		end?: () => Promise<void>;
+	};
+	if (client.close) await client.close();
+	else await client.end?.();
+	globals.ticketDb = undefined;
+}

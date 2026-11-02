@@ -128,10 +128,10 @@
 	const { enhance: enhanceCreateCategory, submitting: creatingCategory } = createCategoryForm;
 
 	// svelte-ignore state_referenced_locally
-	const userForm = superForm(data.userForm, formOptions());
+	const userForm = superForm(data.userForm, { ...formOptions(), dataType: 'json' });
 	const { form: userFields, enhance: enhanceUser, submitting: savingUser } = userForm;
 	// svelte-ignore state_referenced_locally
-	const categoryForm = superForm(data.categoryForm, formOptions());
+	const categoryForm = superForm(data.categoryForm, { ...formOptions(), dataType: 'json' });
 	const {
 		form: categoryFields,
 		enhance: enhanceCategory,
@@ -157,9 +157,13 @@
 		const { id, name, active } = selectedCategory;
 		categoryForm.reset({ data: { id, name, active } });
 	}
+	// Background invalidation can replace rows with identical objects. Only reset
+	// the editor when saved values change, so it cannot erase an in-progress edit.
+	const savedUser = $derived(JSON.stringify(selectedUser));
+	const savedCategory = $derived(JSON.stringify(selectedCategory));
 	$effect(() => {
-		selectedUser;
-		selectedCategory;
+		savedUser;
+		savedCategory;
 		untrack(() => {
 			revertUser();
 			revertCategory();

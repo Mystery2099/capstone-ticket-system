@@ -15,7 +15,10 @@
 		"format": "prettier --write .",
 		"format:check": "prettier --check .",
 		"test:watch": "vitest",
-		"test:e2e": "playwright test"
+		"test:e2e": "playwright test",
+		"db:migrate": "node --env-file-if-exists=.env --import tsx scripts/setup.ts",
+		"admin:create": "node --env-file-if-exists=.env --import tsx scripts/create-admin.ts",
+		"account:recover": "node --env-file-if-exists=.env --import tsx scripts/reset-account.ts"
 	},
 	"dependencies": {
 		"@electric-sql/pglite": "0.3.14",

@@ -1,6 +1,6 @@
 # Capstone Ticket System: Request and Data Flow
 
-**Status:** Proposed SvelteKit implementation flow.
+**Status:** Implemented SvelteKit request flow; hosted deployment checks remain separate.
 
 ## System context
 
@@ -12,7 +12,9 @@ The browser never talks directly to PostgreSQL. It sends requests to the SvelteK
 
 [View Mermaid diagram](diagrams/create-ticket-sequence.mmd)
 
-We should return useful validation errors without inserting partial tickets. Recording creation in the audit history is the current proposal, and doing it in the same transaction means a failed insert doesn't leave an orphaned event.
+Ticket creation and replies use Superforms for submission state, delayed loading feedback, validation errors, and duplicate-submit prevention. New-ticket drafts remain in the browser draft store and are removed only after successful creation. Replies retain their text until success; the optimistic message derives from the pending form state. Failed requests leave the text available for retry.
+
+Server actions return Superforms field errors and friendly domain failures. The ticket service checks permissions before input errors and writes tickets/comments with their activity events in one transaction. Metadata updates keep their existing optimistic field handling.
 
 ## Viewing conversations without leaking internal notes
 
@@ -26,4 +28,4 @@ For a status update, the server checks whether the user is allowed to perform th
 
 [View Mermaid diagram](diagrams/status-update-transaction.mmd)
 
-The diagrams are intentionally at the application level, not a promise about particular functions or ORM methods. We'll choose the exact Drizzle transaction calls after reviewing the schema and implementing the server actions.
+The diagrams describe the application flow. The implementation uses Drizzle transactions and row locks for ticket mutations, with server-side filtering before conversation data is serialized.
