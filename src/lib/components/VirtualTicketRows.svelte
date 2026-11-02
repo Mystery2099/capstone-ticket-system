@@ -21,8 +21,7 @@
 	} = $props();
 	let scrollElement = $state<HTMLDivElement>();
 	const virtualizer = createVirtualizer<HTMLDivElement, HTMLDivElement>({
-		// svelte-ignore state_referenced_locally
-		count: rows.length,
+		count: untrack(() => rows.length),
 		getScrollElement: () => scrollElement ?? null,
 		estimateSize: () => 80,
 		overscan: 8,

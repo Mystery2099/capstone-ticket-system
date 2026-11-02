@@ -48,6 +48,7 @@
 	let isLoadingMore = $state(false);
 	let loadMoreError = $state('');
 	let loadedListKey = '';
+	let resetListOnLoad = false;
 	let listRequestVersion = 0;
 	let listRequestController: AbortController | undefined;
 	let listKey = $derived.by(() => {
@@ -65,7 +66,7 @@
 			listRequestVersion++;
 			isLoadingMore = false;
 			loadMoreError = '';
-			if (loadedListKey !== currentListKey || !ticketRows.length) {
+			if (resetListOnLoad || loadedListKey !== currentListKey || !ticketRows.length) {
 				ticketRows = initialRows;
 				nextPageHref = initialNextPageHref;
 			} else {
@@ -73,6 +74,7 @@
 				ticketRows = [...initialRows, ...ticketRows.filter((row) => !updatedRows.has(row.id))];
 			}
 			loadedListKey = currentListKey;
+			resetListOnLoad = false;
 		});
 	});
 	async function loadMoreTickets() {
@@ -354,11 +356,11 @@
 		isRefreshing = true;
 		listRequestController?.abort();
 		listRequestVersion++;
-		ticketRows = [];
-		nextPageHref = null;
+		resetListOnLoad = true;
 		try {
 			await invalidateAll();
 		} finally {
+			resetListOnLoad = false;
 			isRefreshing = false;
 		}
 	}
