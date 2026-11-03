@@ -165,6 +165,7 @@
 		const activeEditor = editor;
 		const nextValue = value;
 		if (!activeEditor || nextValue === lastEmittedValue) return;
+		console.log('SCRATCH reload', JSON.stringify(lastEmittedValue), '->', JSON.stringify(nextValue), new Error().stack);
 		lastEmittedValue = nextValue;
 		untrack(() =>
 			activeEditor.commands.setContent(nextValue, { contentType: 'markdown', emitUpdate: false })
