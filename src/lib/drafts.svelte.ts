@@ -1,5 +1,9 @@
 import { createContext, onMount } from 'svelte';
 import { on } from 'svelte/events';
+import {
+	TicketContentFormat,
+	convertPlainTextToMarkdown
+} from './ticket-content/ticket-content-format';
 
 /** How long typing has to pause before drafts are written to storage. */
 const SAVE_DELAY_MS = 300;
@@ -10,6 +14,8 @@ export type TicketDraftFields = {
 	id: string;
 	subject: string;
 	description: string;
+	/** Missing from drafts saved before rich text, whose descriptions are plain text. */
+	descriptionFormat: TicketContentFormat;
 	categoryId: string;
 	priority: string;
 	statusCode: string;
@@ -30,7 +36,11 @@ export class TicketDraft {
 	constructor(fields: Partial<TicketDraftFields>) {
 		this.id = fields.id ?? generateDraftId();
 		this.subject = fields.subject ?? '';
-		this.description = fields.description ?? '';
+		// Converted once, so the editor shows an older draft exactly as it was typed.
+		this.description =
+			fields.descriptionFormat === TicketContentFormat.MARKDOWN
+				? (fields.description ?? '')
+				: convertPlainTextToMarkdown(fields.description ?? '');
 		this.categoryId = fields.categoryId ?? '';
 		this.priority = fields.priority ?? 'normal';
 		this.statusCode = fields.statusCode ?? 'open';
@@ -57,6 +67,7 @@ export class TicketDraft {
 			id,
 			subject,
 			description,
+			descriptionFormat: TicketContentFormat.MARKDOWN,
 			categoryId,
 			priority,
 			statusCode,

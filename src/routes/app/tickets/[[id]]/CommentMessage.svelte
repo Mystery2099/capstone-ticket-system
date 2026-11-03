@@ -3,12 +3,15 @@
 	import { LockKeyhole } from '@lucide/svelte';
 	import { getInitials } from '$lib/person';
 	import { cn } from '$lib/utils';
+	import TicketContent from '$lib/components/tickets/TicketContent.svelte';
+	import type { TicketContentFormat } from '$lib/ticket-content/ticket-content-format';
 
 	type CommentMessageProps = {
 		authorName: string;
 		roleLabel: string;
 		timestampLabel: string;
 		body: string;
+		bodyFormat: TicketContentFormat;
 		caption?: string;
 		isInternal?: boolean;
 		isSending?: boolean;
@@ -18,6 +21,7 @@
 		roleLabel,
 		timestampLabel,
 		body,
+		bodyFormat,
 		caption,
 		isInternal = false,
 		isSending = false
@@ -48,10 +52,10 @@
 		{#if isInternal}<p class="mt-1 flex items-center gap-[5px] text-[11px] text-muted-foreground">
 				<LockKeyhole size={13} /> Internal note · only visible to support team
 			</p>{/if}
-		<p
-			class="message-body mt-1.5 text-[14px] leading-[1.65] whitespace-pre-wrap wrap-anywhere wide:text-[15px]"
-		>
-			{body}
-		</p>
+		<TicketContent
+			content={body}
+			format={bodyFormat}
+			class="message-body mt-1.5 text-[14px] leading-[1.65] wrap-anywhere wide:text-[15px]"
+		/>
 	</div>
 </article>

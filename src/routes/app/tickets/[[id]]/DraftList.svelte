@@ -3,6 +3,7 @@
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import type { Drafts } from '$lib/drafts.svelte';
 	import { getInitials } from '$lib/person';
+	import { extractPlainText } from '$lib/ticket-content/ticket-content-renderer';
 	import type { TicketDirectory } from './ticket-directory';
 
 	type DraftListProps = {
@@ -17,7 +18,7 @@
 		...drafts.tickets.dirtyDrafts.map((draft) => ({
 			id: draft.id,
 			title: draft.subject.trim() || 'No subject',
-			preview: draft.description.trim() || 'Nothing written yet',
+			preview: extractPlainText(draft.description) || 'Nothing written yet',
 			type: 'Ticket draft',
 			avatar: getInitials(directory.getPersonName(draft.requesterId)),
 			href: `/app/tickets/new?view=drafts&draft=${draft.id}`

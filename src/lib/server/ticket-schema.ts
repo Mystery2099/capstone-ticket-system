@@ -14,11 +14,15 @@ import {
 
 // References the generated Better Auth user model.
 import { user } from './auth-schema';
+import { TicketContentFormat } from '../ticket-content/ticket-content-format';
 
 const createdAtColumn = () =>
 	timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const updatedAtColumn = () =>
 	timestamp('updated_at', { withTimezone: true }).notNull().defaultNow();
+/** New text is Markdown. The migration marks text saved before rich text as plain. */
+const contentFormatColumn = (columnName: string) =>
+	text(columnName).$type<TicketContentFormat>().notNull().default(TicketContentFormat.MARKDOWN);
 
 export const category = pgTable(
 	'category',
@@ -62,6 +66,7 @@ export const ticket = pgTable(
 		priority: text('priority').notNull().default('normal'),
 		subject: text('subject').notNull(),
 		description: text('description').notNull(),
+		descriptionFormat: contentFormatColumn('description_format'),
 		createdAt: createdAtColumn(),
 		updatedAt: updatedAtColumn(),
 		resolvedAt: timestamp('resolved_at', { withTimezone: true }),
@@ -75,7 +80,11 @@ export const ticket = pgTable(
 		index('ticket_subject_trgm_idx').using('gin', table.subject.op('gin_trgm_ops')),
 		check('ticket_priority_valid', sql`${table.priority} in ('low', 'normal', 'high')`),
 		check('ticket_subject_not_blank', sql`length(trim(${table.subject})) > 0`),
-		check('ticket_description_not_blank', sql`length(trim(${table.description})) > 0`)
+		check('ticket_description_not_blank', sql`length(trim(${table.description})) > 0`),
+		check(
+			'ticket_description_format_valid',
+			sql`${table.descriptionFormat} in ('plain', 'markdown')`
+		)
 	]
 );
 
@@ -90,12 +99,14 @@ export const ticketComment = pgTable(
 			.notNull()
 			.references(() => user.id, { onDelete: 'restrict' }),
 		body: text('body').notNull(),
+		bodyFormat: contentFormatColumn('body_format'),
 		isInternal: boolean('is_internal').notNull().default(false),
 		createdAt: createdAtColumn()
 	},
 	(table) => [
 		index('ticket_comment_ticket_created_idx').on(table.ticketId, table.createdAt),
-		check('ticket_comment_body_not_blank', sql`length(trim(${table.body})) > 0`)
+		check('ticket_comment_body_not_blank', sql`length(trim(${table.body})) > 0`),
+		check('ticket_comment_body_format_valid', sql`${table.bodyFormat} in ('plain', 'markdown')`)
 	]
 );
 
