@@ -7,6 +7,7 @@
 	import TicketContentEditor from '$lib/components/tickets/TicketContentEditor.svelte';
 	import { TicketContentFormat } from '$lib/ticket-content/ticket-content-format';
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
+	import { AppHotkeys } from '$lib/hotkeys';
 	import CommentMessage from './CommentMessage.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
 
@@ -46,7 +47,7 @@
 	let hasUnsentText = $derived(!!$replyFields.body.trim());
 	let formElement = $state<HTMLFormElement>();
 	const replyFormHotkeys = createHotkeysAttachment(
-		[{ hotkey: 'Mod+Enter', callback: () => formElement?.requestSubmit() }],
+		[{ hotkey: AppHotkeys.SUBMIT_FORM.hotkey, callback: () => formElement?.requestSubmit() }],
 		() => ({ enabled: !$isSendingComment && hasUnsentText, ignoreInputs: false })
 	);
 	let submitLabel = $derived(

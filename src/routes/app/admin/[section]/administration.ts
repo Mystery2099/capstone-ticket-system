@@ -13,8 +13,6 @@ export const ACTIVE_STATE_OPTIONS = [
 	{ value: 'false', label: 'Inactive' }
 ];
 
-export const CREATE_FORM_HINT = 'Esc to close · Ctrl/Cmd+Enter to create';
-
 /**
  * Superforms options shared by every administration form. Values stay put after submitting,
  * and results become toasts, with failures staying until dismissed. Field errors show beside

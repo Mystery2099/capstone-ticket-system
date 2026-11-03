@@ -8,7 +8,7 @@
 	import Combobox from '$lib/components/Combobox.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormField from '$lib/components/FormField.svelte';
-	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
+	import { CREATE_FORM_HINT, createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import { DraftUrlBinding } from '$lib/draft-url.svelte';
 	import { getDrafts } from '$lib/drafts.svelte';
 	import { getInitials } from '$lib/person';
@@ -16,7 +16,6 @@
 	import AdminFormFooter from './AdminFormFooter.svelte';
 	import AdminWorkspace from './AdminWorkspace.svelte';
 	import {
-		CREATE_FORM_HINT,
 		ENABLED_STATE_OPTIONS,
 		buildAdminFormOptions,
 		matchesFilterText

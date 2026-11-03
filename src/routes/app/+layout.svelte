@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { hasPermission } from '$lib/permissions';
 	import { createHotkey } from '@tanstack/svelte-hotkeys';
+	import { AppHotkeys } from '$lib/hotkeys';
 	import { onMount } from 'svelte';
 	import { navigating, page } from '$app/state';
 	import { onNavigate } from '$app/navigation';
@@ -158,7 +159,7 @@
 	});
 
 	createHotkey(
-		'/',
+		AppHotkeys.FOCUS_SEARCH.hotkey,
 		() => {
 			document.querySelector<HTMLInputElement>('[aria-label="Search tickets"]')?.focus();
 		},

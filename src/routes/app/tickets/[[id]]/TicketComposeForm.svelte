@@ -11,7 +11,7 @@
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import TicketContentEditor from '$lib/components/tickets/TicketContentEditor.svelte';
-	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
+	import { CREATE_FORM_HINT, createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import type { DraftStore, TicketDraft, TicketDraftFields } from '$lib/drafts.svelte';
 	import type { TicketCreateSuperForm } from './ticket-forms';
 	import type { SelectOption } from './ticket-types';
@@ -60,7 +60,7 @@
 				: 'Creating ticket…'
 			: isDescriptionNearLimit
 				? `${draft.description.length} / ${DESCRIPTION_MAX_LENGTH}`
-				: 'Esc to close · Ctrl/Cmd+Enter to create'
+				: CREATE_FORM_HINT
 	);
 
 	const createFormHotkeys = createComposeFormHotkeys(
