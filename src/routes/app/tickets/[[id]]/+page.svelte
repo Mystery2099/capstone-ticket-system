@@ -184,9 +184,11 @@
 		`${listLoader.rows.length}${listLoader.nextPageHref ? '+' : ''}`
 	);
 
-	// Failures stay until dismissed, since they usually need something done about them.
+	// Failures stay until dismissed, since they usually need something done about them. A
+	// request that never reached the server leaves an Error object here instead of a message,
+	// and the form that sent it already says so. Toasts also only accept text as their title.
 	$effect(() => {
-		if (form?.error) toast.error(form.error, { duration: Infinity });
+		if (typeof form?.error === 'string') toast.error(form.error, { duration: Infinity });
 		else if (form?.success) toast.success(form.success);
 	});
 </script>

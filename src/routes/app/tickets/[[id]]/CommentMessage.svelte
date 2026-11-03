@@ -4,12 +4,14 @@
 	import { getInitials } from '$lib/person';
 	import { cn } from '$lib/utils';
 	import TicketContent from '$lib/components/tickets/TicketContent.svelte';
+	import type { TicketContentFormat } from '$lib/ticket-content/ticket-content-format';
 
 	type CommentMessageProps = {
 		authorName: string;
 		roleLabel: string;
 		timestampLabel: string;
 		body: string;
+		bodyFormat: TicketContentFormat;
 		caption?: string;
 		isInternal?: boolean;
 		isSending?: boolean;
@@ -19,6 +21,7 @@
 		roleLabel,
 		timestampLabel,
 		body,
+		bodyFormat,
 		caption,
 		isInternal = false,
 		isSending = false
@@ -51,6 +54,7 @@
 			</p>{/if}
 		<TicketContent
 			content={body}
+			format={bodyFormat}
 			class="message-body mt-1.5 text-[14px] leading-[1.65] wrap-anywhere wide:text-[15px]"
 		/>
 	</div>

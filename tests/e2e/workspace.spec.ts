@@ -120,10 +120,14 @@ test('agent opens an assigned ticket for a requester and posts a public comment'
 	await expect(page.getByRole('button', { name: 'Status', exact: true })).toContainText(
 		'In progress'
 	);
+	// The "Ticket created." toast sits over the composer's Send button until it's dismissed.
+	await page.getByRole('button', { name: 'Close toast', exact: true }).click();
 	await page
 		.getByRole('textbox', { name: 'Comment', exact: true })
 		.fill('I will check the cable this afternoon.');
 	await page.getByRole('button', { name: 'Send comment', exact: true }).click();
+	// The editor's text is page text too, so wait for it to clear before finding the comment.
+	await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveText('');
 	await expect(
 		page.getByText('I will check the cable this afternoon.', { exact: true })
 	).toBeVisible();
@@ -259,7 +263,7 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 	await expect(
 		page.getByText('Couldn’t send. Your comment is still in the box below.')
 	).toBeVisible();
-	await expect(editor).toHaveValue(text);
+	await expect(editor).toHaveText(text);
 	await expect(page.locator('.message.sending')).toHaveCount(0);
 
 	let requests = 0;
@@ -286,7 +290,7 @@ test('a failed reply keeps its text and a pending retry cannot be submitted twic
 	} finally {
 		release();
 	}
-	await expect(editor).toHaveValue('');
+	await expect(editor).toHaveText('');
 	await expect(page.locator('.message-body', { hasText: text })).toHaveCount(1);
 	await page.goto('/app/settings');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');

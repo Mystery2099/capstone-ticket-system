@@ -257,6 +257,7 @@
 		timestampLabel={formatDateTime(ticket.createdAt)}
 		caption="Opened this ticket"
 		body={ticket.description}
+		bodyFormat={ticket.descriptionFormat}
 	/>
 	{#if isLoading}<ConversationSkeleton />{:else}
 		{#if hiddenEntryCount}<div
@@ -274,6 +275,7 @@
 					roleLabel={directory.getPersonRoleLabel(timelineEntry.authorId)}
 					timestampLabel={formatDateTime(timelineEntry.createdAt)}
 					body={timelineEntry.body}
+					bodyFormat={timelineEntry.bodyFormat}
 					isInternal={timelineEntry.isInternal}
 				/>{:else}<TicketActivityEntry event={timelineEntry} {directory} />{/if}{/each}
 		{#if !isTicketClosed}<TicketReplyForm

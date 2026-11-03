@@ -5,6 +5,7 @@
 	import { cn } from '$lib/utils';
 	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import TicketContentEditor from '$lib/components/tickets/TicketContentEditor.svelte';
+	import { TicketContentFormat } from '$lib/ticket-content/ticket-content-format';
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import CommentMessage from './CommentMessage.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
@@ -62,6 +63,7 @@
 		roleLabel={authorRoleLabel}
 		timestampLabel="Sending…"
 		body={$replyFields.body}
+		bodyFormat={TicketContentFormat.MARKDOWN}
 		isInternal={isInternalNote}
 		isSending
 	/>{/if}

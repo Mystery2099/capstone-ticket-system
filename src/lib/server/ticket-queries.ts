@@ -12,6 +12,8 @@ import { db } from './db';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
 import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
 import { parseTicketNumber } from './validation';
+import { TicketContentFormat } from '../ticket-content/ticket-content-format';
+import { extractPlainText } from '../ticket-content/ticket-content-renderer';
 
 const TICKET_PAGE_SIZE = 50;
 /** List rows show the preview on one line, so longer comment text is never sent. */
@@ -21,6 +23,13 @@ type Ticket = typeof ticket.$inferSelect;
 type Category = typeof category.$inferSelect;
 type TicketComment = typeof ticketComment.$inferSelect;
 type TicketEvent = typeof ticketEvent.$inferSelect;
+
+/** A list row's one-line preview, with any formatting removed. */
+function buildPreviewText(storedContent: string, contentFormat: TicketContentFormat): string {
+	return contentFormat === TicketContentFormat.MARKDOWN
+		? extractPlainText(storedContent)
+		: storedContent;
+}
 
 /**
  * Returns where a search should go instead of the results: the ticket itself, when the
@@ -269,7 +278,8 @@ export async function loadTicketList(actor: Person, url: URL) {
 				.selectDistinctOn([ticketComment.ticketId], {
 					ticketId: ticketComment.ticketId,
 					authorId: ticketComment.authorId,
-					body: sql<string>`left(${ticketComment.body}, ${PREVIEW_MAX_LENGTH})`
+					body: sql<string>`left(${ticketComment.body}, ${PREVIEW_MAX_LENGTH})`,
+					bodyFormat: ticketComment.bodyFormat
 				})
 				.from(ticketComment)
 				.where(
@@ -294,7 +304,9 @@ export async function loadTicketList(actor: Person, url: URL) {
 		const previewAuthor = people.find((person) => person.id === previewAuthorId);
 		return {
 			...ticketRecord,
-			preview: latestPublicComment?.body || ticketRecord.description,
+			preview: latestPublicComment
+				? buildPreviewText(latestPublicComment.body, latestPublicComment.bodyFormat)
+				: buildPreviewText(ticketRecord.description, ticketRecord.descriptionFormat),
 			previewAuthor: previewAuthorId ? previewAuthor?.name.split(' ')[0] || 'Support team' : null,
 			subjectHighlight: searchHighlight?.subjectSegments ?? null,
 			previewHighlight: searchHighlight?.snippetSegments ?? null,

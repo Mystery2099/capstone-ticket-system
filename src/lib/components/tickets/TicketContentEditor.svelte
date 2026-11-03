@@ -70,6 +70,7 @@
 	/** The Markdown this editor last produced, so its own updates aren't loaded back in. */
 	let lastEmittedValue = value;
 	const editorId = $props.id();
+	let hasEditorLoadFailed = $state(false);
 	let isLinkPopoverOpen = $state(false);
 	let isEditingExistingLink = $state(false);
 	let linkTargetInput = $state('');
@@ -190,6 +191,10 @@
 					}
 				});
 				editor = createdEditor;
+			},
+			() => {
+				// Without the editor nothing can be typed, so say so instead of showing an empty box.
+				if (!isUnmounted) hasEditorLoadFailed = true;
 			}
 		);
 		return () => {
@@ -335,7 +340,11 @@
 			{/each}
 		</span>
 	</div>
-	<div bind:this={editorElement} class={cn('flex flex-1 flex-col', contentClass)}></div>
+	<div bind:this={editorElement} class={cn('flex flex-1 flex-col', contentClass)}>
+		{#if hasEditorLoadFailed}<p class="error p-3" role="alert">
+				The text box couldn’t load. Check your connection, then reload the page.
+			</p>{/if}
+	</div>
 	<input type="hidden" {name} {value} />
 </div>
 

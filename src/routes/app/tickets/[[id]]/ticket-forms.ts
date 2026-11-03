@@ -56,6 +56,9 @@ export function createTicketCreateForm(
  * editor, so text survives the editor being hidden, such as when the ticket is closed.
  */
 export function createTicketReplyForm(formData: PageData['replyForm']): TicketReplySuperForm {
+	// One toast for the reply's outcome, so a successful retry replaces the earlier failure
+	// instead of stacking under it.
+	const replyToastId = 'ticket-reply-outcome';
 	return superForm(formData, {
 		validators: zod4Client(commentSchema),
 		taintedMessage: false,
@@ -63,11 +66,15 @@ export function createTicketReplyForm(formData: PageData['replyForm']): TicketRe
 		multipleSubmits: 'prevent',
 		onUpdated({ form }) {
 			if (!form.message) return;
-			if (form.message.failed) toast.error(form.message.text, { duration: Infinity });
-			else toast.success(form.message.text);
+			if (form.message.failed)
+				toast.error(form.message.text, { id: replyToastId, duration: Infinity });
+			else toast.success(form.message.text, { id: replyToastId, duration: 4000 });
 		},
 		onError() {
-			toast.error('Couldn’t send. Your comment is still in the box below.', { duration: Infinity });
+			toast.error('Couldn’t send. Your comment is still in the box below.', {
+				id: replyToastId,
+				duration: Infinity
+			});
 		}
 	});
 }
