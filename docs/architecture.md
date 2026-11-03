@@ -19,3 +19,5 @@ request, so disabled accounts and stale sessions cannot retain access.
 See [authentication](auth-integration.md), [request flow](request-lifecycle.md),
 [database design](database-design.md), and [hosting](azure-student-deployment.md).
 [Architecture diagram](diagrams/system-architecture.mmd).
+
+Proposed message formatting: [Markdown feasibility and integration](markdown-feasibility.md).
