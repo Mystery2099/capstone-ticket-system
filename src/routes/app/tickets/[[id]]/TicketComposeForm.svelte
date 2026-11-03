@@ -10,6 +10,7 @@
 	import Combobox from '$lib/components/Combobox.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import TicketContentEditor from '$lib/components/tickets/TicketContentEditor.svelte';
 	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import type { DraftStore, TicketDraft, TicketDraftFields } from '$lib/drafts.svelte';
 	import type { TicketCreateSuperForm } from './ticket-forms';
@@ -190,18 +191,16 @@
 		</div>
 		<!-- The body fills the pane like an email, instead of a fixed box above empty space. -->
 		<div class="composer mt-3.5 flex min-h-[220px] flex-1 flex-col">
-			<textarea
-				class="flex-1 resize-none"
+			<TicketContentEditor
 				name="description"
-				aria-invalid={!!$createErrors.description}
-				aria-describedby={$createErrors.description ? 'description-error' : undefined}
-				aria-label="Description"
-				placeholder="What happened? Include when it started and what you’ve tried."
 				bind:value={draft.description}
-				required
-				maxlength={DESCRIPTION_MAX_LENGTH}
-				rows={8}
-				readonly={$isCreatingTicket}></textarea>
+				label="Description"
+				placeholder="What happened? Include when it started and what you’ve tried."
+				isInvalid={!!$createErrors.description}
+				describedBy={$createErrors.description ? 'description-error' : undefined}
+				isReadOnly={$isCreatingTicket}
+				contentClass="min-h-[180px]"
+			/>
 			{#if $createErrors.description}<p id="description-error" class="error" role="alert">
 					{$createErrors.description.join(' ')}
 				</p>{/if}

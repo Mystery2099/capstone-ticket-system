@@ -527,6 +527,98 @@
 	.composer textarea:focus {
 		outline-offset: -2px;
 	}
+	/* Formatted message text, shared by saved messages and the editor so both look alike. */
+	.ticket-content > :first-child {
+		margin-top: 0;
+	}
+	.ticket-content > :last-child {
+		margin-bottom: 0;
+	}
+	.ticket-content :is(p, ul, ol, blockquote, pre, h3, h4, h5, h6) {
+		margin: 0 0 0.65em;
+	}
+	.ticket-content :is(h3, h4, h5, h6) {
+		margin-top: 0.9em;
+		font-weight: 650;
+		line-height: 1.35;
+	}
+	.ticket-content h3 {
+		font-size: 1.15em;
+	}
+	.ticket-content :is(h4, h5, h6) {
+		font-size: 1em;
+	}
+	.ticket-content ul {
+		list-style: disc;
+		padding-left: 1.4em;
+	}
+	.ticket-content ol {
+		list-style: decimal;
+		padding-left: 1.6em;
+	}
+	.ticket-content li > :is(p, ul, ol) {
+		margin-bottom: 0.2em;
+	}
+	.ticket-content blockquote {
+		border-left: 3px solid var(--border);
+		padding-left: 0.85em;
+		color: var(--muted-fg);
+	}
+	.ticket-content a {
+		color: var(--primary);
+		text-decoration: underline;
+		text-underline-offset: 2px;
+	}
+	.ticket-content code {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		font-size: 0.9em;
+		background: var(--muted);
+		border-radius: 4px;
+		padding: 0.1em 0.3em;
+	}
+	.ticket-content pre {
+		background: var(--muted);
+		border-radius: 8px;
+		padding: 10px 12px;
+		overflow-x: auto;
+		white-space: pre;
+		line-height: 1.5;
+	}
+	.ticket-content pre code {
+		background: none;
+		padding: 0;
+		font-size: 0.88em;
+	}
+	.ticket-content-editor {
+		padding: 12px;
+		line-height: 1.6;
+		outline: none;
+		overflow-wrap: anywhere;
+	}
+	.ticket-content-editor p.is-editor-empty:first-child::before {
+		content: attr(data-placeholder);
+		float: left;
+		height: 0;
+		pointer-events: none;
+		color: var(--muted-fg);
+		opacity: 0.85;
+	}
+	.editor-tool {
+		width: 30px;
+		height: 30px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 6px;
+		color: var(--muted-fg);
+	}
+	.editor-tool:hover:not(:disabled) {
+		background: var(--muted);
+	}
+	.editor-tool[aria-pressed='true'] {
+		background: var(--selected);
+		color: var(--primary);
+	}
 	.composer-footer {
 		display: flex;
 		align-items: center;

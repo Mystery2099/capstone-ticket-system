@@ -4,6 +4,8 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { cn } from '$lib/utils';
 	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
+	import TicketContentEditor from '$lib/components/tickets/TicketContentEditor.svelte';
+	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import CommentMessage from './CommentMessage.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
 
@@ -38,6 +40,11 @@
 		);
 	}
 	let hasUnsentText = $derived(!!$replyFields.body.trim());
+	let formElement = $state<HTMLFormElement>();
+	const replyFormHotkeys = createHotkeysAttachment(
+		[{ hotkey: 'Mod+Enter', callback: () => formElement?.requestSubmit() }],
+		() => ({ enabled: !$isSendingComment && hasUnsentText, ignoreInputs: false })
+	);
 	let submitLabel = $derived(
 		$isSendingComment
 			? $isReplyDelayed
@@ -59,6 +66,8 @@
 		isSending
 	/>{/if}
 <form
+	bind:this={formElement}
+	{@attach replyFormHotkeys}
 	class={cn('composer', isInternalNote && 'border-note-border bg-note')}
 	aria-busy={$isSendingComment}
 	method="POST"
@@ -95,17 +104,17 @@
 			</TooltipWrapper>
 		{/if}
 	</div>
-	<input type="hidden" name="internal" value={isInternalNote} /><textarea
+	<input type="hidden" name="internal" value={isInternalNote} />
+	<TicketContentEditor
 		name="body"
-		aria-invalid={!!$replyErrors.body}
-		aria-describedby={$replyErrors.body ? 'reply-error' : undefined}
-		aria-label={isInternalNote ? 'Internal note' : 'Comment'}
-		placeholder={isInternalNote ? 'Add a private note for the support team…' : 'Write a comment…'}
 		bind:value={$replyFields.body}
-		required
-		maxlength={10000}
-		rows={4}
-		readonly={$isSendingComment}></textarea>
+		label={isInternalNote ? 'Internal note' : 'Comment'}
+		placeholder={isInternalNote ? 'Add a private note for the support team…' : 'Write a comment…'}
+		isInvalid={!!$replyErrors.body}
+		describedBy={$replyErrors.body ? 'reply-error' : undefined}
+		isReadOnly={$isSendingComment}
+		contentClass="min-h-[110px]"
+	/>
 	{#if $replyErrors.body}<p id="reply-error" class="error" role="alert">
 			{$replyErrors.body.join(' ')}
 		</p>{/if}
