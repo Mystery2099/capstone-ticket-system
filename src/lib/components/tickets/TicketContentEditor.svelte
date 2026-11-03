@@ -161,11 +161,12 @@
 
 	// The form can change the text from outside, such as clearing it after a reply is sent or
 	// restoring a draft. Only then is the editor reloaded, so typing keeps its cursor and undo.
+	// Values that differ only in surrounding whitespace count as the same text, since the form's
+	// validation trims what it holds. Reloading for that would delete the space just typed.
 	$effect(() => {
 		const activeEditor = editor;
 		const nextValue = value;
-		if (!activeEditor || nextValue === lastEmittedValue) return;
-		console.log('SCRATCH reload', JSON.stringify(lastEmittedValue), '->', JSON.stringify(nextValue), new Error().stack);
+		if (!activeEditor || nextValue.trim() === lastEmittedValue.trim()) return;
 		lastEmittedValue = nextValue;
 		untrack(() =>
 			activeEditor.commands.setContent(nextValue, { contentType: 'markdown', emitUpdate: false })
