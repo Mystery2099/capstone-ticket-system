@@ -18,6 +18,12 @@ import { extractPlainText } from '../ticket-content/ticket-content-renderer';
 const TICKET_PAGE_SIZE = 50;
 /** List rows show the preview on one line, so longer text is cut off before it's sent. */
 const PREVIEW_MAX_LENGTH = 200;
+/**
+ * How much of a comment is read to build its preview. Formatting is removed before the text is
+ * cut to the preview's length, so this leaves room for links and other symbols that don't
+ * show, without reading every comment whole.
+ */
+const PREVIEW_SOURCE_MAX_LENGTH = 2000;
 
 type Ticket = typeof ticket.$inferSelect;
 type Category = typeof category.$inferSelect;
@@ -280,8 +286,7 @@ export async function loadTicketList(actor: Person, url: URL) {
 				.selectDistinctOn([ticketComment.ticketId], {
 					ticketId: ticketComment.ticketId,
 					authorId: ticketComment.authorId,
-					// Read whole, since cutting Markdown short can leave formatting half-written.
-					body: ticketComment.body,
+					body: sql<string>`left(${ticketComment.body}, ${PREVIEW_SOURCE_MAX_LENGTH})`,
 					bodyFormat: ticketComment.bodyFormat
 				})
 				.from(ticketComment)
