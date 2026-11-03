@@ -227,6 +227,7 @@
 			{#if trimmedSearchText}<p aria-live="polite">{statusMessage}</p>{/if}
 			{#if !trimmedSearchText && recentSearches.searches.length}<button
 					type="button"
+					class="mt-1 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground"
 					onclick={() => recentSearches.clear()}>Clear recent searches</button
 				>{/if}
 		</div>

@@ -242,6 +242,10 @@
 		font-weight: 600;
 		padding: 5px;
 	}
+	.text-link:hover {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
 	.error {
 		color: #b3261e;
 		background: #ffefed;

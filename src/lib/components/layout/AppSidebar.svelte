@@ -112,7 +112,7 @@
 										<Collapsible.Trigger
 											{...props}
 											class={cn(
-												'absolute top-1 right-2 grid size-8 place-items-center rounded-full text-muted-foreground transition-[rotate,background-color] duration-(--motion-fast) ease-out hover:bg-secondary data-[state=closed]:-rotate-90',
+												'absolute top-1 right-2 grid size-8 place-items-center rounded-full text-muted-foreground transition-[rotate,background-color] duration-(--motion-fast) ease-out hover:bg-[color-mix(in_oklch,var(--muted),var(--foreground)_10%)] hover:text-foreground data-[state=closed]:-rotate-90',
 												HIDDEN_WHEN_COMPACT
 											)}
 											aria-label={isCategoryListOpen ? 'Hide categories' : 'Show categories'}
