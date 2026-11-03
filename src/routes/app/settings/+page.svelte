@@ -31,9 +31,9 @@
 
 <SettingsLayout title="Settings">
 	<SettingRow title="Appearance" description="Remembered in this browser.">
-		<fieldset class="m-0 flex flex-col gap-[18px] border-0 p-0" aria-label="Appearance">
+		<fieldset class="m-0 flex flex-col gap-1 border-0 p-0" aria-label="Appearance">
 			{#each THEME_OPTIONS as option (option.value)}<label
-					class="flex items-center gap-2.5 text-[14px]"
+					class="-mx-2.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] transition-colors hover:bg-muted has-focus-visible:bg-muted"
 					><input
 						type="radio"
 						name="theme"

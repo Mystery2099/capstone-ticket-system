@@ -320,6 +320,12 @@
 		max-width: none;
 		margin-left: 0;
 	}
+	/* The global icon-button hover matches the bar's own background, so darken it here. */
+	.search-bar :global(.icon-button:hover),
+	.search-bar :global(.icon-button[aria-expanded='true']) {
+		background: color-mix(in oklch, var(--muted), var(--foreground) 10%);
+		color: var(--foreground);
+	}
 	/* Global so the search options form, a child component, shares the dropdown look. */
 	.ticket-search :global(.search-dropdown) {
 		position: absolute;
