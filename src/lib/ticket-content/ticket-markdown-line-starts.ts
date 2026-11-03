@@ -11,6 +11,8 @@ const HARD_BREAK_SUFFIX = '  ';
 const QUOTE_PREFIX_PATTERN = /^(?:[ \t]*>[ \t]?)/;
 const INDENTATION_PATTERN = /^[ \t]*/;
 const CODE_FENCE_PATTERN = /^(`{3,}|~{3,})/;
+/** A fence alone on its line, which is the only kind that can close a code block. */
+const CLOSING_CODE_FENCE_PATTERN = /^(`{3,}|~{3,})[ \t]*$/;
 /** Markers whose first symbol is escaped: heading, quote, bullet, heading underline, rule. */
 const ESCAPED_FIRST_SYMBOL_PATTERNS = [
 	/^#{1,6}(?=[ \t]|$)/,
@@ -26,6 +28,8 @@ const LIST_NUMBER_PATTERN = /^(\d{1,9})([.)])(?=[ \t]|$)/;
 const LEADING_TAB_PATTERN = /^( *)(\t[ \t]*)/;
 
 type QuotedLine = { quotePrefix: string; quoteDepth: number; lineContent: string };
+/** An open code block: the fence that opened it, and how many quote levels it sits in. */
+type OpenCodeBlock = { openingFence: string; quoteDepth: number };
 
 /** Splits off a line's quote prefix, up to the given number of levels. */
 function splitQuotePrefix(line: string, maximumQuoteDepth: number): QuotedLine {
@@ -62,28 +66,36 @@ function encodeTypedIndentation(lineContent: string): string {
 /** Returns the editor's Markdown with line starts after line breaks, and typed tabs, escaped. */
 export function escapeLineStarts(markdown: string): string {
 	const markdownLines = markdown.split('\n');
-	/** The fence that opened the code block being copied, or null outside code. */
-	let openCodeFence: string | null = null;
+	/** The code block being copied, or null outside code. */
+	let openCodeBlock: OpenCodeBlock | null = null;
 	return markdownLines
 		.map((line, lineIndex) => {
-			const { quotePrefix, lineContent } = splitQuotePrefix(line, Number.MAX_SAFE_INTEGER);
-			const unindentedContent = lineContent.replace(INDENTATION_PATTERN, '');
-			const fenceMatch = CODE_FENCE_PATTERN.exec(unindentedContent);
-			if (openCodeFence) {
-				// Code is copied exactly. A fence at least as long, with the same symbol, closes it.
+			if (openCodeBlock) {
+				// Code is copied exactly. Only a fence at the block's own quote level closes it, so
+				// code that itself contains a quoted fence, such as "> ```", stays code.
+				const blockLine = splitQuotePrefix(line, openCodeBlock.quoteDepth);
+				const closingFenceMatch = CLOSING_CODE_FENCE_PATTERN.exec(
+					blockLine.lineContent.replace(INDENTATION_PATTERN, '')
+				);
 				if (
-					fenceMatch &&
-					fenceMatch[1][0] === openCodeFence[0] &&
-					fenceMatch[1].length >= openCodeFence.length
+					blockLine.quoteDepth === openCodeBlock.quoteDepth &&
+					closingFenceMatch &&
+					closingFenceMatch[1][0] === openCodeBlock.openingFence[0] &&
+					closingFenceMatch[1].length >= openCodeBlock.openingFence.length
 				)
-					openCodeFence = null;
+					openCodeBlock = null;
 				return line;
 			}
+			const { quotePrefix, quoteDepth, lineContent } = splitQuotePrefix(
+				line,
+				Number.MAX_SAFE_INTEGER
+			);
+			const fenceMatch = CODE_FENCE_PATTERN.exec(lineContent.replace(INDENTATION_PATTERN, ''));
 			const previousLine = lineIndex > 0 ? markdownLines[lineIndex - 1] : '';
 			if (!previousLine.endsWith(HARD_BREAK_SUFFIX)) {
 				// Only a fence that starts a block opens code. One typed after a line break is text.
 				if (fenceMatch) {
-					openCodeFence = fenceMatch[1];
+					openCodeBlock = { openingFence: fenceMatch[1], quoteDepth };
 					return line;
 				}
 				return quotePrefix + encodeTypedIndentation(lineContent);
