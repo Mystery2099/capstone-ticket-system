@@ -95,63 +95,63 @@
 	const toolbarActions: ToolbarAction[] = [
 		{
 			label: 'Bold',
-			shortcut: EditorHotkeys.BOLD,
+			shortcut: EditorHotkeys.BOLD.hotkey,
 			icon: Bold,
 			isActive: () => !!editor?.isActive('bold'),
 			run: () => editor?.chain().focus().toggleBold().run()
 		},
 		{
 			label: 'Italic',
-			shortcut: EditorHotkeys.ITALIC,
+			shortcut: EditorHotkeys.ITALIC.hotkey,
 			icon: Italic,
 			isActive: () => !!editor?.isActive('italic'),
 			run: () => editor?.chain().focus().toggleItalic().run()
 		},
 		{
 			label: 'Strikethrough',
-			shortcut: EditorHotkeys.STRIKETHROUGH,
+			shortcut: EditorHotkeys.STRIKETHROUGH.hotkey,
 			icon: Strikethrough,
 			isActive: () => !!editor?.isActive('strike'),
 			run: () => editor?.chain().focus().toggleStrike().run()
 		},
 		{
 			label: 'Heading',
-			shortcut: EditorHotkeys.HEADING,
+			shortcut: EditorHotkeys.HEADING.hotkey,
 			icon: Heading,
 			isActive: () => !!editor?.isActive('heading'),
 			run: () => editor?.chain().focus().toggleHeading({ level: 1 }).run()
 		},
 		{
 			label: 'Bulleted list',
-			shortcut: EditorHotkeys.BULLETED_LIST,
+			shortcut: EditorHotkeys.BULLETED_LIST.hotkey,
 			icon: List,
 			isActive: () => !!editor?.isActive('bulletList'),
 			run: () => editor?.chain().focus().toggleBulletList().run()
 		},
 		{
 			label: 'Numbered list',
-			shortcut: EditorHotkeys.NUMBERED_LIST,
+			shortcut: EditorHotkeys.NUMBERED_LIST.hotkey,
 			icon: ListOrdered,
 			isActive: () => !!editor?.isActive('orderedList'),
 			run: () => editor?.chain().focus().toggleOrderedList().run()
 		},
 		{
 			label: 'Quote',
-			shortcut: EditorHotkeys.QUOTE,
+			shortcut: EditorHotkeys.QUOTE.hotkey,
 			icon: TextQuote,
 			isActive: () => !!editor?.isActive('blockquote'),
 			run: () => editor?.chain().focus().toggleBlockquote().run()
 		},
 		{
 			label: 'Inline code',
-			shortcut: EditorHotkeys.INLINE_CODE,
+			shortcut: EditorHotkeys.INLINE_CODE.hotkey,
 			icon: Code,
 			isActive: () => !!editor?.isActive('code'),
 			run: () => editor?.chain().focus().toggleCode().run()
 		},
 		{
 			label: 'Code block',
-			shortcut: EditorHotkeys.CODE_BLOCK,
+			shortcut: EditorHotkeys.CODE_BLOCK.hotkey,
 			icon: SquareCode,
 			isActive: () => !!editor?.isActive('codeBlock'),
 			run: () => editor?.chain().focus().toggleCodeBlock().run()
@@ -168,14 +168,14 @@
 		},
 		{
 			label: 'Undo',
-			shortcut: EditorHotkeys.UNDO,
+			shortcut: EditorHotkeys.UNDO.hotkey,
 			icon: Undo2,
 			isAvailable: () => !!editor?.can().undo(),
 			run: () => editor?.chain().focus().undo().run()
 		},
 		{
 			label: 'Redo',
-			shortcut: EditorHotkeys.REDO,
+			shortcut: EditorHotkeys.REDO.hotkey,
 			icon: Redo2,
 			isAvailable: () => !!editor?.can().redo(),
 			run: () => editor?.chain().focus().redo().run()

@@ -20,6 +20,7 @@
 	import AccountMenu from '$lib/components/layout/AccountMenu.svelte';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import SidebarToggle from '$lib/components/layout/SidebarToggle.svelte';
+	import KeyboardShortcutsDialog from '$lib/components/layout/KeyboardShortcutsDialog.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { createDelayedFlag } from '$lib/delayed.svelte';
 	import { cn } from '$lib/utils';
@@ -44,6 +45,7 @@
 	// Read from the cookie on the server, so a minimized sidebar never flashes open.
 	// svelte-ignore state_referenced_locally
 	let isSidebarOpen = $state(data.isSidebarOpen);
+	let isShortcutsDialogOpen = $state(false);
 
 	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));
 	// Navigation highlights follow the destination, so clicks register before data arrives.
@@ -165,7 +167,17 @@
 		},
 		{ ignoreInputs: true }
 	);
+
+	createHotkey(
+		AppHotkeys.SHOW_SHORTCUTS.hotkey,
+		() => {
+			isShortcutsDialogOpen = true;
+		},
+		{ ignoreInputs: true }
+	);
 </script>
+
+<KeyboardShortcutsDialog bind:open={isShortcutsDialogOpen} />
 
 <Sidebar.Provider
 	bind:open={isSidebarOpen}
@@ -187,7 +199,11 @@
 			people={data.searchPeople}
 			categories={data.searchCategories}
 		/>
-		<AccountMenu userName={data.user.name} userRole={data.user.roleName ?? data.user.role} />
+		<AccountMenu
+			userName={data.user.name}
+			userRole={data.user.roleName ?? data.user.role}
+			onShowShortcuts={() => (isShortcutsDialogOpen = true)}
+		/>
 	</header>
 	<AppSidebar
 		{navigationViews}

@@ -14,7 +14,7 @@ import { isAllowedLinkTarget } from './ticket-content-policy';
 const ShiftEnterHardBreak = HardBreak.extend({
 	addKeyboardShortcuts() {
 		return {
-			[toTiptapShortcut(EditorHotkeys.NEW_LINE)]: () => this.editor.commands.setHardBreak()
+			[toTiptapShortcut(EditorHotkeys.NEW_LINE.hotkey)]: () => this.editor.commands.setHardBreak()
 		};
 	}
 });
