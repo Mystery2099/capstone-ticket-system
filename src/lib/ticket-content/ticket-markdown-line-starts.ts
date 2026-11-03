@@ -29,7 +29,20 @@ const LEADING_TAB_PATTERN = /^( *)(\t[ \t]*)/;
 
 type QuotedLine = { quotePrefix: string; quoteDepth: number; lineContent: string };
 /** An open code block: the fence that opened it, and how many quote levels it sits in. */
-type OpenCodeBlock = { openingFence: string; quoteDepth: number };
+type OpenCodeBlock = { openingFence: string; quoteDepth: number; indentationWidth: number };
+
+/** How far a closing fence may sit right of its opening fence and still close the block. */
+const MAXIMUM_CLOSING_FENCE_EXTRA_INDENTATION = 3;
+const TAB_WIDTH = 4;
+
+/** The width of leading spaces and tabs, with a tab counting as four columns. */
+function measureIndentation(text: string): number {
+	const indentation = INDENTATION_PATTERN.exec(text)?.[0] ?? '';
+	return [...indentation].reduce(
+		(indentationWidth, character) => indentationWidth + (character === '\t' ? TAB_WIDTH : 1),
+		0
+	);
+}
 
 /** Splits off a line's quote prefix, up to the given number of levels. */
 function splitQuotePrefix(line: string, maximumQuoteDepth: number): QuotedLine {
@@ -68,17 +81,24 @@ export function escapeLineStarts(markdown: string): string {
 	const markdownLines = markdown.split('\n');
 	/** The code block being copied, or null outside code. */
 	let openCodeBlock: OpenCodeBlock | null = null;
+	/**
+	 * How many quote levels the current paragraph sits in. It's set by the paragraph's first
+	 * line, since a later line's ">" may be text that was escaped on the line before.
+	 */
+	let paragraphQuoteDepth = 0;
 	return markdownLines
 		.map((line, lineIndex) => {
 			if (openCodeBlock) {
-				// Code is copied exactly. Only a fence at the block's own quote level closes it, so
-				// code that itself contains a quoted fence, such as "> ```", stays code.
+				// Code is copied exactly. Only a fence at the block's own quote level and indentation
+				// closes it, so code containing a quoted or indented fence, such as "> ```", stays code.
 				const blockLine = splitQuotePrefix(line, openCodeBlock.quoteDepth);
 				const closingFenceMatch = CLOSING_CODE_FENCE_PATTERN.exec(
 					blockLine.lineContent.replace(INDENTATION_PATTERN, '')
 				);
 				if (
 					blockLine.quoteDepth === openCodeBlock.quoteDepth &&
+					measureIndentation(blockLine.lineContent) <=
+						openCodeBlock.indentationWidth + MAXIMUM_CLOSING_FENCE_EXTRA_INDENTATION &&
 					closingFenceMatch &&
 					closingFenceMatch[1][0] === openCodeBlock.openingFence[0] &&
 					closingFenceMatch[1].length >= openCodeBlock.openingFence.length
@@ -93,16 +113,20 @@ export function escapeLineStarts(markdown: string): string {
 			const fenceMatch = CODE_FENCE_PATTERN.exec(lineContent.replace(INDENTATION_PATTERN, ''));
 			const previousLine = lineIndex > 0 ? markdownLines[lineIndex - 1] : '';
 			if (!previousLine.endsWith(HARD_BREAK_SUFFIX)) {
+				paragraphQuoteDepth = quoteDepth;
 				// Only a fence that starts a block opens code. One typed after a line break is text.
 				if (fenceMatch) {
-					openCodeBlock = { openingFence: fenceMatch[1], quoteDepth };
+					openCodeBlock = {
+						openingFence: fenceMatch[1],
+						quoteDepth,
+						indentationWidth: measureIndentation(lineContent)
+					};
 					return line;
 				}
 				return quotePrefix + encodeTypedIndentation(lineContent);
 			}
 			// A line continuing a quoted paragraph repeats the quote's prefix, which stays as is.
-			const previousQuoteDepth = splitQuotePrefix(previousLine, Number.MAX_SAFE_INTEGER).quoteDepth;
-			const continuedLine = splitQuotePrefix(line, previousQuoteDepth);
+			const continuedLine = splitQuotePrefix(line, paragraphQuoteDepth);
 			const indentation = INDENTATION_PATTERN.exec(continuedLine.lineContent)?.[0] ?? '';
 			const lineText = continuedLine.lineContent.slice(indentation.length);
 			return (
