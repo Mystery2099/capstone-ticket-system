@@ -19,10 +19,25 @@ export type TicketContentEditorOptions = {
 const FENCED_CODE_BLOCK_PATTERN = /(^|\n)(```|~~~)[^\n]*\n[\s\S]*?\n\2[ \t]*(?=\n|$)/g;
 /**
  * A line break inside a paragraph, then a line starting with something Markdown would read as
- * a heading, quote, list, rule or code fence. Groups: the break and indentation, a symbol to
- * escape, or the digits of a numbered-list marker whose dot or bracket gets escaped instead.
+ * a heading, quote, list, rule, heading underline or code fence. Bold or code that merely
+ * starts the line is left alone. Groups: the break and indentation, then the marker's first
+ * symbol to escape, or the digits of a numbered-list marker whose dot gets escaped instead.
  */
-const LINE_START_MARKER_PATTERN = /( {2}\n[ \t]*)(?:([#>+*=`~_-])|(\d+)(?=[.)]))/g;
+const LINE_START_MARKER_PATTERN = new RegExp(
+	'( {2}\\n[ \\t]*)' +
+		'(?:' +
+		[
+			'(#)(?=#{0,5}(?:[ \\t]|$))',
+			'(>)',
+			'([-+*])(?=[ \\t]|$)',
+			'([-=])(?=[-=]*[ \\t]*(?:\\n|$))',
+			'([*_])(?=(?:[ \\t]*\\6){2,}[ \\t]*(?:\\n|$))',
+			'([`~])(?=\\7{2})'
+		].join('|') +
+		'|(\\d{1,9})(?=[.)](?:[ \\t]|$))' +
+		')',
+	'gm'
+);
 
 /**
  * Tiptap writes a line break as two spaces and a newline, but doesn't escape what follows. A
@@ -33,8 +48,11 @@ function escapeLineStartsAfterLineBreaks(markdown: string): string {
 	const escapeMarkers = (markdownOutsideCode: string) =>
 		markdownOutsideCode.replace(
 			LINE_START_MARKER_PATTERN,
-			(lineStart, lineBreak: string, markerSymbol?: string, listNumber?: string) =>
-				markerSymbol ? `${lineBreak}\\${markerSymbol}` : `${lineBreak}${listNumber}\\`
+			(lineStart, lineBreak: string, ...markerGroups: (string | undefined)[]) => {
+				const [heading, quote, bullet, underline, rule, fence, listNumber] = markerGroups;
+				const markerSymbol = heading ?? quote ?? bullet ?? underline ?? rule ?? fence;
+				return markerSymbol ? `${lineBreak}\\${markerSymbol}` : `${lineBreak}${listNumber}\\`;
+			}
 		);
 	let escapedMarkdown = '';
 	let copiedUpTo = 0;
