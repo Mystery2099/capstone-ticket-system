@@ -275,7 +275,8 @@
 		margin-bottom: 10px;
 	}
 	.new-ticket:hover {
-		filter: brightness(0.97);
+		background: color-mix(in oklch, var(--tonal), #302226 12%);
+		box-shadow: 0 4px 12px #211a1e33;
 	}
 	.app-shell main {
 		min-width: 0;
@@ -905,7 +906,8 @@
 	}
 	.new-ticket {
 		transition:
-			filter var(--motion-fast) ease-out,
+			background-color var(--motion-fast) ease-out,
+			box-shadow var(--motion-fast) ease-out,
 			scale var(--motion-fast) ease-out;
 	}
 	.new-ticket:active {

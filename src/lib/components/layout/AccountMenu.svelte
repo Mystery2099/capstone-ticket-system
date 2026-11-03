@@ -14,10 +14,24 @@
 		onShowShortcuts
 	}: { userName: string; userRole: string | null; onShowShortcuts: () => void } = $props();
 
-	const MENU_ITEM_CLASS = 'flex gap-2.5 py-2 text-left';
+	const MENU_ITEM_CLASS =
+		'-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:bg-muted disabled:pointer-events-none disabled:opacity-60';
 
 	let isMenuOpen = $state(false);
 	let isSigningOut = $state(false);
+	let menuContainerElement: HTMLDivElement | undefined = $state();
+
+	function handleDocumentPointerDown(event: PointerEvent): void {
+		if (isMenuOpen && !menuContainerElement?.contains(event.target as Node)) {
+			isMenuOpen = false;
+		}
+	}
+
+	function handleDocumentKeyDown(event: KeyboardEvent): void {
+		if (isMenuOpen && event.key === 'Escape') {
+			isMenuOpen = false;
+		}
+	}
 
 	async function signOut(): Promise<void> {
 		isSigningOut = true;
@@ -26,7 +40,10 @@
 	}
 </script>
 
+<svelte:document onpointerdown={handleDocumentPointerDown} onkeydown={handleDocumentKeyDown} />
+
 <div
+	bind:this={menuContainerElement}
 	class="relative ml-auto flex items-center gap-1 max-md:absolute max-md:top-[19px] max-md:right-7"
 >
 	<TooltipIconButton
