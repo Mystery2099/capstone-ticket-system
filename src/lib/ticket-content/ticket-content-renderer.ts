@@ -82,15 +82,6 @@ const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
 const MARKDOWN_EMPHASIS_PATTERN = /\*\*|__|~~|```|`/g;
 /** The character references used for typed leading spaces and tabs. */
 const INDENTATION_REFERENCE_PATTERN = /&#(?:32|9);/g;
-/**
- * Stands in for the escaped character with the given number. Private-use characters, which
- * stored text never contains, mark where the number starts and ends.
- */
-const buildEscapedCharacterPlaceholder = (escapeIndex: number) => `\uE000${escapeIndex}\uE001`;
-const ESCAPED_CHARACTER_PLACEHOLDER_PATTERN = /\uE000(\d+)\uE001/g;
-/** Stands in for the code with the given number, kept exactly as written. */
-const buildCodePlaceholder = (codeIndex: number) => `\uE002${codeIndex}\uE003`;
-const CODE_PLACEHOLDER_PATTERN = /\uE002(\d+)\uE003/g;
 /** A fenced code block, possibly cut off by the end of the excerpt. Group 2 is its code. */
 const FENCED_CODE_PATTERN =
 	/(^|\n)[ \t]*(?:`{3,}|~{3,})[^\n]*\n([\s\S]*?)(?:\n[ \t]*(?:`{3,}|~{3,})[ \t]*(?=\n|$)|$)/g;
@@ -103,6 +94,21 @@ const INLINE_CODE_PATTERN = /(`+)([\s\S]*?[^`])\1(?!`)/g;
  * Single * and _ are left alone, since they're as likely to be part of a word or a path.
  */
 export function stripMarkdownSyntax(markdownFragment: string): string {
+	// Choose a delimiter absent from this fragment so pasted private-use text stays literal.
+	let placeholderDelimiter = '\uE000';
+	while (markdownFragment.includes(placeholderDelimiter)) placeholderDelimiter += '\uE000';
+	const buildEscapedCharacterPlaceholder = (escapeIndex: number) =>
+		`${placeholderDelimiter}escape${escapeIndex}${placeholderDelimiter}`;
+	const buildCodePlaceholder = (codeIndex: number) =>
+		`${placeholderDelimiter}code${codeIndex}${placeholderDelimiter}`;
+	const escapedCharacterPlaceholderPattern = new RegExp(
+		`${placeholderDelimiter}escape(\\d+)${placeholderDelimiter}`,
+		'g'
+	);
+	const codePlaceholderPattern = new RegExp(
+		`${placeholderDelimiter}code(\\d+)${placeholderDelimiter}`,
+		'g'
+	);
 	// Code is content, symbols and all, so it's set aside first and put back exactly as written.
 	const codeTexts: string[] = [];
 	const setAsideCode = (codeText: string) => {
@@ -131,11 +137,11 @@ export function stripMarkdownSyntax(markdownFragment: string): string {
 			characterReference === '&#9;' ? '\t' : ' '
 		)
 		.replace(
-			ESCAPED_CHARACTER_PLACEHOLDER_PATTERN,
+			escapedCharacterPlaceholderPattern,
 			(placeholder, escapeIndex: string) => escapedCharacters[Number(escapeIndex)] ?? ''
 		)
 		.replace(
-			CODE_PLACEHOLDER_PATTERN,
+			codePlaceholderPattern,
 			(placeholder, codeIndex: string) => codeTexts[Number(codeIndex)] ?? ''
 		);
 }
