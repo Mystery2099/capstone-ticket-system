@@ -34,6 +34,7 @@
 	--note: #fff8e6;
 	--note-border: #e9d8a2;
 	--ring: #7d3f86;
+	--checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6.5'/%3E%3C/svg%3E");
 	--destructive: #b3261e;
 	--popover: #fff;
 }
@@ -56,6 +57,7 @@
 	--note: #332d1c;
 	--note-border: #635733;
 	--ring: #ebb2f2;
+	--checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234b1255' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6.5'/%3E%3C/svg%3E");
 	--destructive: #f2b8b5;
 	--popover: #221a1f;
 }
@@ -208,6 +210,48 @@
 	}
 	.icon-button:hover {
 		background: var(--muted);
+	}
+	/* Every checkbox shares one look: a rounded box that fills with the primary color when checked. */
+	input[type='checkbox'] {
+		appearance: none;
+		flex: none;
+		width: 18px;
+		height: 18px;
+		min-height: 0;
+		margin: 0;
+		padding: 0;
+		border: 2px solid var(--muted-fg);
+		border-radius: 5px;
+		background: var(--card) center / 14px no-repeat;
+		cursor: pointer;
+		transition:
+			background-color var(--motion-fast) ease-out,
+			border-color var(--motion-fast) ease-out,
+			box-shadow var(--motion-fast) ease-out;
+	}
+	input[type='checkbox']:hover:not(:disabled) {
+		border-color: var(--foreground);
+		box-shadow: 0 0 0 5px var(--muted);
+	}
+	input[type='checkbox']:checked {
+		border-color: var(--primary);
+		background-color: var(--primary);
+		background-image: var(--checkbox-mark);
+	}
+	input[type='checkbox']:checked:hover:not(:disabled) {
+		border-color: var(--primary);
+		box-shadow: 0 0 0 5px color-mix(in oklch, var(--primary), transparent 85%);
+	}
+	input[type='checkbox']:focus {
+		outline: none;
+	}
+	input[type='checkbox']:focus-visible {
+		outline: 2px solid var(--ring);
+		outline-offset: 2px;
+	}
+	input[type='checkbox']:disabled {
+		cursor: default;
+		opacity: 0.5;
 	}
 	[aria-disabled='true'] {
 		opacity: 0.3;

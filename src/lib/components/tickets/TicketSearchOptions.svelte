@@ -127,7 +127,7 @@
 		gap: 5px;
 		font-size: 13px;
 	}
-	.search-options input {
+	.search-options input:not([type='checkbox']) {
 		padding: 8px;
 		border: 1px solid var(--border, #ddd);
 		border-radius: 6px;
@@ -148,6 +148,8 @@
 	.search-options .search-checkbox {
 		flex-direction: row;
 		align-items: center;
+		gap: 10px;
+		cursor: pointer;
 	}
 	@media (max-width: 767px) {
 		.search-options {
