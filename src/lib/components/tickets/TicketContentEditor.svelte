@@ -14,8 +14,12 @@
 		Link,
 		List,
 		ListOrdered,
+		Redo2,
+		RemoveFormatting,
 		SquareCode,
-		TextQuote
+		Strikethrough,
+		TextQuote,
+		Undo2
 	} from '@lucide/svelte';
 	import type { Component } from 'svelte';
 	import * as Popover from '$lib/components/ui/popover/index.js';
@@ -48,9 +52,13 @@
 
 	type ToolbarAction = {
 		label: string;
-		shortcut: string;
+		/** Left out for actions with no keyboard shortcut. */
+		shortcut?: string;
 		icon: Component;
-		isActive: () => boolean;
+		/** Only formatting that turns on and off has this, and shows as pressed while it's on. */
+		isActive?: () => boolean;
+		/** Left out for actions that are always available. */
+		isAvailable?: () => boolean;
 		run: () => void;
 	};
 
@@ -81,6 +89,13 @@
 			icon: Italic,
 			isActive: () => !!editor?.isActive('italic'),
 			run: () => editor?.chain().focus().toggleItalic().run()
+		},
+		{
+			label: 'Strikethrough',
+			shortcut: 'Ctrl/Cmd+Shift+S',
+			icon: Strikethrough,
+			isActive: () => !!editor?.isActive('strike'),
+			run: () => editor?.chain().focus().toggleStrike().run()
 		},
 		{
 			label: 'Heading',
@@ -123,6 +138,30 @@
 			icon: SquareCode,
 			isActive: () => !!editor?.isActive('codeBlock'),
 			run: () => editor?.chain().focus().toggleCodeBlock().run()
+		}
+	];
+
+	/** Actions on the toolbar's right side, after the link button. */
+	const editingActions: ToolbarAction[] = [
+		{
+			label: 'Clear formatting',
+			icon: RemoveFormatting,
+			// Turns lists, quotes, headings and code blocks back into plain paragraphs too.
+			run: () => editor?.chain().focus().unsetAllMarks().clearNodes().run()
+		},
+		{
+			label: 'Undo',
+			shortcut: 'Ctrl/Cmd+Z',
+			icon: Undo2,
+			isAvailable: () => !!editor?.can().undo(),
+			run: () => editor?.chain().focus().undo().run()
+		},
+		{
+			label: 'Redo',
+			shortcut: 'Ctrl/Cmd+Shift+Z',
+			icon: Redo2,
+			isAvailable: () => !!editor?.can().redo(),
+			run: () => editor?.chain().focus().redo().run()
 		}
 	];
 
@@ -198,6 +237,11 @@
 		return isActive();
 	}
 
+	function isToolbarActionDisabled(toolbarAction: ToolbarAction): boolean {
+		if (isReadOnly || !editor) return true;
+		return toolbarAction.isAvailable ? !isFormattingActive(toolbarAction.isAvailable) : false;
+	}
+
 	function isLinkActive(): boolean {
 		return !!editor?.isActive('link');
 	}
@@ -237,6 +281,29 @@
 	}
 </script>
 
+{#snippet toolbarButton(toolbarAction: ToolbarAction)}
+	<TooltipWrapper
+		content={toolbarAction.shortcut
+			? `${toolbarAction.label} (${toolbarAction.shortcut})`
+			: toolbarAction.label}
+	>
+		{#snippet trigger(props)}
+			<button
+				{...props}
+				type="button"
+				class="editor-tool"
+				aria-label={toolbarAction.label}
+				aria-pressed={toolbarAction.isActive
+					? isFormattingActive(toolbarAction.isActive)
+					: undefined}
+				disabled={isToolbarActionDisabled(toolbarAction)}
+				onmousedown={(event) => event.preventDefault()}
+				onclick={toolbarAction.run}><toolbarAction.icon size={16} /></button
+			>
+		{/snippet}
+	</TooltipWrapper>
+{/snippet}
+
 <div class="flex flex-1 flex-col">
 	<div
 		class="flex flex-wrap items-center gap-0.5 border-b border-border px-1.5 py-1"
@@ -244,20 +311,7 @@
 		aria-label="Formatting"
 	>
 		{#each toolbarActions as toolbarAction (toolbarAction.label)}
-			<TooltipWrapper content={`${toolbarAction.label} (${toolbarAction.shortcut})`}>
-				{#snippet trigger(props)}
-					<button
-						{...props}
-						type="button"
-						class="editor-tool"
-						aria-label={toolbarAction.label}
-						aria-pressed={isFormattingActive(toolbarAction.isActive)}
-						disabled={isReadOnly || !editor}
-						onmousedown={(event) => event.preventDefault()}
-						onclick={toolbarAction.run}><toolbarAction.icon size={16} /></button
-					>
-				{/snippet}
-			</TooltipWrapper>
+			{@render toolbarButton(toolbarAction)}
 		{/each}
 		<TooltipWrapper content="Link">
 			{#snippet trigger(props)}
@@ -275,6 +329,11 @@
 				>
 			{/snippet}
 		</TooltipWrapper>
+		<span class="ml-auto flex items-center gap-0.5">
+			{#each editingActions as editingAction (editingAction.label)}
+				{@render toolbarButton(editingAction)}
+			{/each}
+		</span>
 	</div>
 	<div bind:this={editorElement} class={cn('flex flex-1 flex-col', contentClass)}></div>
 	<input type="hidden" {name} {value} />

@@ -23,7 +23,6 @@ export function createTicketContentExtensions(readPlaceholderText: () => string)
 			heading: { levels: [1] },
 			hardBreak: false,
 			horizontalRule: false,
-			strike: false,
 			underline: false,
 			link: {
 				openOnClick: false,

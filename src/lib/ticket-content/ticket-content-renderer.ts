@@ -21,8 +21,8 @@ function createTicketMarkdownRenderer() {
 		linkify: false,
 		typographer: false
 	});
-	// Tables and strikethrough have no toolbar button. Images would load remote content.
-	markdownRenderer.disable(['image', 'table', 'strikethrough']);
+	// Tables have no toolbar button, and images would load remote content.
+	markdownRenderer.disable(['image', 'table']);
 	markdownRenderer.validateLink = (linkTarget) => isAllowedLinkTarget(linkTarget);
 
 	const rules = markdownRenderer.renderer.rules;
