@@ -4,7 +4,7 @@
 	that gets saved, and a hidden input submits it with the form under the given name.
 -->
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import type { Editor } from '@tiptap/core';
 	import {
 		Bold,
@@ -140,8 +140,10 @@
 					isEditable: !isReadOnly,
 					label,
 					readPlaceholderText: () => placeholder,
+					// Transactions can run inside the effects below, so this must never become one of
+					// their dependencies, or every transaction would trigger another one.
 					onTransaction: () => {
-						editorRevision++;
+						editorRevision = untrack(() => editorRevision) + 1;
 					},
 					onValueChange: (changedValue) => {
 						lastEmittedValue = changedValue;
@@ -160,17 +162,24 @@
 	// The form can change the text from outside, such as clearing it after a reply is sent or
 	// restoring a draft. Only then is the editor reloaded, so typing keeps its cursor and undo.
 	$effect(() => {
-		if (!editor || value === lastEmittedValue) return;
-		lastEmittedValue = value;
-		editor.commands.setContent(value, { contentType: 'markdown', emitUpdate: false });
+		const activeEditor = editor;
+		const nextValue = value;
+		if (!activeEditor || nextValue === lastEmittedValue) return;
+		lastEmittedValue = nextValue;
+		untrack(() =>
+			activeEditor.commands.setContent(nextValue, { contentType: 'markdown', emitUpdate: false })
+		);
 	});
 	$effect(() => {
-		editor?.setEditable(!isReadOnly, false);
+		const activeEditor = editor;
+		const isEditable = !isReadOnly;
+		untrack(() => activeEditor?.setEditable(isEditable, false));
 	});
 	// The hint follows the Comment and Internal note tabs, so redraw it when it changes.
 	$effect(() => {
+		const activeEditor = editor;
 		void placeholder;
-		editor?.view.dispatch(editor.state.tr);
+		untrack(() => activeEditor?.view.dispatch(activeEditor.state.tr));
 	});
 	$effect(() => {
 		const editorSurface = editor?.view.dom;
