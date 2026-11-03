@@ -1,13 +1,17 @@
 <!-- The avatar button in the top bar and the small menu it opens. -->
 <script lang="ts">
-	import { LogOut } from '@lucide/svelte';
+	import { Keyboard, LogOut } from '@lucide/svelte';
 	import { scale } from 'svelte/transition';
 	import { signOutSession } from '$lib/auth-client';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { resolveMotionDuration } from '$lib/motion';
 	import { getInitials } from '$lib/person';
 
-	let { userName, userRole }: { userName: string; userRole: string | null } = $props();
+	let {
+		userName,
+		userRole,
+		onShowShortcuts
+	}: { userName: string; userRole: string | null; onShowShortcuts: () => void } = $props();
 
 	const MENU_ITEM_CLASS = 'flex gap-2.5 py-2 text-left';
 
@@ -31,6 +35,12 @@
 			<strong>{userName}</strong><small class="text-muted-foreground capitalize">{userRole}</small
 			><a href="/app/settings" class={MENU_ITEM_CLASS} onclick={() => (isMenuOpen = false)}
 				>Appearance & settings</a
+			><button
+				class={MENU_ITEM_CLASS}
+				onclick={() => {
+					isMenuOpen = false;
+					onShowShortcuts();
+				}}><Keyboard size={16} /> Keyboard shortcuts</button
 			><button class={MENU_ITEM_CLASS} onclick={signOut} disabled={isSigningOut}
 				><LogOut size={16} /> {isSigningOut ? 'Signing out…' : 'Sign out'}</button
 			>
