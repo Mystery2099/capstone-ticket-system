@@ -35,6 +35,10 @@
 		placeholder: string;
 		isReadOnly?: boolean;
 		isInvalid?: boolean;
+		/** Tells assistive technology the box must be filled in, as a required textarea would. */
+		isRequired?: boolean;
+		/** The most characters the saved text may have. Formatting symbols count toward it. */
+		maximumLength?: number;
 		describedBy?: string;
 		/** Classes for the writing area, such as a minimum height. */
 		contentClass?: string;
@@ -46,6 +50,8 @@
 		placeholder,
 		isReadOnly = false,
 		isInvalid = false,
+		isRequired = false,
+		maximumLength,
 		describedBy,
 		contentClass
 	}: TicketContentEditorProps = $props();
@@ -71,6 +77,14 @@
 	let lastEmittedValue = value;
 	const editorId = $props.id();
 	let hasEditorLoadFailed = $state(false);
+	/**
+	 * How far the text is over its limit, shown while typing. A textarea would simply stop
+	 * accepting characters, but formatting can push text over, so this says so instead.
+	 */
+	let overLimitCharacterCount = $derived(
+		maximumLength ? Math.max(0, value.trim().length - maximumLength) : 0
+	);
+	let lengthErrorId = $derived(overLimitCharacterCount ? `${editorId}-length-error` : undefined);
 	let isLinkPopoverOpen = $state(false);
 	let isEditingExistingLink = $state(false);
 	let linkTargetInput = $state('');
@@ -231,8 +245,10 @@
 		const editorSurface = editor?.view.dom;
 		if (!editorSurface) return;
 		editorSurface.setAttribute('aria-label', label);
-		editorSurface.setAttribute('aria-invalid', String(isInvalid));
-		if (describedBy) editorSurface.setAttribute('aria-describedby', describedBy);
+		editorSurface.setAttribute('aria-invalid', String(isInvalid || !!overLimitCharacterCount));
+		editorSurface.setAttribute('aria-required', String(isRequired));
+		const describingIds = [describedBy, lengthErrorId].filter(Boolean).join(' ');
+		if (describingIds) editorSurface.setAttribute('aria-describedby', describingIds);
 		else editorSurface.removeAttribute('aria-describedby');
 	});
 
@@ -345,6 +361,10 @@
 				The text box couldn’t load. Check your connection, then reload the page.
 			</p>{/if}
 	</div>
+	{#if overLimitCharacterCount}<p id={lengthErrorId} class="error px-3 pb-1" role="alert">
+			This is {overLimitCharacterCount.toLocaleString()} characters over the limit of
+			{maximumLength?.toLocaleString()}. Formatting counts toward the limit.
+		</p>{/if}
 	<input type="hidden" {name} {value} />
 </div>
 

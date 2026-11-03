@@ -10,6 +10,9 @@
 	import CommentMessage from './CommentMessage.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
 
+	/** Matches the comment schema's limit. */
+	const REPLY_MAX_LENGTH = 10000;
+
 	type TicketReplyFormProps = {
 		replyForm: TicketReplySuperForm;
 		isInternalNote: boolean;
@@ -113,6 +116,8 @@
 		label={isInternalNote ? 'Internal note' : 'Comment'}
 		placeholder={isInternalNote ? 'Add a private note for the support team…' : 'Write a comment…'}
 		isInvalid={!!$replyErrors.body}
+		isRequired
+		maximumLength={REPLY_MAX_LENGTH}
 		describedBy={$replyErrors.body ? 'reply-error' : undefined}
 		isReadOnly={$isSendingComment}
 		contentClass="min-h-[110px]"

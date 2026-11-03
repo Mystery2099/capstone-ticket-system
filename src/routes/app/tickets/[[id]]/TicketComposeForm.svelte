@@ -197,6 +197,8 @@
 				label="Description"
 				placeholder="What happened? Include when it started and what you’ve tried."
 				isInvalid={!!$createErrors.description}
+				isRequired
+				maximumLength={DESCRIPTION_MAX_LENGTH}
 				describedBy={$createErrors.description ? 'description-error' : undefined}
 				isReadOnly={$isCreatingTicket}
 				contentClass="min-h-[180px]"
