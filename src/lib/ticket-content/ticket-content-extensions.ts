@@ -2,7 +2,7 @@
  * The editor's formatting set. Only what the toolbar offers is allowed, so pasted content
  * from Word, email or a web page is reduced to formatting a message can keep once it's saved.
  */
-import type { Extensions } from '@tiptap/core';
+import { Extension, type Extensions } from '@tiptap/core';
 import HardBreak from '@tiptap/extension-hard-break';
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
@@ -13,6 +13,19 @@ import { isAllowedLinkTarget } from './ticket-content-policy';
 const ShiftEnterHardBreak = HardBreak.extend({
 	addKeyboardShortcuts() {
 		return { 'Shift-Enter': () => this.editor.commands.setHardBreak() };
+	}
+});
+
+/**
+ * Ctrl/Cmd+Enter belongs to the form, which sends the message. Tiptap would also use it to
+ * leave a code block, adding an empty line to the end of the message just before it's sent.
+ * Claiming it here stops that, and the form's own shortcut still runs.
+ */
+const SubmitShortcutGuard = Extension.create({
+	name: 'submitShortcutGuard',
+	priority: 1000,
+	addKeyboardShortcuts() {
+		return { 'Mod-Enter': () => true };
 	}
 });
 
@@ -34,6 +47,7 @@ export function createTicketContentExtensions(readPlaceholderText: () => string)
 			}
 		}),
 		ShiftEnterHardBreak,
+		SubmitShortcutGuard,
 		Placeholder.configure({ placeholder: () => readPlaceholderText() }),
 		Markdown
 	];
