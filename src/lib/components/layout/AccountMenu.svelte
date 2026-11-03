@@ -18,6 +18,17 @@
 
 	let isMenuOpen = $state(false);
 	let isSigningOut = $state(false);
+	let accountMenuElement = $state<HTMLDivElement>();
+
+	/**
+	 * Closing the menu removes the item that was clicked, so focus moves to the Account menu
+	 * button first. The dialog then has a control that still exists to return focus to.
+	 */
+	function showShortcutsFromMenu(): void {
+		accountMenuElement?.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus();
+		isMenuOpen = false;
+		onShowShortcuts();
+	}
 
 	async function signOut(): Promise<void> {
 		isSigningOut = true;
@@ -27,6 +38,7 @@
 </script>
 
 <div
+	bind:this={accountMenuElement}
 	class="relative ml-auto flex items-center gap-1 max-md:absolute max-md:top-[19px] max-md:right-7"
 >
 	<TooltipIconButton
@@ -43,12 +55,8 @@
 			<strong>{userName}</strong><small class="text-muted-foreground capitalize">{userRole}</small
 			><a href="/app/settings" class={MENU_ITEM_CLASS} onclick={() => (isMenuOpen = false)}
 				>Appearance & settings</a
-			><button
-				class={MENU_ITEM_CLASS}
-				onclick={() => {
-					isMenuOpen = false;
-					onShowShortcuts();
-				}}><Keyboard size={16} /> Keyboard shortcuts</button
+			><button class={MENU_ITEM_CLASS} onclick={showShortcutsFromMenu}
+				><Keyboard size={16} /> Keyboard shortcuts</button
 			><button class={MENU_ITEM_CLASS} onclick={signOut} disabled={isSigningOut}
 				><LogOut size={16} /> {isSigningOut ? 'Signing out…' : 'Sign out'}</button
 			>
