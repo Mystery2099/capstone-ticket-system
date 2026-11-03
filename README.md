@@ -3,7 +3,7 @@
 A support ticket application for CISY 8503, Open Source Database Lab. One SvelteKit
 application handles the UI, authentication, permissions, and PostgreSQL access.
 
-Stack: Svelte 5, TypeScript, Tailwind CSS 4, Better Auth, and Drizzle ORM.
+Stack: Svelte 5, TypeScript, Tailwind CSS 4, Better Auth, Drizzle ORM, and Tiptap.
 Local development uses embedded PostgreSQL (PGlite); hosting uses PostgreSQL.
 
 ## Local setup
@@ -40,14 +40,13 @@ pnpm build
 ```
 
 `pnpm test:e2e` starts an isolated browser-test server. Tests use fictional fixtures
-in disposable databases. See the [test and demo plan](docs/test-and-demo-plan.md)
-for HTTP checks and the course demonstration.
+in disposable databases.
 
 ## Documentation
 
-- [Requirements](docs/requirements.md) and [remaining work](docs/development-plan.md)
+- [Requirements](docs/requirements.md) and [tests/demo plan](docs/test-and-demo-plan.md)
 - [Roles and workflow](docs/roles-and-workflow.md) and [custom permissions](docs/permissions.md)
-- [Architecture](docs/architecture.md), [authentication](docs/auth-integration.md), and [request flow](docs/request-lifecycle.md)
+- [Architecture and request flow](docs/architecture.md), [authentication](docs/auth-integration.md), and [formatted messages](docs/formatted-messages.md)
 - [Database design](docs/database-design.md) and [schema changes](docs/schema-implementation.md)
 - [Navigation](docs/site-map.md), [search](docs/search.md), and [diagrams](docs/diagram-index.md)
 - [Student hosting](docs/azure-student-deployment.md) and [operations/recovery](docs/azure-deployment.md)

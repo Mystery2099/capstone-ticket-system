@@ -23,6 +23,7 @@ See [roles and workflow](roles-and-workflow.md) for built-in roles and
 | FR-08 | Tickets can be filtered/searched by supported views and fields.                                                                                                                                                        |
 | FR-09 | Administrators can manage categories and account roles/enabled state.                                                                                                                                                  |
 | FR-10 | Important ticket changes generate server-written activity history in the same transaction.                                                                                                                             |
+| FR-11 | Descriptions, replies, and notes support basic rich-text formatting without visible Markdown.                                                                                                                          |
 
 ## Nonfunctional requirements
 
@@ -32,4 +33,5 @@ Server-side access checks, relational constraints, parameterized database access
 
 Email delivery/integration, attachments, command palette, open self-registration, push updates, offline support, multi-tenant organizations and complex reports.
 
-Acceptance evidence is listed in the [test and demo plan](test-and-demo-plan.md).
+Design mockups in `design/` are references, not additional requirements. Acceptance
+evidence is listed in the [test and demo plan](test-and-demo-plan.md).

@@ -1,27 +1,41 @@
 erDiagram
+  APPLICATION_ROLE ||--o{ USER : grants
   USER ||--o{ SESSION : has
   USER ||--o{ ACCOUNT : has
+  USER ||--o| TWO_FACTOR : enrolls
   USER ||--o{ TICKET : requests
   USER o|--o{ TICKET : assigned_to
   USER ||--o{ TICKET_COMMENT : authors
   USER o|--o{ TICKET_EVENT : acts
+  USER o|--o{ SECURITY_EVENT : acts
   CATEGORY ||--o{ TICKET : classifies
   TICKET_STATUS ||--o{ TICKET : tracks
   TICKET ||--o{ TICKET_COMMENT : contains
   TICKET ||--o{ TICKET_EVENT : records
+  APPLICATION_ROLE {
+    text id PK
+    text name
+    jsonb permissions
+  }
   USER {
     text id PK
     text email
-    text role
-    boolean enabled
+    text role FK
+    boolean banned
+    boolean two_factor_enabled
   }
   SESSION {
     text id PK
-    text userId FK
+    text user_id FK
   }
   ACCOUNT {
     text id PK
-    text userId FK
+    text user_id FK
+    text provider_id
+  }
+  TWO_FACTOR {
+    text id PK
+    text user_id FK
   }
   VERIFICATION {
     text id PK
@@ -44,18 +58,26 @@ erDiagram
     text status_code FK
     text priority
     text subject
+    text description_format
   }
   TICKET_COMMENT {
     uuid id PK
     uuid ticket_id FK
     text author_id FK
     boolean is_internal
-    text body
+    text body_format
   }
   TICKET_EVENT {
     uuid id PK
     uuid ticket_id FK
     text actor_id FK
     text event_type
+    jsonb details
+  }
+  SECURITY_EVENT {
+    uuid id PK
+    text actor_id FK
+    text action
+    text target_id
     jsonb details
   }
