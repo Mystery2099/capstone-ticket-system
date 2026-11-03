@@ -7,12 +7,15 @@ import HardBreak from '@tiptap/extension-hard-break';
 import { Placeholder } from '@tiptap/extensions';
 import { Markdown } from '@tiptap/markdown';
 import StarterKit from '@tiptap/starter-kit';
+import { AppHotkeys, EditorHotkeys, toTiptapShortcut } from '$lib/hotkeys';
 import { isAllowedLinkTarget } from './ticket-content-policy';
 
 /** Ctrl/Cmd+Enter sends the message, so only Shift+Enter starts a new line in a paragraph. */
 const ShiftEnterHardBreak = HardBreak.extend({
 	addKeyboardShortcuts() {
-		return { 'Shift-Enter': () => this.editor.commands.setHardBreak() };
+		return {
+			[toTiptapShortcut(EditorHotkeys.NEW_LINE)]: () => this.editor.commands.setHardBreak()
+		};
 	}
 });
 
@@ -25,7 +28,7 @@ const SubmitShortcutGuard = Extension.create({
 	name: 'submitShortcutGuard',
 	priority: 1000,
 	addKeyboardShortcuts() {
-		return { 'Mod-Enter': () => true };
+		return { [toTiptapShortcut(AppHotkeys.SUBMIT_FORM.hotkey)]: () => true };
 	}
 });
 

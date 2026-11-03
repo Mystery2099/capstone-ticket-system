@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { AppHotkeys, formatHotkeyHint } from '$lib/hotkeys';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
@@ -169,7 +170,7 @@
 				>
 			{/snippet}
 		</TooltipWrapper>
-		<kbd>/</kbd>
+		<kbd>{formatHotkeyHint(AppHotkeys.FOCUS_SEARCH.hotkey)}</kbd>
 		<TooltipIconButton
 			label="Search options"
 			tooltip="Filter by status, priority, category, and more"

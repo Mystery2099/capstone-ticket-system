@@ -1,5 +1,8 @@
 import { goto } from '$app/navigation';
 import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
+import { AppHotkeys, formatHotkeyHint } from '$lib/hotkeys';
+
+export const CREATE_FORM_HINT = `${formatHotkeyHint(AppHotkeys.CLOSE_FORM.hotkey)} to close · ${formatHotkeyHint(AppHotkeys.SUBMIT_FORM.hotkey)} to create`;
 
 /**
  * Keyboard shortcuts for a new-record form: Ctrl/Cmd+Enter submits it and Escape closes it.
@@ -12,9 +15,12 @@ export function createComposeFormHotkeys(
 ) {
 	return createHotkeysAttachment(
 		[
-			{ hotkey: 'Mod+Enter', callback: () => getFormElement()?.requestSubmit() },
 			{
-				hotkey: 'Escape',
+				hotkey: AppHotkeys.SUBMIT_FORM.hotkey,
+				callback: () => getFormElement()?.requestSubmit()
+			},
+			{
+				hotkey: AppHotkeys.CLOSE_FORM.hotkey,
 				callback: () => {
 					void goto(getCloseHref());
 				}

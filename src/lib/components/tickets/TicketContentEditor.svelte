@@ -25,6 +25,8 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import type { HotkeyChord } from '@tanstack/svelte-hotkeys';
+	import { EditorHotkeys, formatHotkeyHint } from '$lib/hotkeys';
 	import { normalizeLinkTarget } from '$lib/ticket-content/ticket-content-policy';
 	import { cn } from '$lib/utils';
 
@@ -59,7 +61,7 @@
 	type ToolbarAction = {
 		label: string;
 		/** Left out for actions with no keyboard shortcut. */
-		shortcut?: string;
+		shortcut?: HotkeyChord;
 		icon: Component;
 		/** Only formatting that turns on and off has this, and shows as pressed while it's on. */
 		isActive?: () => boolean;
@@ -93,63 +95,63 @@
 	const toolbarActions: ToolbarAction[] = [
 		{
 			label: 'Bold',
-			shortcut: 'Ctrl/Cmd+B',
+			shortcut: EditorHotkeys.BOLD,
 			icon: Bold,
 			isActive: () => !!editor?.isActive('bold'),
 			run: () => editor?.chain().focus().toggleBold().run()
 		},
 		{
 			label: 'Italic',
-			shortcut: 'Ctrl/Cmd+I',
+			shortcut: EditorHotkeys.ITALIC,
 			icon: Italic,
 			isActive: () => !!editor?.isActive('italic'),
 			run: () => editor?.chain().focus().toggleItalic().run()
 		},
 		{
 			label: 'Strikethrough',
-			shortcut: 'Ctrl/Cmd+Shift+S',
+			shortcut: EditorHotkeys.STRIKETHROUGH,
 			icon: Strikethrough,
 			isActive: () => !!editor?.isActive('strike'),
 			run: () => editor?.chain().focus().toggleStrike().run()
 		},
 		{
 			label: 'Heading',
-			shortcut: 'Ctrl/Cmd+Alt+1',
+			shortcut: EditorHotkeys.HEADING,
 			icon: Heading,
 			isActive: () => !!editor?.isActive('heading'),
 			run: () => editor?.chain().focus().toggleHeading({ level: 1 }).run()
 		},
 		{
 			label: 'Bulleted list',
-			shortcut: 'Ctrl/Cmd+Shift+8',
+			shortcut: EditorHotkeys.BULLETED_LIST,
 			icon: List,
 			isActive: () => !!editor?.isActive('bulletList'),
 			run: () => editor?.chain().focus().toggleBulletList().run()
 		},
 		{
 			label: 'Numbered list',
-			shortcut: 'Ctrl/Cmd+Shift+7',
+			shortcut: EditorHotkeys.NUMBERED_LIST,
 			icon: ListOrdered,
 			isActive: () => !!editor?.isActive('orderedList'),
 			run: () => editor?.chain().focus().toggleOrderedList().run()
 		},
 		{
 			label: 'Quote',
-			shortcut: 'Ctrl/Cmd+Shift+B',
+			shortcut: EditorHotkeys.QUOTE,
 			icon: TextQuote,
 			isActive: () => !!editor?.isActive('blockquote'),
 			run: () => editor?.chain().focus().toggleBlockquote().run()
 		},
 		{
 			label: 'Inline code',
-			shortcut: 'Ctrl/Cmd+E',
+			shortcut: EditorHotkeys.INLINE_CODE,
 			icon: Code,
 			isActive: () => !!editor?.isActive('code'),
 			run: () => editor?.chain().focus().toggleCode().run()
 		},
 		{
 			label: 'Code block',
-			shortcut: 'Ctrl/Cmd+Alt+C',
+			shortcut: EditorHotkeys.CODE_BLOCK,
 			icon: SquareCode,
 			isActive: () => !!editor?.isActive('codeBlock'),
 			run: () => editor?.chain().focus().toggleCodeBlock().run()
@@ -166,14 +168,14 @@
 		},
 		{
 			label: 'Undo',
-			shortcut: 'Ctrl/Cmd+Z',
+			shortcut: EditorHotkeys.UNDO,
 			icon: Undo2,
 			isAvailable: () => !!editor?.can().undo(),
 			run: () => editor?.chain().focus().undo().run()
 		},
 		{
 			label: 'Redo',
-			shortcut: 'Ctrl/Cmd+Shift+Z',
+			shortcut: EditorHotkeys.REDO,
 			icon: Redo2,
 			isAvailable: () => !!editor?.can().redo(),
 			run: () => editor?.chain().focus().redo().run()
@@ -305,7 +307,7 @@
 {#snippet toolbarButton(toolbarAction: ToolbarAction)}
 	<TooltipWrapper
 		content={toolbarAction.shortcut
-			? `${toolbarAction.label} (${toolbarAction.shortcut})`
+			? `${toolbarAction.label} (${formatHotkeyHint(toolbarAction.shortcut)})`
 			: toolbarAction.label}
 	>
 		{#snippet trigger(props)}

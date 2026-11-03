@@ -1,6 +1,7 @@
 import { getContext, setContext } from 'svelte';
 import { IsMobile } from '$lib/hooks/is-mobile.svelte.js';
-import { SIDEBAR_KEYBOARD_SHORTCUT } from './constants.js';
+import { matchesKeyboardEvent } from '@tanstack/svelte-hotkeys';
+import { AppHotkeys } from '$lib/hotkeys';
 
 type Getter<T> = () => T;
 
@@ -44,7 +45,7 @@ class SidebarState {
 	handleShortcutKeydown = (e: KeyboardEvent) => {
 		// The rich-text editor uses Ctrl/Cmd+B for bold and marks the key as handled.
 		if (e.defaultPrevented) return;
-		if (e.key === SIDEBAR_KEYBOARD_SHORTCUT && (e.metaKey || e.ctrlKey)) {
+		if (matchesKeyboardEvent(e, AppHotkeys.TOGGLE_SIDEBAR.hotkey)) {
 			e.preventDefault();
 			this.toggle();
 		}

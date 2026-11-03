@@ -8,18 +8,13 @@
 	import Combobox from '$lib/components/Combobox.svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import FormField from '$lib/components/FormField.svelte';
-	import { createComposeFormHotkeys } from '$lib/compose-hotkeys';
+	import { CREATE_FORM_HINT, createComposeFormHotkeys } from '$lib/compose-hotkeys';
 	import { DraftUrlBinding } from '$lib/draft-url.svelte';
 	import { getDrafts } from '$lib/drafts.svelte';
 	import AdminDetailsToolbar from './AdminDetailsToolbar.svelte';
 	import AdminFormFooter from './AdminFormFooter.svelte';
 	import AdminWorkspace from './AdminWorkspace.svelte';
-	import {
-		ACTIVE_STATE_OPTIONS,
-		CREATE_FORM_HINT,
-		buildAdminFormOptions,
-		matchesFilterText
-	} from './administration';
+	import { ACTIVE_STATE_OPTIONS, buildAdminFormOptions, matchesFilterText } from './administration';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
