@@ -85,8 +85,8 @@ const INDENTATION_REFERENCE_PATTERN = /&#(?:32|9);/g;
 /** A fenced code block, possibly cut off by the end of the excerpt. Group 2 is its code. */
 const FENCED_CODE_PATTERN =
 	/(^|\n)[ \t]*(?:`{3,}|~{3,})[^\n]*\n([\s\S]*?)(?:\n[ \t]*(?:`{3,}|~{3,})[ \t]*(?=\n|$)|$)/g;
-/** An inline code span: a run of backticks, the code, and a matching run. Group 2 is its code. */
-const INLINE_CODE_PATTERN = /(`+)([\s\S]*?[^`])\1(?!`)/g;
+/** An inline code span: a run of backticks, the code, and a matching run. Group 3 is its code. */
+const INLINE_CODE_PATTERN = /(?<![\\`])((?:\\\\)*)(`+)([\s\S]*?[^`])\2(?!`)/g;
 
 /**
  * Removes Markdown symbols from a fragment of a message, such as a search excerpt. A
@@ -123,8 +123,10 @@ export function stripMarkdownSyntax(markdownFragment: string): string {
 			FENCED_CODE_PATTERN,
 			(codeBlock, lineStart: string, codeText: string) => lineStart + setAsideCode(codeText)
 		)
-		.replace(INLINE_CODE_PATTERN, (codeSpan, backticks: string, codeText: string) =>
-			setAsideCode(codeText)
+		.replace(
+			INLINE_CODE_PATTERN,
+			(codeSpan, leadingBackslashes: string, backticks: string, codeText: string) =>
+				leadingBackslashes + setAsideCode(codeText)
 		)
 		.replace(MARKDOWN_ESCAPE_PATTERN, (escapeSequence, escapedCharacter: string) => {
 			escapedCharacters.push(escapedCharacter);

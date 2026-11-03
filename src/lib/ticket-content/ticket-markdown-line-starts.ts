@@ -10,6 +10,8 @@ const HARD_BREAK_SUFFIX = '  ';
 /** A quote's own prefix, repeated once per level of quoting, with any indentation. */
 const QUOTE_PREFIX_PATTERN = /^(?:[ \t]*>[ \t]?)/;
 const INDENTATION_PATTERN = /^[ \t]*/;
+/** List markers that can contain a fence on the same line. */
+const LIST_ITEM_PREFIX_PATTERN = /^[ \t]*(?:[-+*]|\d{1,9}[.)])[ \t]+/;
 const CODE_FENCE_PATTERN = /^(`{3,}|~{3,})/;
 /** A fence alone on its line, which is the only kind that can close a code block. */
 const CLOSING_CODE_FENCE_PATTERN = /^(`{3,}|~{3,})[ \t]*$/;
@@ -110,7 +112,15 @@ export function escapeLineStarts(markdown: string): string {
 				line,
 				Number.MAX_SAFE_INTEGER
 			);
-			const fenceMatch = CODE_FENCE_PATTERN.exec(lineContent.replace(INDENTATION_PATTERN, ''));
+			let fenceContent = lineContent;
+			let listPrefixLength = 0;
+			let listPrefixMatch = LIST_ITEM_PREFIX_PATTERN.exec(fenceContent);
+			while (listPrefixMatch) {
+				listPrefixLength += listPrefixMatch[0].length;
+				fenceContent = fenceContent.slice(listPrefixMatch[0].length);
+				listPrefixMatch = LIST_ITEM_PREFIX_PATTERN.exec(fenceContent);
+			}
+			const fenceMatch = CODE_FENCE_PATTERN.exec(fenceContent.replace(INDENTATION_PATTERN, ''));
 			const previousLine = lineIndex > 0 ? markdownLines[lineIndex - 1] : '';
 			if (!previousLine.endsWith(HARD_BREAK_SUFFIX)) {
 				paragraphQuoteDepth = quoteDepth;
@@ -119,7 +129,7 @@ export function escapeLineStarts(markdown: string): string {
 					openCodeBlock = {
 						openingFence: fenceMatch[1],
 						quoteDepth,
-						indentationWidth: measureIndentation(lineContent)
+						indentationWidth: listPrefixLength + measureIndentation(fenceContent)
 					};
 					return line;
 				}
