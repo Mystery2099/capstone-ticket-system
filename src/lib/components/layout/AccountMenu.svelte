@@ -19,10 +19,11 @@
 
 	let isMenuOpen = $state(false);
 	let isSigningOut = $state(false);
-	let menuContainerElement: HTMLDivElement | undefined = $state();
+	let accountMenuElement = $state<HTMLDivElement>();
 
+	/** Clicking anywhere outside the account area closes the menu. */
 	function handleDocumentPointerDown(event: PointerEvent): void {
-		if (isMenuOpen && !menuContainerElement?.contains(event.target as Node)) {
+		if (isMenuOpen && !accountMenuElement?.contains(event.target as Node)) {
 			isMenuOpen = false;
 		}
 	}
@@ -31,6 +32,16 @@
 		if (isMenuOpen && event.key === 'Escape') {
 			isMenuOpen = false;
 		}
+	}
+
+	/**
+	 * Closing the menu removes the item that was clicked, so focus moves to the Account menu
+	 * button first. The dialog then has a control that still exists to return focus to.
+	 */
+	function showShortcutsFromMenu(): void {
+		accountMenuElement?.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus();
+		isMenuOpen = false;
+		onShowShortcuts();
 	}
 
 	async function signOut(): Promise<void> {
@@ -43,7 +54,7 @@
 <svelte:document onpointerdown={handleDocumentPointerDown} onkeydown={handleDocumentKeyDown} />
 
 <div
-	bind:this={menuContainerElement}
+	bind:this={accountMenuElement}
 	class="relative ml-auto flex items-center gap-1 max-md:absolute max-md:top-[19px] max-md:right-7"
 >
 	<TooltipIconButton
@@ -60,12 +71,8 @@
 			<strong>{userName}</strong><small class="text-muted-foreground capitalize">{userRole}</small
 			><a href="/app/settings" class={MENU_ITEM_CLASS} onclick={() => (isMenuOpen = false)}
 				>Appearance & settings</a
-			><button
-				class={MENU_ITEM_CLASS}
-				onclick={() => {
-					isMenuOpen = false;
-					onShowShortcuts();
-				}}><Keyboard size={16} /> Keyboard shortcuts</button
+			><button class={MENU_ITEM_CLASS} onclick={showShortcutsFromMenu}
+				><Keyboard size={16} /> Keyboard shortcuts</button
 			><button class={MENU_ITEM_CLASS} onclick={signOut} disabled={isSigningOut}
 				><LogOut size={16} /> {isSigningOut ? 'Signing out…' : 'Sign out'}</button
 			>

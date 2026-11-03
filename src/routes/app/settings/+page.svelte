@@ -3,7 +3,13 @@
 	import { onMount } from 'svelte';
 	import { LogOut } from '@lucide/svelte';
 	import { getInitials } from '$lib/person';
-	import { readThemePreference, saveThemePreference, type ThemePreference } from '$lib/theme';
+	import {
+		readPalettePreference,
+		readThemePreference,
+		savePalettePreference,
+		saveThemePreference,
+		type ThemePreference
+	} from '$lib/theme';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import SettingRow from '$lib/components/settings/SettingRow.svelte';
 	import SettingsLayout from '$lib/components/settings/SettingsLayout.svelte';
@@ -14,13 +20,19 @@
 		{ value: 'dark', label: 'Dark', hint: '' }
 	];
 	let themePreference = $state<ThemePreference>('system');
+	let isClassicPalette = $state(false);
 	let isSigningOut = $state(false);
 	function selectThemePreference(selectedThemePreference: ThemePreference): void {
 		themePreference = selectedThemePreference;
 		saveThemePreference(selectedThemePreference);
 	}
+	function toggleClassicPalette(isEnabled: boolean): void {
+		isClassicPalette = isEnabled;
+		savePalettePreference(isEnabled ? 'classic' : 'plum');
+	}
 	onMount(() => {
 		themePreference = readThemePreference();
+		isClassicPalette = readPalettePreference() === 'classic';
 	});
 	async function signOut(): Promise<void> {
 		isSigningOut = true;
@@ -31,9 +43,9 @@
 
 <SettingsLayout title="Settings">
 	<SettingRow title="Appearance" description="Remembered in this browser.">
-		<fieldset class="m-0 flex flex-col gap-[18px] border-0 p-0" aria-label="Appearance">
+		<fieldset class="m-0 flex flex-col gap-1 border-0 p-0" aria-label="Appearance">
 			{#each THEME_OPTIONS as option (option.value)}<label
-					class="flex items-center gap-2.5 text-[14px]"
+					class="-mx-2.5 flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] transition-colors hover:bg-muted has-focus-visible:bg-muted"
 					><input
 						type="radio"
 						name="theme"
@@ -44,6 +56,22 @@
 					/>{option.label} <span class="muted small">{option.hint}</span></label
 				>{/each}
 		</fieldset>
+	</SettingRow>
+	<SettingRow title="Colors" description="Remembered in this browser.">
+		<label
+			class="-mx-2.5 flex cursor-pointer items-center gap-3 self-start rounded-lg px-2.5 py-2 text-[14px] transition-colors hover:bg-muted has-focus-visible:bg-muted"
+			><input
+				type="checkbox"
+				role="switch"
+				class="switch"
+				checked={isClassicPalette}
+				onchange={(event) => toggleClassicPalette(event.currentTarget.checked)}
+			/><span
+				>Classic colors <span class="muted small block"
+					>Plain grays and blue instead of plum and apricot</span
+				></span
+			></label
+		>
 	</SettingRow>
 	<SettingRow title="Account" description="Managed by an administrator.">
 		<div>

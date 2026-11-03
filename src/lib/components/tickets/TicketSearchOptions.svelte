@@ -2,6 +2,7 @@
 <script lang="ts">
 	import { X } from '@lucide/svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { TICKET_STATUSES } from '$lib/status';
 	import Combobox from '$lib/components/Combobox.svelte';
 
@@ -109,10 +110,8 @@
 		/>Has comments</label
 	>
 	<div class="search-options-heading">
-		<button type="button" onclick={() => (filters = {})}>Reset filters</button><button
-			type="submit"
-			class="primary">Search</button
-		>
+		<Button variant="ghost" size="pill-sm" onclick={() => (filters = {})}>Reset filters</Button>
+		<Button type="submit" size="pill-sm">Search</Button>
 	</div>
 </form>
 
@@ -128,7 +127,7 @@
 		gap: 5px;
 		font-size: 13px;
 	}
-	.search-options input {
+	.search-options input:not([type='checkbox']) {
 		padding: 8px;
 		border: 1px solid var(--border, #ddd);
 		border-radius: 6px;
@@ -149,6 +148,8 @@
 	.search-options .search-checkbox {
 		flex-direction: row;
 		align-items: center;
+		gap: 10px;
+		cursor: pointer;
 	}
 	@media (max-width: 767px) {
 		.search-options {
