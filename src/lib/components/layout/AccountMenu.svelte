@@ -6,6 +6,7 @@
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
 	import { resolveMotionDuration } from '$lib/motion';
 	import { getInitials } from '$lib/person';
+	import { AppHotkeys, formatHotkeyHint } from '$lib/hotkeys';
 
 	let {
 		userName,
@@ -25,8 +26,15 @@
 	}
 </script>
 
-<div class="relative ml-auto max-md:absolute max-md:top-[19px] max-md:right-7">
-	<TooltipIconButton label="Account menu" class="avatar" onclick={() => (isMenuOpen = !isMenuOpen)}
+<div
+	class="relative ml-auto flex items-center gap-1 max-md:absolute max-md:top-[19px] max-md:right-7"
+>
+	<TooltipIconButton
+		label="Keyboard shortcuts"
+		tooltip={`Keyboard shortcuts (${formatHotkeyHint(AppHotkeys.SHOW_SHORTCUTS.hotkey)})`}
+		class="icon-button max-md:hidden"
+		onclick={onShowShortcuts}><Keyboard size={20} /></TooltipIconButton
+	><TooltipIconButton label="Account menu" class="avatar" onclick={() => (isMenuOpen = !isMenuOpen)}
 		>{getInitials(userName)}</TooltipIconButton
 	>{#if isMenuOpen}<div
 			class="absolute top-11 right-0 z-40 flex w-60 origin-top-right flex-col gap-3 rounded-[14px] border border-border bg-card p-[18px] shadow-[0_8px_30px_#211a1e22]"
