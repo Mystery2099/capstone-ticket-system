@@ -93,28 +93,28 @@
 	--popover: #fff;
 }
 :root[data-palette='classic'][data-theme='dark'] {
-	color: #e8eaed;
-	background: #121212;
-	--background: #121212;
-	--foreground: #e8eaed;
-	--card: #1e1e1e;
-	--muted: #2a2a2a;
-	--muted-fg: #b0b3b8;
-	--border: #333;
-	--input: #8c8c8c;
+	color: #e6e8eb;
+	background: #050607;
+	--background: #050607;
+	--foreground: #e6e8eb;
+	--card: #101114;
+	--muted: #1c1e22;
+	--muted-fg: #a0a4ab;
+	--border: #26282d;
+	--input: #6c7079;
 	--primary: #8ab4f8;
 	--primary-fg: #0b1f3a;
-	--selected: #233650;
-	--secondary: #2c2c2c;
+	--selected: #15294a;
+	--secondary: #1e2024;
 	--tonal: #a8c7fa;
-	--avatar: #3a4a63;
+	--avatar: #1e3a5f;
 	--avatar-fg: #d3e3fd;
-	--note: #302b1a;
-	--note-border: #5c5230;
+	--note: #2a2615;
+	--note-border: #4d4527;
 	--ring: #8ab4f8;
 	--checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%230b1f3a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3.5 8.5l3 3 6-6.5'/%3E%3C/svg%3E");
 	--destructive: #f28b82;
-	--popover: #1e1e1e;
+	--popover: #15171a;
 }
 
 /* Expose the Plum & Apricot tokens as Tailwind color utilities
