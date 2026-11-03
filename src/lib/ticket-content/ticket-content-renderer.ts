@@ -73,13 +73,15 @@ export function extractPlainText(storedContent: string): string {
 	return plainTextParts.join('').replace(/\s+/g, ' ').trim();
 }
 
-/** Backslash escapes the editor writes so typed punctuation stays literal, such as \\*. */
-const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!~>|])/g;
+/** Backslash escapes that keep typed punctuation literal, such as \\*, for any ASCII punctuation. */
+const MARKDOWN_ESCAPE_PATTERN = /\\([!-/:-@[-`{-~])/g;
 /** Heading, quote and list markers at the start of a line. */
 const MARKDOWN_LINE_MARKER_PATTERN =
 	/^[ \t]{0,3}(?:#{1,6}[ \t]+|>[ \t]?|[-*+][ \t]+|\d+[.)][ \t]+)/gm;
 const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
 const MARKDOWN_EMPHASIS_PATTERN = /\*\*|__|~~|```|`/g;
+/** The character references used for typed leading spaces and tabs. */
+const INDENTATION_REFERENCE_PATTERN = /&#(?:32|9);/g;
 /** A private-use character, which stored text never contains. */
 const ESCAPED_CHARACTER_PLACEHOLDER = '\uE000';
 
@@ -99,5 +101,8 @@ export function stripMarkdownSyntax(markdownFragment: string): string {
 		.replace(MARKDOWN_LINK_PATTERN, '$1')
 		.replace(MARKDOWN_LINE_MARKER_PATTERN, '')
 		.replace(MARKDOWN_EMPHASIS_PATTERN, '')
+		.replace(INDENTATION_REFERENCE_PATTERN, (characterReference) =>
+			characterReference === '&#9;' ? '\t' : ' '
+		)
 		.replace(new RegExp(ESCAPED_CHARACTER_PLACEHOLDER, 'g'), () => escapedCharacters.shift() ?? '');
 }

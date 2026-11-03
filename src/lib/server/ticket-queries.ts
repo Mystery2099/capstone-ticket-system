@@ -16,7 +16,7 @@ import { TicketContentFormat } from '../ticket-content/ticket-content-format';
 import { extractPlainText } from '../ticket-content/ticket-content-renderer';
 
 const TICKET_PAGE_SIZE = 50;
-/** List rows show the preview on one line, so longer comment text is never sent. */
+/** List rows show the preview on one line, so longer text is cut off before it's sent. */
 const PREVIEW_MAX_LENGTH = 200;
 
 type Ticket = typeof ticket.$inferSelect;
@@ -26,9 +26,11 @@ type TicketEvent = typeof ticketEvent.$inferSelect;
 
 /** A list row's one-line preview, with any formatting removed. */
 function buildPreviewText(storedContent: string, contentFormat: TicketContentFormat): string {
-	return contentFormat === TicketContentFormat.MARKDOWN
-		? extractPlainText(storedContent)
-		: storedContent;
+	const previewText =
+		contentFormat === TicketContentFormat.MARKDOWN
+			? extractPlainText(storedContent)
+			: storedContent;
+	return previewText.slice(0, PREVIEW_MAX_LENGTH);
 }
 
 /**
@@ -278,7 +280,8 @@ export async function loadTicketList(actor: Person, url: URL) {
 				.selectDistinctOn([ticketComment.ticketId], {
 					ticketId: ticketComment.ticketId,
 					authorId: ticketComment.authorId,
-					body: sql<string>`left(${ticketComment.body}, ${PREVIEW_MAX_LENGTH})`,
+					// Read whole, since cutting Markdown short can leave formatting half-written.
+					body: ticketComment.body,
 					bodyFormat: ticketComment.bodyFormat
 				})
 				.from(ticketComment)

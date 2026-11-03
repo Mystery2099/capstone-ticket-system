@@ -14,7 +14,8 @@ const MARKDOWN_PUNCTUATION_PATTERN = /[!-/:-@[-`{-~]/g;
 /**
  * Rewrites plain text as Markdown that shows exactly the same characters, such as a draft
  * written before rich text existed. Punctuation is escaped so nothing becomes formatting,
- * single line breaks are kept, and leading spaces stay spaces instead of making a code block.
+ * single line breaks are kept, and leading spaces or tabs stay as typed instead of making a
+ * code block.
  */
 export function convertPlainTextToMarkdown(plainText: string): string {
 	return plainText
@@ -23,7 +24,9 @@ export function convertPlainTextToMarkdown(plainText: string): string {
 		.map((line) =>
 			line
 				.replace(MARKDOWN_PUNCTUATION_PATTERN, (punctuation) => `\\${punctuation}`)
-				.replace(/^ +/, (indentation) => '&#32;'.repeat(indentation.length))
+				.replace(/^[ \t]+/, (indentation) =>
+					[...indentation].map((character) => (character === '\t' ? '&#9;' : '&#32;')).join('')
+				)
 		)
 		.join('\\\n')
 		.replace(/\\\n\\\n/g, '\n\n');
