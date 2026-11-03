@@ -72,3 +72,32 @@ export function extractPlainText(storedContent: string): string {
 	}
 	return plainTextParts.join('').replace(/\s+/g, ' ').trim();
 }
+
+/** Backslash escapes the editor writes so typed punctuation stays literal, such as \\*. */
+const MARKDOWN_ESCAPE_PATTERN = /\\([\\`*_{}[\]()#+\-.!~>|])/g;
+/** Heading, quote and list markers at the start of a line. */
+const MARKDOWN_LINE_MARKER_PATTERN =
+	/^[ \t]{0,3}(?:#{1,6}[ \t]+|>[ \t]?|[-*+][ \t]+|\d+[.)][ \t]+)/gm;
+const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
+const MARKDOWN_EMPHASIS_PATTERN = /\*\*|__|~~|```|`/g;
+/** A private-use character, which stored text never contains. */
+const ESCAPED_CHARACTER_PLACEHOLDER = '\uE000';
+
+/**
+ * Removes Markdown symbols from a fragment of a message, such as a search excerpt. A
+ * fragment can start or end mid-formatting, so it can't be parsed like a whole message.
+ * Single * and _ are left alone, since they're as likely to be part of a word or a path.
+ */
+export function stripMarkdownSyntax(markdownFragment: string): string {
+	// Escaped characters are typed punctuation, so they're set aside before symbols are removed.
+	const escapedCharacters: string[] = [];
+	return markdownFragment
+		.replace(MARKDOWN_ESCAPE_PATTERN, (escapeSequence, escapedCharacter: string) => {
+			escapedCharacters.push(escapedCharacter);
+			return ESCAPED_CHARACTER_PLACEHOLDER;
+		})
+		.replace(MARKDOWN_LINK_PATTERN, '$1')
+		.replace(MARKDOWN_LINE_MARKER_PATTERN, '')
+		.replace(MARKDOWN_EMPHASIS_PATTERN, '')
+		.replace(new RegExp(ESCAPED_CHARACTER_PLACEHOLDER, 'g'), () => escapedCharacters.shift() ?? '');
+}

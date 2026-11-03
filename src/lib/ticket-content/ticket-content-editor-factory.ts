@@ -15,10 +15,41 @@ export type TicketContentEditorOptions = {
 	onValueChange: (changedValue: string) => void;
 };
 
+/** A fenced code block, whose lines are kept exactly as written. */
+const FENCED_CODE_BLOCK_PATTERN = /(^|\n)(```|~~~)[^\n]*\n[\s\S]*?\n\2[ \t]*(?=\n|$)/g;
+/**
+ * A line break inside a paragraph, then a line starting with something Markdown would read as
+ * a heading, quote, list, rule or code fence. Groups: the break and indentation, a symbol to
+ * escape, or the digits of a numbered-list marker whose dot or bracket gets escaped instead.
+ */
+const LINE_START_MARKER_PATTERN = /( {2}\n[ \t]*)(?:([#>+*=`~_-])|(\d+)(?=[.)]))/g;
+
+/**
+ * Tiptap writes a line break as two spaces and a newline, but doesn't escape what follows. A
+ * line typed after Shift+Enter that starts with "# " or "1. " would then be saved as a
+ * heading or list, though the editor showed plain text.
+ */
+function escapeLineStartsAfterLineBreaks(markdown: string): string {
+	const escapeMarkers = (markdownOutsideCode: string) =>
+		markdownOutsideCode.replace(
+			LINE_START_MARKER_PATTERN,
+			(lineStart, lineBreak: string, markerSymbol?: string, listNumber?: string) =>
+				markerSymbol ? `${lineBreak}\\${markerSymbol}` : `${lineBreak}${listNumber}\\`
+		);
+	let escapedMarkdown = '';
+	let copiedUpTo = 0;
+	for (const codeBlockMatch of markdown.matchAll(FENCED_CODE_BLOCK_PATTERN)) {
+		escapedMarkdown += escapeMarkers(markdown.slice(copiedUpTo, codeBlockMatch.index));
+		escapedMarkdown += codeBlockMatch[0];
+		copiedUpTo = codeBlockMatch.index + codeBlockMatch[0].length;
+	}
+	return escapedMarkdown + escapeMarkers(markdown.slice(copiedUpTo));
+}
+
 /** The Markdown to save. A box with nothing but blank lines counts as empty. */
 export function readTicketContentValue(editor: Editor): string {
 	if (!editor.state.doc.textContent.trim()) return '';
-	return editor.getMarkdown();
+	return escapeLineStartsAfterLineBreaks(editor.getMarkdown());
 }
 
 export function createTicketContentEditor(editorOptions: TicketContentEditorOptions): Editor {

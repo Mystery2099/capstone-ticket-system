@@ -1,6 +1,8 @@
 import { and, desc, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from './db';
 import { category, ticket, ticketComment, user } from './schema';
+import { TicketContentFormat } from '../ticket-content/ticket-content-format';
+import { stripMarkdownSyntax } from '../ticket-content/ticket-content-renderer';
 
 /** Longest search text sent to the database. */
 export const MAX_SEARCH_LENGTH = 200;
@@ -152,6 +154,7 @@ export class TicketSearchQuery {
 		const ticketHeadlines = await db
 			.select({
 				id: ticket.id,
+				descriptionFormat: ticket.descriptionFormat,
 				requesterHeadline: sql<string>`ts_headline('english', ${requesterName}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS})`,
 				assigneeHeadline: sql<string>`ts_headline('english', ${assigneeName}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS})`,
 				categoryHeadline: sql<string>`ts_headline('english', ${categoryName}, ${highlightQuery}, ${SUBJECT_HEADLINE_OPTIONS})`,
@@ -170,6 +173,7 @@ export class TicketSearchQuery {
 			.selectDistinctOn([ticketComment.ticketId], {
 				ticketId: ticketComment.ticketId,
 				authorId: ticketComment.authorId,
+				bodyFormat: ticketComment.bodyFormat,
 				headline: sql<string>`ts_headline('english', ${ticketComment.body}, ${highlightQuery}, ${SNIPPET_HEADLINE_OPTIONS})`
 			})
 			.from(ticketComment)
@@ -186,7 +190,13 @@ export class TicketSearchQuery {
 			const commentHeadline = ticketHeadline.descriptionHeadline
 				? undefined
 				: commentHeadlines.find((candidate) => candidate.ticketId === ticketHeadline.id);
-			const snippetHeadline = ticketHeadline.descriptionHeadline ?? commentHeadline?.headline;
+			const snippetHeadline = ticketHeadline.descriptionHeadline
+				? TicketSearchQuery.removeFormatting(
+						ticketHeadline.descriptionHeadline,
+						ticketHeadline.descriptionFormat
+					)
+				: commentHeadline &&
+					TicketSearchQuery.removeFormatting(commentHeadline.headline, commentHeadline.bodyFormat);
 			highlightsByTicketId.set(ticketHeadline.id, {
 				subjectSegments: ticketHeadline.subjectHeadline
 					? TicketSearchQuery.toHighlightSegments(ticketHeadline.subjectHeadline)
@@ -208,6 +218,13 @@ export class TicketSearchQuery {
 			});
 		}
 		return highlightsByTicketId;
+	}
+
+	/** Excerpts are shown as plain text, so Markdown symbols are taken out of them. */
+	private static removeFormatting(headline: string, contentFormat: TicketContentFormat): string {
+		return contentFormat === TicketContentFormat.MARKDOWN
+			? stripMarkdownSyntax(headline)
+			: headline;
 	}
 
 	/** Splits a headline into plain text and matched words, so the page never renders HTML. */
