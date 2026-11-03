@@ -57,7 +57,12 @@
 			// A status trigger takes its colors from the status badge styles instead.
 			statusCode
 				? ['status', statusCode, 'rounded-[6px] px-1.5 py-0.5']
-				: ['text-foreground', variant === 'inline' ? 'bg-transparent' : 'bg-card'],
+				: [
+						'text-foreground hover:bg-muted data-[state=open]:bg-muted',
+						variant === 'inline'
+							? 'bg-transparent'
+							: 'bg-card hover:border-muted-foreground data-[state=open]:border-muted-foreground'
+					],
 			className
 		)
 	);
