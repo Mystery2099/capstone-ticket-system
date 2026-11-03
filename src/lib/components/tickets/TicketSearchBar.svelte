@@ -43,6 +43,7 @@
 	let showOptions = $state(false);
 	let activeIndex = $state(-1);
 	let searchInput: HTMLInputElement;
+	let searchContainerElement: HTMLDivElement | undefined = $state();
 	let filters = $state<Record<string, string>>({});
 	let trimmedSearchText = $derived(searchText.trim());
 	let matchingPeople = $derived(
@@ -104,6 +105,20 @@
 	}
 
 	/**
+	 * Closes the search options when the user clicks anywhere outside the search area. Clicks in
+	 * a dropdown list opened from the options are ignored, since those lists render outside it.
+	 */
+	function handleDocumentPointerDown(event: PointerEvent): void {
+		if (!showOptions) return;
+		const clickedElement = event.target as Element;
+		const isInsideSearch = searchContainerElement?.contains(clickedElement) ?? false;
+		const isInsidePopover = clickedElement.closest?.('[data-slot="popover-content"]') !== null;
+		if (!isInsideSearch && !isInsidePopover) {
+			showOptions = false;
+		}
+	}
+
+	/**
 	 * Arrow keys move through the options, which are the suggestions then matching people
 	 * while typing, or recent searches when the box is empty.
 	 */
@@ -135,7 +150,10 @@
 	}
 </script>
 
+<svelte:document onpointerdown={handleDocumentPointerDown} />
+
 <div
+	bind:this={searchContainerElement}
 	class="ticket-search"
 	onfocusout={(event) => {
 		if (!event.currentTarget.contains(event.relatedTarget as Node)) isFocused = false;
