@@ -82,8 +82,12 @@ const MARKDOWN_LINK_PATTERN = /\[([^\]]*)\]\([^)]*\)/g;
 const MARKDOWN_EMPHASIS_PATTERN = /\*\*|__|~~|```|`/g;
 /** The character references used for typed leading spaces and tabs. */
 const INDENTATION_REFERENCE_PATTERN = /&#(?:32|9);/g;
-/** A private-use character, which stored text never contains. */
-const ESCAPED_CHARACTER_PLACEHOLDER = '\uE000';
+/**
+ * Stands in for the escaped character with the given number. Private-use characters, which
+ * stored text never contains, mark where the number starts and ends.
+ */
+const buildEscapedCharacterPlaceholder = (escapeIndex: number) => `\uE000${escapeIndex}\uE001`;
+const ESCAPED_CHARACTER_PLACEHOLDER_PATTERN = /\uE000(\d+)\uE001/g;
 
 /**
  * Removes Markdown symbols from a fragment of a message, such as a search excerpt. A
@@ -92,11 +96,12 @@ const ESCAPED_CHARACTER_PLACEHOLDER = '\uE000';
  */
 export function stripMarkdownSyntax(markdownFragment: string): string {
 	// Escaped characters are typed punctuation, so they're set aside before symbols are removed.
+	// Each is numbered, so removing a link's address, escapes and all, can't shift the rest.
 	const escapedCharacters: string[] = [];
 	return markdownFragment
 		.replace(MARKDOWN_ESCAPE_PATTERN, (escapeSequence, escapedCharacter: string) => {
 			escapedCharacters.push(escapedCharacter);
-			return ESCAPED_CHARACTER_PLACEHOLDER;
+			return buildEscapedCharacterPlaceholder(escapedCharacters.length - 1);
 		})
 		.replace(MARKDOWN_LINK_PATTERN, '$1')
 		.replace(MARKDOWN_LINE_MARKER_PATTERN, '')
@@ -104,5 +109,8 @@ export function stripMarkdownSyntax(markdownFragment: string): string {
 		.replace(INDENTATION_REFERENCE_PATTERN, (characterReference) =>
 			characterReference === '&#9;' ? '\t' : ' '
 		)
-		.replace(new RegExp(ESCAPED_CHARACTER_PLACEHOLDER, 'g'), () => escapedCharacters.shift() ?? '');
+		.replace(
+			ESCAPED_CHARACTER_PLACEHOLDER_PATTERN,
+			(placeholder, escapeIndex: string) => escapedCharacters[Number(escapeIndex)] ?? ''
+		);
 }
