@@ -20,6 +20,7 @@ const MARKDOWN_PUNCTUATION_PATTERN = /[!-/:-@[-`{-~]/g;
 export function convertPlainTextToMarkdown(plainText: string): string {
 	return plainText
 		.replace(/\r\n?/g, '\n')
+		.replace(/\n+$/, '')
 		.split('\n')
 		.map((line) =>
 			line

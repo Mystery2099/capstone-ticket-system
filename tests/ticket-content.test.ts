@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { stripMarkdownSyntax } from '../src/lib/ticket-content/ticket-content-renderer';
+import { convertPlainTextToMarkdown } from '../src/lib/ticket-content/ticket-content-format';
+import {
+	renderTicketContent,
+	stripMarkdownSyntax
+} from '../src/lib/ticket-content/ticket-content-renderer';
 import { escapeLineStarts } from '../src/lib/ticket-content/ticket-markdown-line-starts';
 
 describe('ticket Markdown preservation', () => {
+	it('converts legacy draft trailing newlines without adding literal backslashes', () => {
+		for (const trailingNewlines of ['\n', '\n\n', '\n\n\n', '\r\n']) {
+			expect(
+				renderTicketContent(convertPlainTextToMarkdown(`first\nsecond${trailingNewlines}`))
+			).toBe('<p>first<br>\nsecond</p>\n');
+		}
+	});
+
 	it('preserves code indentation inside list fences and resumes escaping after the fence', () => {
 		for (const listPrefix of ['- ', '1. ', '  - ', '- - ']) {
 			const codeBlock = `${listPrefix}\`\`\`\n  \tindent\n  \`\`\``;
