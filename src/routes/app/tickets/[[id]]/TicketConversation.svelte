@@ -290,6 +290,7 @@
 				{notificationAudience}
 				currentUserId={currentUser.id}
 				canChooseToFollow={hasPermission(currentUser, 'viewAllTickets')}
+				sentCommentCount={comments.length}
 			/>{#if unsentReplyGuard.isNoticeVisible}<UnsavedChangesNotice
 					guard={unsentReplyGuard}
 					unsavedChangeLabel={isInternalNote ? 'internal note' : 'comment'}

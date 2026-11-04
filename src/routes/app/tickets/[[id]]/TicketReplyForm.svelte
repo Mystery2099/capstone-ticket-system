@@ -26,6 +26,8 @@
 		currentUserId: string;
 		/** Support staff choose whether to follow the ticket when they comment. */
 		canChooseToFollow: boolean;
+		/** Changes after each successful reply, which resets who to notify for the next one. */
+		sentCommentCount: number;
 	};
 	let {
 		replyForm,
@@ -35,7 +37,8 @@
 		canUseInternalNotes,
 		notificationAudience,
 		currentUserId,
-		canChooseToFollow
+		canChooseToFollow,
+		sentCommentCount
 	}: TicketReplyFormProps = $props();
 
 	// The conversation creates the form once, so reading it at setup is correct.
@@ -135,13 +138,13 @@
 	{#if $replyErrors.body}<p id="reply-error" class="error" role="alert">
 			{$replyErrors.body.join(' ')}
 		</p>{/if}
-	<TicketNotifyRecipients
-		audience={notificationAudience}
-		{currentUserId}
-		{isInternalNote}
-		{canChooseToFollow}
-		isDisabled={$isSendingComment}
-	/>
+	{#key sentCommentCount}<TicketNotifyRecipients
+			audience={notificationAudience}
+			{currentUserId}
+			{isInternalNote}
+			{canChooseToFollow}
+			isDisabled={$isSendingComment}
+		/>{/key}
 	<div class="composer-footer">
 		<span class="muted small"
 			>{isInternalNote
