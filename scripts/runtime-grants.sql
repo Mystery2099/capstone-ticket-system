@@ -19,3 +19,6 @@ GRANT USAGE ON SEQUENCE public.ticket_ticket_number_seq TO capstone_runtime;
 -- Reapply after schema changes; no broad default privileges are granted.
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.application_role TO capstone_runtime;
+-- Followers can be removed, and notifications are marked read.
+GRANT SELECT, INSERT, DELETE ON public.ticket_follower TO capstone_runtime;
+GRANT SELECT, INSERT, UPDATE ON public.notification TO capstone_runtime;
