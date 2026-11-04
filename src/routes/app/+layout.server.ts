@@ -7,7 +7,9 @@ import { countUnreadNotifications } from '$lib/server/notifications';
 import { ticket } from '$lib/server/schema';
 import { OPEN_STATUSES } from '$lib/status';
 
-export const load = async ({ locals, cookies }: ServerLoadEvent) => {
+export const load = async ({ locals, cookies, depends }: ServerLoadEvent) => {
+	// Reloaded on its own when opening a ticket reads its inbox notifications.
+	depends('app:notifications');
 	const currentUser = locals.user;
 	if (!currentUser) redirect(303, '/login');
 

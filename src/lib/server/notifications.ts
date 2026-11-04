@@ -192,9 +192,13 @@ export async function markNotificationsRead(actor: Person, notificationId?: stri
 		);
 }
 
-/** Opening a ticket reads its notifications, so they leave the inbox without a separate step. */
-export async function markTicketNotificationsRead(actor: Person, ticketId: string): Promise<void> {
-	await db
+/**
+ * Opening a ticket reads its notifications, so they leave the inbox without a separate step.
+ *
+ * @return how many notifications this marked read
+ */
+export async function markTicketNotificationsRead(actor: Person, ticketId: string): Promise<number> {
+	const readNotifications = await db
 		.update(notification)
 		.set({ readAt: new Date() })
 		.where(
@@ -203,7 +207,9 @@ export async function markTicketNotificationsRead(actor: Person, ticketId: strin
 				eq(notification.ticketId, ticketId),
 				isNull(notification.readAt)
 			)
-		);
+		)
+		.returning({ id: notification.id });
+	return readNotifications.length;
 }
 
 /**

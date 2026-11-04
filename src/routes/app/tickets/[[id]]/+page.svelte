@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { hasPermission } from '$lib/permissions';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { RefreshCw, SquarePen } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -40,6 +40,10 @@
 	];
 
 	let { data, form } = $props();
+	// Opening a ticket read its inbox notifications, so the sidebar's unread count reloads.
+	$effect(() => {
+		if (data.hasReadNotifications) void invalidate('app:notifications');
+	});
 
 	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));
 	let directory = $derived(new TicketDirectory(data.people, data.categories));

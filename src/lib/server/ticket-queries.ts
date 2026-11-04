@@ -370,14 +370,12 @@ export async function loadTicketConversation(
 		events = conversation.events;
 	}
 	// Opening a ticket reads its inbox notifications, and lists who a new comment may notify.
-	const notificationAudience = selectedTicket
-		? (
-				await Promise.all([
-					loadNotificationAudience(selectedTicket),
-					markTicketNotificationsRead(actor, selectedTicket.id)
-				])
-			)[0]
-		: [];
+	const [notificationAudience, readNotificationCount] = selectedTicket
+		? await Promise.all([
+				loadNotificationAudience(selectedTicket),
+				markTicketNotificationsRead(actor, selectedTicket.id)
+			])
+		: [[], 0];
 
 	const assigneeId = selectedTicket?.assignedToUserId;
 	const visiblePeople: PersonSummary[] =
@@ -397,6 +395,8 @@ export async function loadTicketConversation(
 		comments,
 		events,
 		notificationAudience,
+		/** True when opening the ticket read some inbox notifications, so the count is stale. */
+		hasReadNotifications: readNotificationCount > 0,
 		isNewTicket: routeTicketId === 'new'
 	};
 }
