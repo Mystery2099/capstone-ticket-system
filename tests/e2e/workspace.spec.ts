@@ -342,9 +342,7 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(
 		page.getByRole('heading', { name: 'Service Technician', exact: true })
 	).toBeVisible();
-	await page
-		.getByRole('combobox', { name: 'Reassign users to', exact: true })
-		.selectOption({ label: 'Requester' });
+	await choose(page, 'Reassign users to', 'Requester');
 	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
 	await expect(page).toHaveURL(/\/app\/admin\/roles$/);
 	await expect(page.getByRole('link', { name: /Service Technician/ })).toHaveCount(0);
