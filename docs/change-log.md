@@ -3,6 +3,13 @@
 Record professor-requested changes with the date, expected behavior, affected
 schema/UI/permissions, migration or recovery plan, and verification.
 
+## 2026-11-04 — UI polish and classic palette
+
+Settings has a Colors option for a plain classic palette alongside the default, applied
+before first paint. Hover and open-state feedback across the sidebar, search, menus and
+composer; checkboxes share one style; the account menu and search options close on an
+outside click.
+
 ## 2026-11-04 — Inbox and notifications
 
 Comments, assignments, and Resolved/Closed/reopened status changes create inbox

@@ -14,18 +14,38 @@
 		onShowShortcuts
 	}: { userName: string; userRole: string | null; onShowShortcuts: () => void } = $props();
 
-	const MENU_ITEM_CLASS = 'flex gap-2.5 py-2 text-left';
+	const MENU_ITEM_CLASS =
+		'-mx-2 flex items-center gap-2.5 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted focus-visible:bg-muted disabled:pointer-events-none disabled:opacity-60';
 
 	let isMenuOpen = $state(false);
 	let isSigningOut = $state(false);
 	let accountMenuElement = $state<HTMLDivElement>();
+
+	/** Clicking anywhere outside the account area closes the menu. */
+	function handleDocumentPointerDown(event: PointerEvent): void {
+		if (isMenuOpen && !accountMenuElement?.contains(event.target as Node)) {
+			isMenuOpen = false;
+		}
+	}
+
+	function handleDocumentKeyDown(event: KeyboardEvent): void {
+		if (isMenuOpen && event.key === 'Escape') {
+			// Closing removes the focused menu item, so focus goes back to the button first.
+			if (accountMenuElement?.contains(document.activeElement)) focusAccountMenuButton();
+			isMenuOpen = false;
+		}
+	}
+
+	function focusAccountMenuButton(): void {
+		accountMenuElement?.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus();
+	}
 
 	/**
 	 * Closing the menu removes the item that was clicked, so focus moves to the Account menu
 	 * button first. The dialog then has a control that still exists to return focus to.
 	 */
 	function showShortcutsFromMenu(): void {
-		accountMenuElement?.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus();
+		focusAccountMenuButton();
 		isMenuOpen = false;
 		onShowShortcuts();
 	}
@@ -36,6 +56,8 @@
 		isSigningOut = false;
 	}
 </script>
+
+<svelte:document onpointerdown={handleDocumentPointerDown} onkeydown={handleDocumentKeyDown} />
 
 <div
 	bind:this={accountMenuElement}

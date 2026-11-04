@@ -147,16 +147,6 @@
 		cursor: pointer;
 		margin-top: 2px;
 	}
-	.saved-codes input {
-		width: 16px;
-		height: 16px;
-		min-width: 16px;
-		margin: 0;
-		padding: 0;
-		flex: none;
-		appearance: auto;
-		accent-color: var(--primary);
-	}
 	@media (max-width: 650px) {
 		.setup-grid {
 			grid-template-columns: 1fr;

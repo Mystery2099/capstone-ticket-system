@@ -136,11 +136,15 @@
 					{#if members.length}
 						<label class="flex flex-col gap-2"
 							>Reassign users to
-							<select name="replacementRoleId" required>
-								<option value="">Choose a replacement role</option>
-								{#each replacements as role (role.id)}<option value={role.id}>{role.name}</option
-									>{/each}
-							</select>
+							{#key selectedRole.id}
+								<Combobox
+									label="Reassign users to"
+									name="replacementRoleId"
+									required
+									placeholder="Choose a replacement role"
+									options={replacements.map((role) => ({ value: role.id, label: role.name }))}
+								/>
+							{/key}
 						</label>
 					{/if}
 					<Button

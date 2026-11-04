@@ -43,6 +43,7 @@
 	let showOptions = $state(false);
 	let activeIndex = $state(-1);
 	let searchInput: HTMLInputElement;
+	let searchContainerElement: HTMLDivElement | undefined = $state();
 	let filters = $state<Record<string, string>>({});
 	let trimmedSearchText = $derived(searchText.trim());
 	let matchingPeople = $derived(
@@ -104,6 +105,20 @@
 	}
 
 	/**
+	 * Closes the search options when the user clicks anywhere outside the search area. Clicks in
+	 * a dropdown list opened from the options are ignored, since those lists render outside it.
+	 */
+	function handleDocumentPointerDown(event: PointerEvent): void {
+		if (!showOptions) return;
+		const clickedElement = event.target as Element;
+		const isInsideSearch = searchContainerElement?.contains(clickedElement) ?? false;
+		const isInsidePopover = clickedElement.closest?.('[data-slot="popover-content"]') !== null;
+		if (!isInsideSearch && !isInsidePopover) {
+			showOptions = false;
+		}
+	}
+
+	/**
 	 * Arrow keys move through the options, which are the suggestions then matching people
 	 * while typing, or recent searches when the box is empty.
 	 */
@@ -135,7 +150,10 @@
 	}
 </script>
 
+<svelte:document onpointerdown={handleDocumentPointerDown} />
+
 <div
+	bind:this={searchContainerElement}
 	class="ticket-search"
 	onfocusout={(event) => {
 		if (!event.currentTarget.contains(event.relatedTarget as Node)) isFocused = false;
@@ -227,6 +245,7 @@
 			{#if trimmedSearchText}<p aria-live="polite">{statusMessage}</p>{/if}
 			{#if !trimmedSearchText && recentSearches.searches.length}<button
 					type="button"
+					class="mt-1 rounded-md px-2.5 py-1.5 text-[12px] text-muted-foreground hover:bg-muted hover:text-foreground"
 					onclick={() => recentSearches.clear()}>Clear recent searches</button
 				>{/if}
 		</div>
@@ -319,6 +338,12 @@
 		width: auto;
 		max-width: none;
 		margin-left: 0;
+	}
+	/* The global icon-button hover matches the bar's own background, so darken it here. */
+	.search-bar :global(.icon-button:hover),
+	.search-bar :global(.icon-button[aria-expanded='true']) {
+		background: color-mix(in oklch, var(--muted), var(--foreground) 10%);
+		color: var(--foreground);
 	}
 	/* Global so the search options form, a child component, shares the dropdown look. */
 	.ticket-search :global(.search-dropdown) {

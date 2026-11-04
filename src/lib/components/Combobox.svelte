@@ -57,12 +57,20 @@
 			// A status trigger takes its colors from the status badge styles instead.
 			statusCode
 				? ['status', statusCode, 'rounded-[6px] px-1.5 py-0.5']
-				: ['text-foreground', variant === 'inline' ? 'bg-transparent' : 'bg-card'],
+				: [
+						'text-foreground hover:bg-muted data-[state=open]:bg-muted',
+						variant === 'inline'
+							? 'bg-transparent'
+							: 'bg-card hover:border-muted-foreground data-[state=open]:border-muted-foreground'
+					],
 			className
 		)
 	);
 
 	let isOpen = $state(false);
+	/** Set when a submit is stopped because nothing was chosen; cleared by choosing. */
+	let isMissingRequiredValue = $state(false);
+	const errorId = $props.id();
 	let triggerElement = $state<HTMLButtonElement | null>(null);
 	let listElement = $state<HTMLElement | null>(null);
 	let isSearchVisible = $derived(options.length >= 5);
@@ -70,6 +78,7 @@
 
 	async function selectOption(nextValue: string) {
 		isOpen = false;
+		if (nextValue) isMissingRequiredValue = false;
 		if (nextValue === value) return;
 		value = nextValue;
 		onchange?.(nextValue);
@@ -94,10 +103,24 @@
 		{value}
 		{required}
 		oninput={(event) => (event.currentTarget.value = value)}
+		oninvalid={(event) => {
+			// The browser would point at this clipped input, which nobody can see. Point at the
+			// visible control instead.
+			event.preventDefault();
+			isMissingRequiredValue = true;
+			triggerElement?.focus();
+		}}
 	/>
 {/if}
 <Popover.Root bind:open={isOpen}>
-	<Popover.Trigger bind:ref={triggerElement} class={triggerClass} aria-label={label} {disabled}>
+	<Popover.Trigger
+		bind:ref={triggerElement}
+		class={cn(triggerClass, isMissingRequiredValue && 'border-destructive')}
+		aria-label={label}
+		aria-invalid={isMissingRequiredValue || undefined}
+		aria-describedby={isMissingRequiredValue ? errorId : undefined}
+		{disabled}
+	>
 		<span class="min-w-0 truncate">{selectedLabel ?? placeholder}</span><ChevronDown
 			size={16}
 			class="shrink-0"
@@ -140,3 +163,4 @@
 		</Command.Root>
 	</Popover.Content>
 </Popover.Root>
+{#if isMissingRequiredValue}<p id={errorId} class="error" role="alert">Choose an option.</p>{/if}

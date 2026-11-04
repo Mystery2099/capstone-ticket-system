@@ -12,7 +12,7 @@ primary page at a time. Both layouts share routes and server permissions.
 | `/app/tickets/[ticketId]` | Conversation and details                         |
 | `/app/search/suggest`     | Authenticated search suggestions                 |
 | `/app/inbox`              | Notifications; `?show=all` includes read ones    |
-| `/app/settings`           | Theme and account details                        |
+| `/app/settings`           | Theme, color palette, and account details        |
 | `/app/admin/users`        | Account administration                           |
 | `/app/admin/categories`   | Category administration                          |
 | `/app/admin/roles`        | Role administration                              |

@@ -8,13 +8,14 @@
 			// Applies the saved theme before first paint so dark mode users never see a light flash.
 			// Keep in sync with src/lib/theme.ts.
 			try {
-				const theme = localStorage.getItem('ticket-theme') || 'system';
-				document.documentElement.dataset.theme =
-					theme === 'system'
-						? matchMedia('(prefers-color-scheme: dark)').matches
-							? 'dark'
-							: 'light'
-						: theme;
+				const theme = localStorage.getItem('ticket-theme');
+				const root = document.documentElement;
+				const isDark =
+					theme === 'light' || theme === 'dark'
+						? theme === 'dark'
+						: matchMedia('(prefers-color-scheme: dark)').matches;
+				root.dataset.theme = isDark ? 'dark' : 'light';
+				if (localStorage.getItem('ticket-palette') === 'classic') root.dataset.palette = 'classic';
 			} catch {}
 		</script>
 		%sveltekit.head%

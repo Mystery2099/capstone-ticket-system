@@ -257,6 +257,11 @@
 		color: var(--primary);
 		font-size: 13px;
 	}
+	.recovery-toggle:hover,
+	footer a:hover {
+		text-decoration: underline;
+		text-underline-offset: 3px;
+	}
 	@media (max-width: 650px) {
 		.security-page {
 			padding: 20px 12px;
