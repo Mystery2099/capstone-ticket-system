@@ -7,9 +7,9 @@ import { and, asc, desc, eq, inArray, lt, sql, type SQL } from 'drizzle-orm';
 import { OPEN_STATUSES, TicketEventType } from '../status';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission } from '../permissions';
-import { applyRolePermissions, loadRoles } from './roles';
+import { RequestCache, type CategoryRecord, type PersonSummary } from './request-cache';
 import { db } from './db';
-import { ticket, category, user, ticketComment, ticketEvent } from './schema';
+import { ticket, ticketComment, ticketEvent } from './schema';
 import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
 import { parseTicketNumber } from './validation';
 import { TicketContentFormat } from '../ticket-content/ticket-content-format';
@@ -26,7 +26,6 @@ const PREVIEW_MAX_LENGTH = 200;
 const PREVIEW_SOURCE_MAX_LENGTH = 2000;
 
 type Ticket = typeof ticket.$inferSelect;
-type Category = typeof category.$inferSelect;
 type TicketComment = typeof ticketComment.$inferSelect;
 type TicketEvent = typeof ticketEvent.$inferSelect;
 
@@ -48,7 +47,7 @@ export async function findTicketSearchRedirect(actor: Person, url: URL): Promise
 	const searchQuery = TicketSearchQuery.fromUrl(url);
 	if (searchQuery?.ticketNumber == null) return null;
 	const [ticketRecord] = await db
-		.select()
+		.select({ ticketNumber: ticket.ticketNumber, requesterId: ticket.requesterId })
 		.from(ticket)
 		.where(eq(ticket.ticketNumber, searchQuery.ticketNumber));
 	if (!ticketRecord) return null;
@@ -66,7 +65,7 @@ function buildTicketListConditions(
 	actor: Person,
 	url: URL,
 	view: string,
-	categories: Category[],
+	categories: CategoryRecord[],
 	searchQuery: TicketSearchQuery | null
 ): (SQL | undefined)[] {
 	const ticketListConditions: (SQL | undefined)[] = [];
@@ -210,16 +209,24 @@ function buildTicketListHref(
 	return '/app/tickets' + (queryString ? '?' + queryString : '');
 }
 
-/** Loads every person with their role's permissions, for names and assignment checks. */
-async function loadPeopleWithRolePermissions() {
-	const roles = await loadRoles();
-	return (
-		await db
-			.select({ id: user.id, name: user.name, role: user.role, banned: user.banned })
-			.from(user)
-	).map((person) => applyRolePermissions(person, roles));
-}
-type PersonSummary = Awaited<ReturnType<typeof loadPeopleWithRolePermissions>>[number];
+/**
+ * The ticket columns a list row needs. Only the start of the description is read, for the
+ * preview of a ticket that has no public comment yet; the full text loads with the ticket.
+ */
+const TICKET_LIST_COLUMNS = {
+	id: ticket.id,
+	ticketNumber: ticket.ticketNumber,
+	requesterId: ticket.requesterId,
+	assignedToUserId: ticket.assignedToUserId,
+	categoryId: ticket.categoryId,
+	statusCode: ticket.statusCode,
+	priority: ticket.priority,
+	subject: ticket.subject,
+	createdAt: ticket.createdAt,
+	updatedAt: ticket.updatedAt,
+	descriptionPreviewSource: sql<string>`left(${ticket.description}, ${PREVIEW_SOURCE_MAX_LENGTH})`,
+	descriptionFormat: ticket.descriptionFormat
+};
 
 /**
  * Loads one batch of the ticket list for a view, its filters and the search box.
@@ -227,12 +234,17 @@ type PersonSummary = Awaited<ReturnType<typeof loadPeopleWithRolePermissions>>[n
  * Only reads `url.searchParams.get`, never the path or the whole query string, so the list
  * load is not rerun when someone opens another ticket. Keep it that way.
  *
+ * @param requestCache reads shared with the request's other loads
  * @throws 404 when the `before` paging parameter isn't a ticket number
  */
-export async function loadTicketList(actor: Person, url: URL) {
+export async function loadTicketList(
+	actor: Person,
+	url: URL,
+	requestCache: RequestCache = new RequestCache()
+) {
 	const [categories, people] = await Promise.all([
-		db.select().from(category).orderBy(asc(category.name)),
-		loadPeopleWithRolePermissions()
+		requestCache.getCategories(),
+		requestCache.getPeople()
 	]);
 	const view =
 		url.searchParams.get('view') || (hasPermission(actor, 'viewAllTickets') ? 'open' : 'mine');
@@ -257,7 +269,7 @@ export async function loadTicketList(actor: Person, url: URL) {
 		view === 'drafts'
 			? []
 			: await db
-					.select()
+					.select(TICKET_LIST_COLUMNS)
 					.from(ticket)
 					.where(and(...ticketListConditions))
 					.orderBy(
@@ -301,7 +313,7 @@ export async function loadTicketList(actor: Person, url: URL) {
 				)
 				.orderBy(ticketComment.ticketId, desc(ticketComment.createdAt), desc(ticketComment.id))
 		: [];
-	const ticketRows = tickets.map((ticketRecord) => {
+	const ticketRows = tickets.map(({ descriptionPreviewSource, ...ticketRecord }) => {
 		const latestPublicComment = latestPublicComments.find(
 			(comment) => comment.ticketId === ticketRecord.id
 		);
@@ -314,7 +326,7 @@ export async function loadTicketList(actor: Person, url: URL) {
 			...ticketRecord,
 			preview: latestPublicComment
 				? buildPreviewText(latestPublicComment.body, latestPublicComment.bodyFormat)
-				: buildPreviewText(ticketRecord.description, ticketRecord.descriptionFormat),
+				: buildPreviewText(descriptionPreviewSource, ticketRecord.descriptionFormat),
 			previewAuthor: previewAuthorId ? previewAuthor?.name.split(' ')[0] || 'Support team' : null,
 			subjectHighlight: searchHighlight?.subjectSegments ?? null,
 			previewHighlight: searchHighlight?.snippetSegments ?? null,
@@ -338,10 +350,15 @@ export async function loadTicketList(actor: Person, url: URL) {
  * actor may see by name.
  *
  * @param routeTicketId the ticket number from the URL, or `new` for the compose pane
+ * @param requestCache reads shared with the request's other loads
  * @throws 404 when the ticket doesn't exist or the actor may not see it
  */
-export async function loadTicketConversation(actor: Person, routeTicketId?: string) {
-	const people = await loadPeopleWithRolePermissions();
+export async function loadTicketConversation(
+	actor: Person,
+	routeTicketId?: string,
+	requestCache: RequestCache = new RequestCache()
+) {
+	const people = await requestCache.getPeople();
 	let selectedTicket: Ticket | null = null;
 	let comments: TicketComment[] = [];
 	let events: TicketEvent[] = [];
@@ -381,9 +398,10 @@ export async function loadTicketConversation(actor: Person, routeTicketId?: stri
  * @throws 404 when the ticket doesn't exist or the actor may not see it
  */
 export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId?: string) {
+	const requestCache = new RequestCache();
 	const [ticketList, conversation] = await Promise.all([
-		loadTicketList(actor, url),
-		loadTicketConversation(actor, routeTicketId)
+		loadTicketList(actor, url, requestCache),
+		loadTicketConversation(actor, routeTicketId, requestCache)
 	]);
 	return { ...ticketList, ...conversation };
 }

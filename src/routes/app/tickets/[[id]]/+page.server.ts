@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url, params }) => {
 	}
 	// The list comes from the layout load, so opening a ticket only loads its conversation.
 	const [conversation, createForm, replyForm] = await Promise.all([
-		loadTicketConversation(actor, params.id),
+		loadTicketConversation(actor, params.id, locals.requestCache),
 		superValidate(createTicketFormSchema, { id: 'ticket-create' }),
 		superValidate(replyFormSchema, { id: 'ticket-reply' })
 	]);

@@ -256,7 +256,7 @@
 		roleLabel="Requester"
 		timestampLabel={formatDateTime(ticket.createdAt)}
 		caption="Opened this ticket"
-		body={ticket.description}
+		body={'description' in ticket ? ticket.description : undefined}
 		bodyFormat={ticket.descriptionFormat}
 	/>
 	{#if isLoading}<ConversationSkeleton />{:else}

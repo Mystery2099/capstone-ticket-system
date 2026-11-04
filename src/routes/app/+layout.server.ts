@@ -1,9 +1,9 @@
 import { redirect, type ServerLoadEvent } from '@sveltejs/kit';
-import { asc, eq, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { SIDEBAR_COOKIE_NAME } from '$lib/components/ui/sidebar/constants';
 import { hasPermission } from '$lib/permissions';
 import { db } from '$lib/server/db';
-import { category, ticket, user } from '$lib/server/schema';
+import { ticket } from '$lib/server/schema';
 import { OPEN_STATUSES } from '$lib/status';
 
 export const load = async ({ locals, cookies }: ServerLoadEvent) => {
@@ -11,7 +11,7 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 	if (!currentUser) redirect(303, '/login');
 
 	const isStaffUser = hasPermission(currentUser, 'viewAllTickets');
-	const [ticketCountGroups, categories] = await Promise.all([
+	const [ticketCountGroups, categories, people] = await Promise.all([
 		db
 			.select({
 				requesterId: ticket.requesterId,
@@ -23,7 +23,8 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 			.from(ticket)
 			.where(isStaffUser ? undefined : eq(ticket.requesterId, currentUser.id))
 			.groupBy(ticket.requesterId, ticket.assignedToUserId, ticket.categoryId, ticket.statusCode),
-		db.select().from(category).orderBy(asc(category.name))
+		locals.requestCache.getCategories(),
+		isStaffUser ? locals.requestCache.getPeople() : []
 	]);
 	const openTicketGroups = ticketCountGroups.filter((row) =>
 		OPEN_STATUSES.some((status) => status === row.statusCode)
@@ -47,9 +48,7 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 	return {
 		user: currentUser,
 		searchCategories: categories.map(({ id, name }) => ({ id, name })),
-		searchPeople: isStaffUser
-			? await db.select({ id: user.id, name: user.name }).from(user).orderBy(asc(user.name))
-			: [],
+		searchPeople: people.map(({ id, name }) => ({ id, name })),
 		isSidebarOpen: cookies.get(SIDEBAR_COOKIE_NAME) !== 'false',
 		openTicketCountsByCategory,
 		ticketCounts: {
