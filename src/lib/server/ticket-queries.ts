@@ -8,6 +8,7 @@ import { OPEN_STATUSES, TicketEventType } from '../status';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission } from '../permissions';
 import { RequestCache, type CategoryRecord, type PersonSummary } from './request-cache';
+import { loadNotificationAudience, markTicketNotificationsRead } from './notifications';
 import { db } from './db';
 import { ticket, ticketComment, ticketEvent } from './schema';
 import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
@@ -368,6 +369,15 @@ export async function loadTicketConversation(
 		comments = conversation.comments;
 		events = conversation.events;
 	}
+	// Opening a ticket reads its inbox notifications, and lists who a new comment may notify.
+	const notificationAudience = selectedTicket
+		? (
+				await Promise.all([
+					loadNotificationAudience(selectedTicket),
+					markTicketNotificationsRead(actor, selectedTicket.id)
+				])
+			)[0]
+		: [];
 
 	const assigneeId = selectedTicket?.assignedToUserId;
 	const visiblePeople: PersonSummary[] =
@@ -386,6 +396,7 @@ export async function loadTicketConversation(
 		selectedTicket,
 		comments,
 		events,
+		notificationAudience,
 		isNewTicket: routeTicketId === 'new'
 	};
 }

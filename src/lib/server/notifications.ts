@@ -40,7 +40,7 @@ export async function followTicket(
  * Anyone commenting may choose who to notify from these people.
  */
 export async function loadConnectedPersonIds(
-	connection: Pick<Transaction, 'select'>,
+	connection: Pick<Transaction, 'select' | 'selectDistinct'>,
 	ticketRecord: Ticket
 ): Promise<Set<string>> {
 	const [followers, commenters] = await Promise.all([
