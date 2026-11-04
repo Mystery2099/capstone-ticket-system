@@ -30,23 +30,33 @@ export function readPalettePreference(): PalettePreference {
 	return localStorage.getItem(PALETTE_STORAGE_KEY) === 'classic' ? 'classic' : 'plum';
 }
 
+/**
+ * Remembers a preference in the browser. Storage can be full or blocked, such as in some
+ * private windows; the choice then still applies to this page, just not the next visit.
+ */
+function rememberPreference(storageKey: string, preference: string): void {
+	try {
+		localStorage.setItem(storageKey, preference);
+	} catch {
+		// Nothing to recover: the page is updated either way.
+	}
+}
+
 /** Saves the theme preference and applies it to the page. */
 export function saveThemePreference(themePreference: ThemePreference): void {
-	localStorage.setItem(THEME_STORAGE_KEY, themePreference);
+	rememberPreference(THEME_STORAGE_KEY, themePreference);
 	applyThemePreference(themePreference);
 }
 
 /** Saves the palette preference and applies it to the page. */
 export function savePalettePreference(palettePreference: PalettePreference): void {
-	localStorage.setItem(PALETTE_STORAGE_KEY, palettePreference);
+	rememberPreference(PALETTE_STORAGE_KEY, palettePreference);
 	applyPalettePreference(palettePreference);
 }
 
 export function applyThemePreference(themePreference: ThemePreference): void {
 	const isDarkMode =
-		themePreference === 'system'
-			? matchMedia(DARK_MODE_QUERY).matches
-			: themePreference === 'dark';
+		themePreference === 'system' ? matchMedia(DARK_MODE_QUERY).matches : themePreference === 'dark';
 	document.documentElement.dataset.theme = isDarkMode ? 'dark' : 'light';
 }
 
