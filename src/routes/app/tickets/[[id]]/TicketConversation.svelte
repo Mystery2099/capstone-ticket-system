@@ -13,6 +13,7 @@
 	import { TICKET_STATUSES, TicketEventType } from '$lib/status';
 	import CommentMessage from './CommentMessage.svelte';
 	import TicketActivityEntry from './TicketActivityEntry.svelte';
+	import TicketDescription from './TicketDescription.svelte';
 	import TicketFieldSelect from './TicketFieldSelect.svelte';
 	import TicketReplyForm from './TicketReplyForm.svelte';
 	import type { TicketDirectory } from './ticket-directory';
@@ -251,15 +252,19 @@
 				>{/if}
 		</div>
 	</div>
-	<CommentMessage
-		authorName={directory.getPersonName(ticket.requesterId)}
-		roleLabel="Requester"
-		timestampLabel={formatDateTime(ticket.createdAt)}
-		caption="Opened this ticket"
-		body={'description' in ticket ? ticket.description : undefined}
-		bodyFormat={ticket.descriptionFormat}
+	<TicketDescription
+		description={'description' in ticket ? ticket.description : undefined}
+		descriptionFormat={ticket.descriptionFormat}
 	/>
+	<h2 class="section-heading timeline-heading">
+		Comments and activity{#if !isLoading && conversationTimeline.length}<span class="timeline-count"
+				>{conversationTimeline.length}</span
+			>{/if}
+	</h2>
 	{#if isLoading}<ConversationSkeleton />{:else}
+		{#if !conversationTimeline.length}<p class="py-3 text-[13px] text-muted-foreground">
+				No comments yet.
+			</p>{/if}
 		{#if hiddenEntryCount}<div
 				class="flex items-center gap-3 border-b border-dashed border-input py-3 text-[13px] text-muted-foreground"
 			>

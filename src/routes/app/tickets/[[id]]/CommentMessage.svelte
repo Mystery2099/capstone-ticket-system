@@ -10,10 +10,8 @@
 		authorName: string;
 		roleLabel: string;
 		timestampLabel: string;
-		/** Left out while the message is still loading, which shows placeholder lines instead. */
-		body?: string;
+		body: string;
 		bodyFormat: TicketContentFormat;
-		caption?: string;
 		isInternal?: boolean;
 		isSending?: boolean;
 	};
@@ -23,7 +21,6 @@
 		timestampLabel,
 		body,
 		bodyFormat,
-		caption,
 		isInternal = false,
 		isSending = false
 	}: CommentMessageProps = $props();
@@ -49,16 +46,13 @@
 				>{timestampLabel}</time
 			>
 		</div>
-		{#if caption}<p class="mb-2 text-[12px] text-muted-foreground">{caption}</p>{/if}
 		{#if isInternal}<p class="mt-1 flex items-center gap-[5px] text-[11px] text-muted-foreground">
 				<LockKeyhole size={13} /> Internal note · only visible to support team
 			</p>{/if}
-		{#if body === undefined}<div class="skeleton-fade mt-2.5 grid gap-2" aria-hidden="true">
-				<span class="skeleton h-3 w-[92%]"></span><span class="skeleton h-3 w-[64%]"></span>
-			</div>{:else}<TicketContent
-				content={body}
-				format={bodyFormat}
-				class="message-body mt-1.5 text-[14px] leading-[1.65] wrap-anywhere wide:text-[15px]"
-			/>{/if}
+		<TicketContent
+			content={body}
+			format={bodyFormat}
+			class="message-body mt-1.5 text-[14px] leading-[1.65] wrap-anywhere wide:text-[15px]"
+		/>
 	</div>
 </article>
