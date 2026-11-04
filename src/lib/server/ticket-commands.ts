@@ -5,6 +5,7 @@
 import { error } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { TicketEventType } from '../status';
+import { TicketContentFormat } from '../ticket-content/ticket-content-format';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission, type Permission } from '../permissions';
 import { db } from './db';
@@ -228,6 +229,59 @@ async function applyTicketFieldChange(
 }
 
 /**
+ * Rewrites a ticket's subject or description, once the ticket is locked. The new subject is
+ * kept in the event, as subjects are short and public. A description edit only records that
+ * it happened, so the event never holds a copy of a long message.
+ */
+async function applyTicketContentEdit(
+	transaction: Transaction,
+	actor: Person,
+	ticketRecord: Ticket,
+	formData: FormData
+): Promise<void> {
+	// Permission checks keep precedence over value validation.
+	if (!hasPermission(actor, 'editTicketContent')) error(403, 'You cannot edit this ticket.');
+	if (ticketRecord.statusCode === 'closed') error(403, 'Closed tickets are read-only.');
+	const contentField = String(formData.get('field'));
+	if (contentField === TicketEventType.SUBJECT) {
+		const { subject } = parseFormInput(createTicketSchema.pick({ subject: true }), {
+			subject: formData.get('value')
+		});
+		if (subject === ticketRecord.subject) return;
+		await transaction
+			.update(ticket)
+			.set({ subject, updatedAt: new Date() })
+			.where(eq(ticket.id, ticketRecord.id));
+		await transaction.insert(ticketEvent).values({
+			ticketId: ticketRecord.id,
+			actorId: actor.id,
+			eventType: TicketEventType.SUBJECT,
+			details: { from: ticketRecord.subject, to: subject }
+		});
+	} else if (contentField === TicketEventType.DESCRIPTION) {
+		const { description } = parseFormInput(createTicketSchema.pick({ description: true }), {
+			description: formData.get('value')
+		});
+		if (
+			description === ticketRecord.description &&
+			ticketRecord.descriptionFormat === TicketContentFormat.MARKDOWN
+		)
+			return;
+		// The editor always writes Markdown, so an edited plain-text description becomes Markdown.
+		await transaction
+			.update(ticket)
+			.set({ description, descriptionFormat: TicketContentFormat.MARKDOWN, updatedAt: new Date() })
+			.where(eq(ticket.id, ticketRecord.id));
+		await transaction.insert(ticketEvent).values({
+			ticketId: ticketRecord.id,
+			actorId: actor.id,
+			eventType: TicketEventType.DESCRIPTION,
+			details: {}
+		});
+	} else error(400, 'Invalid field.');
+}
+
+/**
  * Runs a change against a ticket with its row locked for the whole transaction.
  *
  * @throws 404 when the ticket doesn't exist or the actor may not see it
@@ -279,5 +333,21 @@ export async function updateTicketField(
 ): Promise<void> {
 	return executeWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
 		applyTicketFieldChange(transaction, actor, ticketRecord, formData)
+	);
+}
+
+/**
+ * Edits a ticket's subject or description.
+ *
+ * @throws 403 when the actor may not edit tickets, or the ticket is closed
+ * @throws 400 when the field or new text isn't valid
+ */
+export async function editTicketContent(
+	actor: Person,
+	ticketNumber: number,
+	formData: FormData
+): Promise<void> {
+	return executeWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
+		applyTicketContentEdit(transaction, actor, ticketRecord, formData)
 	);
 }

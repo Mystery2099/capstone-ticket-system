@@ -14,6 +14,7 @@
 	import CommentMessage from './CommentMessage.svelte';
 	import TicketActivityEntry from './TicketActivityEntry.svelte';
 	import TicketDescription from './TicketDescription.svelte';
+	import TicketSubjectHeading from './TicketSubjectHeading.svelte';
 	import TicketFieldSelect from './TicketFieldSelect.svelte';
 	import TicketReplyForm from './TicketReplyForm.svelte';
 	import type { TicketDirectory } from './ticket-directory';
@@ -102,6 +103,9 @@
 	let canUseInternalNotes = $derived(hasPermission(currentUser, 'useInternalNotes'));
 	let canReopenClosedTickets = $derived(hasPermission(currentUser, 'reopenClosedTickets'));
 	let isTicketClosed = $derived(ticket.statusCode === 'closed');
+	let canEditContent = $derived(
+		!isTicketClosed && !isLoading && hasPermission(currentUser, 'editTicketContent')
+	);
 	let canReopen = $derived(
 		(ticket.statusCode === 'resolved' &&
 			(hasPermission(currentUser, 'setTicketStatus') ||
@@ -154,7 +158,7 @@
 		><ArrowLeft size={21} /></TooltipIconButton
 	>
 	<div class="pane-title">
-		<h1>{ticket.subject}</h1>
+		<TicketSubjectHeading subject={ticket.subject} canEdit={canEditContent} />
 		<p class="pane-subtitle">
 			<TooltipWrapper
 				content="Copy ticket number"
@@ -255,6 +259,7 @@
 	<TicketDescription
 		description={'description' in ticket ? ticket.description : undefined}
 		descriptionFormat={ticket.descriptionFormat}
+		canEdit={canEditContent}
 	/>
 	<h2 class="section-heading timeline-heading">
 		Comments and activity{#if !isLoading && conversationTimeline.length}<span class="timeline-count"

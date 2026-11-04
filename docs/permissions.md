@@ -19,6 +19,9 @@ deletion, and the audit event commit in one transaction. Reassigned users sign i
   cache, so edits apply on the next request. Users without loaded grants fail closed.
 - Ticket visibility and internal-note access are separate capabilities. Without
   note access, the server filters comments, activity, snippets, counts, and search.
+- `editTicketContent` lets staff rewrite a ticket's subject or description in place
+  (not on Closed tickets). Subject edits record the old and new subject in the timeline;
+  description edits record only that the text changed.
 - Without `setTicketStatus`, new tickets can only be Open. Resolved and Closed set
   their matching timestamp.
 - Every signed-in user can create their own tickets and reply publicly on

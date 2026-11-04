@@ -9,6 +9,7 @@ export type Permission =
 	| 'setTicketPriority'
 	| 'setTicketStatus'
 	| 'setTicketCategory'
+	| 'editTicketContent'
 	| 'useInternalNotes'
 	| 'reopenOwnResolvedTickets'
 	| 'reopenClosedTickets'
@@ -22,6 +23,7 @@ const SUPPORT_PERMISSIONS: readonly Permission[] = [
 	'setTicketPriority',
 	'setTicketStatus',
 	'setTicketCategory',
+	'editTicketContent',
 	'useInternalNotes',
 	'reopenOwnResolvedTickets'
 ];
@@ -51,6 +53,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 	setTicketPriority: 'Set ticket priority',
 	setTicketStatus: 'Set ticket status',
 	setTicketCategory: 'Change ticket category',
+	editTicketContent: 'Edit ticket subject and description',
 	useInternalNotes: 'Read and write internal notes',
 	reopenOwnResolvedTickets: 'Reopen own resolved tickets',
 	reopenClosedTickets: 'Reopen closed tickets',

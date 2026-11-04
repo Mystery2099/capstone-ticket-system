@@ -527,3 +527,52 @@ test('managed roles persist permissions, protect administration, and reassign us
 	);
 	assert(!(await loadRoles()).some((role) => role.id === roleId));
 });
+test('staff edit a ticket subject and description with timeline events; requesters cannot', async () => {
+	const isForbidden = (e: unknown) =>
+		typeof e === 'object' && e !== null && 'status' in e && e.status === 403;
+	await assert.rejects(
+		() =>
+			service.editTicketContent(
+				people.marcus,
+				1046,
+				form({ field: 'subject', value: 'Requester rewrite' })
+			),
+		isForbidden
+	);
+	// An earlier test reopens 1039, so it's closed again here.
+	await service.updateTicketField(
+		people.priya,
+		1039,
+		form({ field: 'statusCode', value: 'closed' })
+	);
+	await assert.rejects(
+		() =>
+			service.editTicketContent(people.priya, 1039, form({ field: 'subject', value: 'Closed' })),
+		isForbidden
+	);
+
+	const url = new URL('http://localhost/app/tickets');
+	const before = (await service.loadTicketWorkspace(people.priya, url, '1046')).selectedTicket!;
+	await service.editTicketContent(
+		people.priya,
+		1046,
+		form({ field: 'subject', value: 'Laptop drops Wi-Fi after sleep' })
+	);
+	await service.editTicketContent(
+		people.priya,
+		1046,
+		form({ field: 'description', value: 'Drops **every** time the lid closes.' })
+	);
+	const after = await service.loadTicketWorkspace(people.marcus, url, '1046');
+	assert.equal(after.selectedTicket!.subject, 'Laptop drops Wi-Fi after sleep');
+	assert.equal(after.selectedTicket!.description, 'Drops **every** time the lid closes.');
+	assert.equal(after.selectedTicket!.descriptionFormat, 'markdown');
+	const subjectEvent = after.events.find((e) => e.eventType === 'subject');
+	assert.deepEqual(subjectEvent?.details, {
+		from: before.subject,
+		to: 'Laptop drops Wi-Fi after sleep'
+	});
+	// The requester sees that the description changed, without a copy of the old text.
+	const descriptionEvent = after.events.find((e) => e.eventType === 'description');
+	assert.deepEqual(descriptionEvent?.details, {});
+});

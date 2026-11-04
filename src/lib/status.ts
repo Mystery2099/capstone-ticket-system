@@ -15,5 +15,7 @@ export const TicketEventType = {
 	CREATED: 'created',
 	REPLY: 'reply',
 	INTERNAL_NOTE: 'internal_note',
-	STATUS: 'status'
+	STATUS: 'status',
+	SUBJECT: 'subject',
+	DESCRIPTION: 'description'
 } as const;
