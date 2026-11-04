@@ -9,7 +9,9 @@
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import { AppHotkeys } from '$lib/hotkeys';
 	import CommentMessage from './CommentMessage.svelte';
+	import TicketNotifyRecipients from './TicketNotifyRecipients.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
+	import type { NotificationAudienceMember } from './ticket-types';
 
 	/** Matches the comment schema's limit. */
 	const REPLY_MAX_LENGTH = 10000;
@@ -20,13 +22,20 @@
 		authorName: string;
 		authorRoleLabel: string;
 		canUseInternalNotes: boolean;
+		notificationAudience: NotificationAudienceMember[];
+		currentUserId: string;
+		/** Support staff choose whether to follow the ticket when they comment. */
+		canChooseToFollow: boolean;
 	};
 	let {
 		replyForm,
 		isInternalNote = $bindable(),
 		authorName,
 		authorRoleLabel,
-		canUseInternalNotes
+		canUseInternalNotes,
+		notificationAudience,
+		currentUserId,
+		canChooseToFollow
 	}: TicketReplyFormProps = $props();
 
 	// The conversation creates the form once, so reading it at setup is correct.
@@ -126,6 +135,13 @@
 	{#if $replyErrors.body}<p id="reply-error" class="error" role="alert">
 			{$replyErrors.body.join(' ')}
 		</p>{/if}
+	<TicketNotifyRecipients
+		audience={notificationAudience}
+		{currentUserId}
+		{isInternalNote}
+		{canChooseToFollow}
+		isDisabled={$isSendingComment}
+	/>
 	<div class="composer-footer">
 		<span class="muted small"
 			>{isInternalNote

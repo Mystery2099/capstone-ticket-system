@@ -59,6 +59,7 @@
 		categories: CategoryRecord[];
 		assignees: PersonSummary[];
 		replyFormData: PageData['replyForm'];
+		notificationAudience: PageData['notificationAudience'];
 		directory: TicketDirectory;
 		/** The list row was used to paint the heading, and the rest is still loading. */
 		isLoading: boolean;
@@ -76,6 +77,7 @@
 		categories,
 		assignees,
 		replyFormData,
+		notificationAudience,
 		directory,
 		isLoading,
 		backHref,
@@ -285,6 +287,9 @@
 				authorName={directory.getPersonName(currentUser.id)}
 				authorRoleLabel={directory.getPersonRoleLabel(currentUser.id)}
 				{canUseInternalNotes}
+				{notificationAudience}
+				currentUserId={currentUser.id}
+				canChooseToFollow={hasPermission(currentUser, 'viewAllTickets')}
 			/>{#if unsentReplyGuard.isNoticeVisible}<UnsavedChangesNotice
 					guard={unsentReplyGuard}
 					unsavedChangeLabel={isInternalNote ? 'internal note' : 'comment'}

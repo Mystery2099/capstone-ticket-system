@@ -315,6 +315,7 @@
 				categories={data.categories}
 				{assignees}
 				replyFormData={data.replyForm}
+				notificationAudience={data.notificationAudience}
 				{directory}
 				isLoading={isPaneLoading}
 				backHref={'/app/tickets' + page.url.search}
