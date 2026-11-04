@@ -21,6 +21,7 @@ tickets. Prefer backward-compatible (expand/migrate/contract) changes.
 | `0004_lonely_felicia_hardy`      | Saved roles and permissions                                    |
 | `0005_right_marvex`              | Description/comment content format                             |
 | `0006_grant_edit_ticket_content` | Grants `editTicketContent` to built-in Agent and Administrator |
+| `0007_ticket_notifications`      | Followers and inbox notifications; backfills followers         |
 
 ## Review checklist
 

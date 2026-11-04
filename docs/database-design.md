@@ -22,6 +22,8 @@ Better Auth owns `user`, `session`, `account`, `verification`, and `two_factor`.
 | `ticket_comment`   | Public replies and internal notes (`is_internal`), with body format                                       |
 | `ticket_event`     | Server-written status, assignment, priority, and category history                                         |
 | `security_event`   | Transactional administrator and operator audit records                                                    |
+| `ticket_follower`  | Who hears about a ticket: requester, assignee, and staff who chose to follow                              |
+| `notification`     | Inbox items pointing at a ticket (and comment); never a copy of the message                               |
 
 User IDs and their foreign keys are text. Application records use UUIDs; tickets
 also have a unique generated ticket number. Timestamps use time zones. Categories,
