@@ -12,6 +12,10 @@ erDiagram
   TICKET_STATUS ||--o{ TICKET : tracks
   TICKET ||--o{ TICKET_COMMENT : contains
   TICKET ||--o{ TICKET_EVENT : records
+  TICKET ||--o{ TICKET_FOLLOWER : followed_by
+  USER ||--o{ TICKET_FOLLOWER : follows
+  USER ||--o{ NOTIFICATION : receives
+  TICKET ||--o{ NOTIFICATION : about
   APPLICATION_ROLE {
     text id PK
     text name
@@ -80,4 +84,16 @@ erDiagram
     text action
     text target_id
     jsonb details
+  }
+  TICKET_FOLLOWER {
+    uuid ticket_id PK
+    text user_id PK
+  }
+  NOTIFICATION {
+    uuid id PK
+    text recipient_id FK
+    uuid ticket_id FK
+    uuid comment_id FK
+    text kind
+    timestamp read_at
   }

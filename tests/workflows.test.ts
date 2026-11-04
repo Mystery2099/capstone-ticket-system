@@ -595,3 +595,88 @@ test('staff edit a ticket subject and description with timeline events; requeste
 	assert.equal(untouched.selectedTicket!.descriptionFormat, 'plain');
 	assert.equal(untouched.events.filter((e) => e.eventType === 'description').length, 1);
 });
+test('notifications reach followers and chosen people only, and respect note privacy', async () => {
+	const notifications = await import('../src/lib/server/notifications');
+	const [cat] = await db.select().from(schema.category);
+	const created = await service.createTicket(
+		people.priya,
+		form({
+			subject: 'Projector flickers',
+			description: 'Room 204',
+			categoryId: cat.id,
+			requesterId: 'marcus',
+			assignedToUserId: 'jordan'
+		})
+	);
+	// Earlier tests notify the same people about other tickets, so only this ticket counts.
+	const inboxKinds = async (personId: string) =>
+		(await notifications.loadInbox(people[personId], false))
+			.filter((item) => item.ticketNumber === created.ticketNumber)
+			.map((item) => item.kind);
+	assert.deepEqual(await inboxKinds('jordan'), ['assigned']);
+	// A page cursor continues after the item it names, so paging never repeats it.
+	const [newestForJordan] = await notifications.loadInbox(people.jordan, false);
+	const olderForJordan = await notifications.loadInbox(
+		people.jordan,
+		false,
+		newestForJordan.pageCursor
+	);
+	assert(!olderForJordan.some((item) => item.id === newestForJordan.id));
+
+	// The requester's comment goes to the followers: here the assignee, never the commenter.
+	await service.addTicketComment(
+		people.marcus,
+		created.ticketNumber,
+		form({ body: 'Still flickering' })
+	);
+	assert.deepEqual(await inboxKinds('jordan'), ['comment', 'assigned']);
+	assert.deepEqual(await inboxKinds('priya'), []);
+
+	// A chosen list keeps only connected people; an internal note never reaches the requester.
+	const noteForm = form({ body: 'Swap the HDMI cable', internal: 'true', follow: 'true' });
+	noteForm.set('notifySelection', 'custom');
+	for (const recipientId of ['marcus', 'jordan', 'rosa'])
+		noteForm.append('notifyRecipientId', recipientId);
+	await service.addTicketComment(people.priya, created.ticketNumber, noteForm);
+	assert.deepEqual(await inboxKinds('jordan'), ['internal_note', 'comment', 'assigned']);
+	assert.deepEqual(await inboxKinds('rosa'), []);
+	assert.deepEqual(await inboxKinds('marcus'), []);
+	const followerIds = await notifications.loadFollowerIds(db, created.id);
+	assert(followerIds.includes('priya'));
+
+	// Resolving tells the requester; marking read clears the unread count.
+	await service.updateTicketField(
+		people.priya,
+		created.ticketNumber,
+		form({ field: 'statusCode', value: 'resolved' })
+	);
+	assert.deepEqual(await inboxKinds('marcus'), ['status']);
+	// Opening the ticket reads it. Priya only left an internal note, so the requester's
+	// recipient list doesn't name her; she's covered by "the support team" instead.
+	const opened = await service.loadTicketWorkspace(
+		people.marcus,
+		new URL('http://localhost/app/tickets'),
+		String(created.ticketNumber)
+	);
+	assert(!opened.notificationAudience.members.some((member) => member.id === 'priya'));
+	assert.equal(opened.notificationAudience.hasHiddenFollowers, true);
+	// Loading only reports unread notifications; the page marks them read once it shows them.
+	assert.equal(opened.hasUnreadNotifications, true);
+	await notifications.markTicketNotificationsRead(
+		people.marcus,
+		created.ticketNumber,
+		new Date(opened.latestShownActivityAt!)
+	);
+	const unreadForTicket = (await notifications.loadInbox(people.marcus, true)).filter(
+		(item) => item.ticketNumber === created.ticketNumber
+	);
+	assert.deepEqual(unreadForTicket, []);
+
+	// Resuming work straight to In progress counts as reopening, so the requester hears of it.
+	await service.updateTicketField(
+		people.priya,
+		created.ticketNumber,
+		form({ field: 'statusCode', value: 'in_progress' })
+	);
+	assert.deepEqual(await inboxKinds('marcus'), ['status', 'status']);
+});

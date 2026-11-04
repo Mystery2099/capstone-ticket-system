@@ -3,6 +3,15 @@
 Record professor-requested changes with the date, expected behavior, affected
 schema/UI/permissions, migration or recovery plan, and verification.
 
+## 2026-11-04 — Inbox and notifications
+
+Comments, assignments, and Resolved/Closed/reopened status changes create inbox
+notifications for the people involved. Anyone commenting can choose who to notify
+from the people connected to the ticket; staff can also follow a ticket when they
+comment. Internal notes only reach people who may read them. `0007_ticket_notifications`
+adds the tables and makes existing requesters, assignees, and commenters followers;
+reapply `scripts/runtime-grants.sql` afterward.
+
 ## 2026-11-04 — Ticket layout and editing
 
 The description now has its own section above the conversation. Staff can edit a

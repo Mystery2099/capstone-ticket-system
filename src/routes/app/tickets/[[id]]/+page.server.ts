@@ -3,6 +3,8 @@ import { message, superValidate, type SuperValidated } from 'sveltekit-superform
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { createTicketSchema, commentSchema } from '$lib/validation';
 import { requireUser } from '$lib/server/access';
+import { markTicketNotificationsRead } from '$lib/server/notifications';
+import { parseTicketNumber } from '$lib/server/validation';
 import {
 	addTicketComment,
 	createTicket,
@@ -81,6 +83,18 @@ export const actions: Actions = {
 				return fail(caughtError.status, { error: caughtError.body.message });
 			throw caughtError;
 		}
+	},
+	/** Called by the page once it has shown the ticket, not by loading it. */
+	readNotifications: async ({ locals, request, params }) => {
+		const latestShownActivityAt = new Date(
+			String((await request.formData()).get('latestShownActivityAt'))
+		);
+		if (Number.isNaN(+latestShownActivityAt)) return fail(400, { error: 'Invalid time.' });
+		await markTicketNotificationsRead(
+			requireUser(locals.user),
+			parseTicketNumber(Number(params.id)),
+			latestShownActivityAt
+		);
 	},
 	update: async ({ locals, request, params }) => {
 		try {

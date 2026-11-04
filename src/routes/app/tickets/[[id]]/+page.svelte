@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { hasPermission } from '$lib/permissions';
-	import { afterNavigate, goto } from '$app/navigation';
+	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
 	import { RefreshCw, SquarePen } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
@@ -40,6 +40,35 @@
 	];
 
 	let { data, form } = $props();
+	/** The ticket and activity whose notifications were last marked read, so it happens once. */
+	let lastReadNotificationKey: string | null = null;
+	/**
+	 * Marks the open ticket's notifications read once it's actually shown. A load alone can run
+	 * for a ticket that never appears, such as one pressed and then not opened.
+	 */
+	$effect(() => {
+		const { selectedTicket, hasUnreadNotifications, latestShownActivityAt } = data;
+		if (!selectedTicket || !hasUnreadNotifications || !latestShownActivityAt || navigating.to)
+			return;
+		const notificationKey = `${selectedTicket.ticketNumber}:${latestShownActivityAt}`;
+		if (notificationKey === lastReadNotificationKey) return;
+		lastReadNotificationKey = notificationKey;
+		const requestBody = new FormData();
+		requestBody.set('latestShownActivityAt', latestShownActivityAt);
+		void fetch(`/app/tickets/${selectedTicket.ticketNumber}?/readNotifications`, {
+			method: 'POST',
+			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' },
+			body: requestBody
+		})
+			.then((response) => {
+				if (!response.ok) throw new Error(`Marking notifications read failed: ${response.status}`);
+				void invalidate('app:notifications');
+			})
+			.catch(() => {
+				// Try again on the next update, unless another ticket or activity is shown by then.
+				if (lastReadNotificationKey === notificationKey) lastReadNotificationKey = null;
+			});
+	});
 
 	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));
 	let directory = $derived(new TicketDirectory(data.people, data.categories));
@@ -153,7 +182,10 @@
 			.sort((firstPerson, secondPerson) => firstPerson.name.localeCompare(secondPerson.name))
 	);
 	let assignees = $derived(
-		requesters.filter((person) => hasPermission(person, 'receiveAssignments'))
+		requesters.filter(
+			(person) =>
+				hasPermission(person, 'receiveAssignments') && hasPermission(person, 'viewAllTickets')
+		)
 	);
 	let categoryOptions = $derived(
 		data.categories.map(({ id, name, active }) => ({ value: id, label: name, active }))
@@ -311,6 +343,7 @@
 				categories={data.categories}
 				{assignees}
 				replyFormData={data.replyForm}
+				notificationAudience={data.notificationAudience}
 				{directory}
 				isLoading={isPaneLoading}
 				backHref={'/app/tickets' + page.url.search}

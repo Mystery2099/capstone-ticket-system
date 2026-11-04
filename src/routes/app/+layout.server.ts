@@ -3,15 +3,18 @@ import { eq, sql } from 'drizzle-orm';
 import { SIDEBAR_COOKIE_NAME } from '$lib/components/ui/sidebar/constants';
 import { hasPermission } from '$lib/permissions';
 import { db } from '$lib/server/db';
+import { countUnreadNotifications } from '$lib/server/notifications';
 import { ticket } from '$lib/server/schema';
 import { OPEN_STATUSES } from '$lib/status';
 
-export const load = async ({ locals, cookies }: ServerLoadEvent) => {
+export const load = async ({ locals, cookies, depends }: ServerLoadEvent) => {
+	// Reloaded on its own when opening a ticket reads its inbox notifications.
+	depends('app:notifications');
 	const currentUser = locals.user;
 	if (!currentUser) redirect(303, '/login');
 
 	const isStaffUser = hasPermission(currentUser, 'viewAllTickets');
-	const [ticketCountGroups, categories, people] = await Promise.all([
+	const [ticketCountGroups, categories, people, unreadNotificationCount] = await Promise.all([
 		db
 			.select({
 				requesterId: ticket.requesterId,
@@ -24,7 +27,8 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 			.where(isStaffUser ? undefined : eq(ticket.requesterId, currentUser.id))
 			.groupBy(ticket.requesterId, ticket.assignedToUserId, ticket.categoryId, ticket.statusCode),
 		locals.requestCache.getCategories(),
-		isStaffUser ? locals.requestCache.getPeople() : []
+		isStaffUser ? locals.requestCache.getPeople() : [],
+		countUnreadNotifications(currentUser)
 	]);
 	const openTicketGroups = ticketCountGroups.filter((row) =>
 		OPEN_STATUSES.some((status) => status === row.statusCode)
@@ -49,6 +53,7 @@ export const load = async ({ locals, cookies }: ServerLoadEvent) => {
 		user: currentUser,
 		searchCategories: categories.map(({ id, name }) => ({ id, name })),
 		searchPeople: people.map(({ id, name }) => ({ id, name })),
+		unreadNotificationCount,
 		isSidebarOpen: cookies.get(SIDEBAR_COOKIE_NAME) !== 'false',
 		openTicketCountsByCategory,
 		ticketCounts: {
