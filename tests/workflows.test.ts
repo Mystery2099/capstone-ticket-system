@@ -657,4 +657,12 @@ test('notifications reach followers and chosen people only, and respect note pri
 		(item) => item.ticketNumber === created.ticketNumber
 	);
 	assert.deepEqual(unreadForTicket, []);
+
+	// Resuming work straight to In progress counts as reopening, so the requester hears of it.
+	await service.updateTicketField(
+		people.priya,
+		created.ticketNumber,
+		form({ field: 'statusCode', value: 'in_progress' })
+	);
+	assert.deepEqual(await inboxKinds('marcus'), ['status', 'status']);
 });

@@ -294,8 +294,10 @@ async function applyTicketFieldChange(
 			kind: NotificationKind.ASSIGNED
 		});
 	}
+	// Reopening is any move from Resolved or Closed back to an active status, not only Open.
 	const isReopening =
-		nextFieldValue === 'open' && FINISHED_STATUSES.includes(String(previousFieldValue));
+		FINISHED_STATUSES.includes(String(previousFieldValue)) &&
+		!FINISHED_STATUSES.includes(String(nextFieldValue));
 	if (
 		ticketField === 'statusCode' &&
 		(FINISHED_STATUSES.includes(String(nextFieldValue)) || isReopening)
