@@ -55,6 +55,9 @@
 	--selected: #4a2a50;
 	--secondary: #33282e;
 	--tonal: #f2b48c;
+	/* Same as the light theme, stated here so the dark palette lists every color it uses. */
+	--tonal-fg: #302226;
+	--logo: #7d3f86;
 	--avatar: #632b6c;
 	--avatar-fg: #f7d8f8;
 	--note: #332d1c;
