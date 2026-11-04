@@ -6,7 +6,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
-	import { guardUnsavedChanges } from '$lib/unsaved-changes';
+	import UnsavedChangesNotice from '$lib/components/UnsavedChangesNotice.svelte';
+	import { UnsavedChangesGuard } from '$lib/unsaved-changes.svelte';
 	import { Pencil } from '@lucide/svelte';
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import TicketContent from '$lib/components/tickets/TicketContent.svelte';
@@ -37,9 +38,8 @@
 	let editedDescription = $state('');
 	/** The text the editor opened with, so an unchanged edit can be left without a warning. */
 	let originalDescription = '';
-	guardUnsavedChanges(
-		() => isEditing && editedDescription.trim() !== originalDescription.trim(),
-		'description'
+	const unsavedChangesGuard = new UnsavedChangesGuard(
+		() => isEditing && editedDescription.trim() !== originalDescription.trim()
 	);
 
 	function startEditing(): void {
@@ -123,6 +123,10 @@
 					</div>
 				</div>
 			</div>
+			{#if unsavedChangesGuard.isNoticeVisible}<UnsavedChangesNotice
+					guard={unsavedChangesGuard}
+					unsavedChangeLabel="description"
+				/>{/if}
 		</form>{:else}<div class="ticket-description-body">
 			{#if description === undefined}<p class="sr-only" role="status">Loading description</p>
 				<div class="skeleton-fade grid gap-2 py-1" aria-hidden="true">

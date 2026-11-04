@@ -1,7 +1,8 @@
 <!-- The reading pane for one ticket: its toolbar, details, timeline, and reply composer. -->
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
-	import { guardUnsavedChanges } from '$lib/unsaved-changes';
+	import UnsavedChangesNotice from '$lib/components/UnsavedChangesNotice.svelte';
+	import { UnsavedChangesGuard } from '$lib/unsaved-changes.svelte';
 	import { hasPermission } from '$lib/permissions';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Link, LockKeyhole } from '@lucide/svelte';
@@ -97,7 +98,7 @@
 		showAllActivity = false;
 		showTicketDetails = false;
 	});
-	guardUnsavedChanges(() => hasUnsentReply, 'comment');
+	const unsentReplyGuard = new UnsavedChangesGuard(() => hasUnsentReply);
 
 	let canUseInternalNotes = $derived(hasPermission(currentUser, 'useInternalNotes'));
 	let canReopenClosedTickets = $derived(hasPermission(currentUser, 'reopenClosedTickets'));
@@ -284,7 +285,10 @@
 				authorName={directory.getPersonName(currentUser.id)}
 				authorRoleLabel={directory.getPersonRoleLabel(currentUser.id)}
 				{canUseInternalNotes}
-			/>{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
+			/>{#if unsentReplyGuard.isNoticeVisible}<UnsavedChangesNotice
+					guard={unsentReplyGuard}
+					unsavedChangeLabel={isInternalNote ? 'internal note' : 'comment'}
+				/>{/if}{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
 				<LockKeyhole size={18} />
 				<div>
 					<strong>This ticket is closed</strong>

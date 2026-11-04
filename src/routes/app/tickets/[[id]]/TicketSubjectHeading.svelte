@@ -5,7 +5,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
-	import { guardUnsavedChanges } from '$lib/unsaved-changes';
+	import UnsavedChangesNotice from '$lib/components/UnsavedChangesNotice.svelte';
+	import { UnsavedChangesGuard } from '$lib/unsaved-changes.svelte';
 	import { Pencil } from '@lucide/svelte';
 	import { matchesKeyboardEvent } from '@tanstack/svelte-hotkeys';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
@@ -26,7 +27,9 @@
 	afterNavigate(() => (isEditing = false));
 	let isSaving = $state(false);
 	let editedSubject = $state('');
-	guardUnsavedChanges(() => isEditing && editedSubject.trim() !== subject, 'subject');
+	const unsavedChangesGuard = new UnsavedChangesGuard(
+		() => isEditing && editedSubject.trim() !== subject
+	);
 
 	function startEditing(): void {
 		editedSubject = subject;
@@ -78,6 +81,9 @@
 			disabled={isSaving}
 			onclick={() => (isEditing = false)}>Cancel</Button
 		>
+		{#if unsavedChangesGuard.isNoticeVisible}<div class="basis-full">
+				<UnsavedChangesNotice guard={unsavedChangesGuard} unsavedChangeLabel="subject" />
+			</div>{/if}
 	</form>{:else}<div class="flex min-w-0 items-start gap-1">
 		<h1>{subject}</h1>
 		{#if canEdit}<TooltipIconButton
