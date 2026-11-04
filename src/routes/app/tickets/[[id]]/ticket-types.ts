@@ -7,5 +7,6 @@ export type PersonSummary = PageData['people'][number];
 export type CategoryRecord = PageData['categories'][number];
 export type TicketCommentRecord = PageData['comments'][number];
 export type TicketEventRecord = PageData['events'][number];
-export type NotificationAudienceMember = PageData['notificationAudience'][number];
+export type NotificationAudience = PageData['notificationAudience'];
+export type NotificationAudienceMember = NotificationAudience['members'][number];
 export type SelectOption = { value: string; label: string };

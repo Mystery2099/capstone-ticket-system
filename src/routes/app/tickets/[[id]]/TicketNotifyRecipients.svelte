@@ -6,10 +6,10 @@
 <script lang="ts">
 	import { afterNavigate } from '$app/navigation';
 	import { Bell } from '@lucide/svelte';
-	import type { NotificationAudienceMember } from './ticket-types';
+	import type { NotificationAudience, NotificationAudienceMember } from './ticket-types';
 
 	type TicketNotifyRecipientsProps = {
-		audience: NotificationAudienceMember[];
+		audience: NotificationAudience;
 		currentUserId: string;
 		isInternalNote: boolean;
 		/** Support staff choose whether to follow; requesters always follow their own tickets. */
@@ -34,7 +34,7 @@
 
 	/** People this comment may notify: never the commenter, and for notes only the team. */
 	let eligibleRecipients = $derived(
-		audience.filter(
+		audience.members.filter(
 			(member) => member.id !== currentUserId && (!isInternalNote || member.canReadInternalNotes)
 		)
 	);
@@ -45,8 +45,21 @@
 			: defaultRecipients
 	);
 	let isCurrentUserFollowing = $derived(
-		audience.some((member) => member.id === currentUserId && member.isFollower)
+		audience.members.some((member) => member.id === currentUserId && member.isFollower)
 	);
+
+	/**
+	 * The names this comment notifies. Followers the commenter may not know about are only
+	 * mentioned as "the support team", and only until people are chosen by hand.
+	 */
+	let notifiedSummary = $derived.by(() => {
+		const notifiedNames = notifiedRecipients.map(describeMember);
+		if (!isChoosing && audience.hasHiddenFollowers) notifiedNames.push('the support team');
+		if (!notifiedNames.length) return 'nobody';
+		return notifiedNames.length === 1
+			? notifiedNames[0]
+			: `${notifiedNames.slice(0, -1).join(', ')} and ${notifiedNames.at(-1)}`;
+	});
 
 	function startChoosing(): void {
 		chosenRecipientIds = defaultRecipients.map((member) => member.id);
@@ -63,11 +76,7 @@
 <div class="border-t border-border px-3 py-2 text-[12px] text-muted-foreground">
 	<div class="flex flex-wrap items-center gap-x-2 gap-y-1">
 		<Bell size={14} class="shrink-0" />
-		<span
-			>Notifies: {#if notifiedRecipients.length}<span class="text-foreground"
-					>{notifiedRecipients.map(describeMember).join(', ')}</span
-				>{:else}nobody{/if}</span
-		>
+		<span>Notifies: <span class="text-foreground">{notifiedSummary}</span></span>
 		{#if eligibleRecipients.length && !isChoosing}<button
 				type="button"
 				class="text-link"

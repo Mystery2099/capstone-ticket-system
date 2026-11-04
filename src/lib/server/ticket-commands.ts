@@ -177,7 +177,7 @@ async function insertTicketCommentAndActivity(
 	)
 		await followTicket(transaction, ticketRecord.id, actor.id);
 	await notifyPeople(transaction, {
-		recipientIds: await chooseCommentRecipients(transaction, ticketRecord, formData),
+		recipientIds: await chooseCommentRecipients(transaction, actor, ticketRecord, formData),
 		ticketRecord,
 		actorId: actor.id,
 		kind: isInternal ? NotificationKind.INTERNAL_NOTE : NotificationKind.COMMENT,
@@ -191,12 +191,13 @@ async function insertTicketCommentAndActivity(
  */
 async function chooseCommentRecipients(
 	transaction: Transaction,
+	actor: Person,
 	ticketRecord: Ticket,
 	formData: FormData
 ): Promise<string[]> {
 	if (formData.get('notifySelection') !== 'custom')
 		return loadFollowerIds(transaction, ticketRecord.id);
-	const connectedPersonIds = await loadConnectedPersonIds(transaction, ticketRecord);
+	const connectedPersonIds = await loadConnectedPersonIds(transaction, ticketRecord, actor);
 	return formData
 		.getAll('notifyRecipientId')
 		.map(String)

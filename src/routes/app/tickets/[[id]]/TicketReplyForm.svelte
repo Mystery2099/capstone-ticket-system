@@ -11,7 +11,7 @@
 	import CommentMessage from './CommentMessage.svelte';
 	import TicketNotifyRecipients from './TicketNotifyRecipients.svelte';
 	import type { TicketReplySuperForm } from './ticket-forms';
-	import type { NotificationAudienceMember } from './ticket-types';
+	import type { NotificationAudience } from './ticket-types';
 
 	/** Matches the comment schema's limit. */
 	const REPLY_MAX_LENGTH = 10000;
@@ -22,7 +22,7 @@
 		authorName: string;
 		authorRoleLabel: string;
 		canUseInternalNotes: boolean;
-		notificationAudience: NotificationAudienceMember[];
+		notificationAudience: NotificationAudience;
 		currentUserId: string;
 		/** Support staff choose whether to follow the ticket when they comment. */
 		canChooseToFollow: boolean;

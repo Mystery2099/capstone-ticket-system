@@ -643,6 +643,18 @@ test('notifications reach followers and chosen people only, and respect note pri
 		form({ field: 'statusCode', value: 'resolved' })
 	);
 	assert.deepEqual(await inboxKinds('marcus'), ['status']);
-	await notifications.markNotificationsRead(people.marcus);
-	assert.equal(await notifications.countUnreadNotifications(people.marcus), 0);
+	// Opening the ticket reads it. Priya only left an internal note, so the requester's
+	// recipient list doesn't name her; she's covered by "the support team" instead.
+	const opened = await service.loadTicketWorkspace(
+		people.marcus,
+		new URL('http://localhost/app/tickets'),
+		String(created.ticketNumber)
+	);
+	assert(!opened.notificationAudience.members.some((member) => member.id === 'priya'));
+	assert.equal(opened.notificationAudience.hasHiddenFollowers, true);
+	assert.equal(opened.hasReadNotifications, true);
+	const unreadForTicket = (await notifications.loadInbox(people.marcus, true)).filter(
+		(item) => item.ticketNumber === created.ticketNumber
+	);
+	assert.deepEqual(unreadForTicket, []);
 });
