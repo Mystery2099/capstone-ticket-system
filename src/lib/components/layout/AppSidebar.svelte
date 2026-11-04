@@ -83,7 +83,12 @@
 						? `Inbox, ${unreadNotificationCount} unread`
 						: 'Inbox'}
 					onclick={closeMobileSidebar}
-					><Inbox size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Inbox</span
+					><span class="relative grid place-items-center"
+						><Inbox size={23} />{#if unreadNotificationCount}<span
+								class="absolute -top-0.5 -right-0.5 hidden size-2 rounded-full bg-primary md:max-lg:block lg:in-[.rail]:block"
+								aria-hidden="true"
+							></span>{/if}</span
+					><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Inbox</span
 					>{#if unreadNotificationCount}<small
 							class={cn(
 								'ml-auto rounded-full bg-primary px-2 text-[12px] font-[650] text-primary-foreground',

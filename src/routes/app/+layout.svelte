@@ -236,6 +236,9 @@
 			>{/each}<a
 			class={cn(MOBILE_NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox' && 'font-[650]')}
 			href="/app/inbox"
+			aria-label={data.unreadNotificationCount
+				? `Inbox, ${data.unreadNotificationCount} unread`
+				: 'Inbox'}
 			><span
 				class={cn(
 					MOBILE_NAV_ICON_CLASS,
