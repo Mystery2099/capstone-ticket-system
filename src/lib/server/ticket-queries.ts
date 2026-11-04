@@ -370,12 +370,15 @@ export async function loadTicketConversation(
 		events = conversation.events;
 	}
 	// Opening a ticket reads its inbox notifications, and lists who a new comment may notify.
+	const latestShownActivityAt = events.length
+		? new Date(Math.max(...events.map((event) => +new Date(event.createdAt))))
+		: null;
 	const [notificationAudience, readNotificationCount] = selectedTicket
 		? await Promise.all([
-				loadNotificationAudience(selectedTicket),
-				markTicketNotificationsRead(actor, selectedTicket.id)
+				loadNotificationAudience(actor, selectedTicket),
+				markTicketNotificationsRead(actor, selectedTicket.id, latestShownActivityAt)
 			])
-		: [[], 0];
+		: [{ members: [], hasHiddenFollowers: false }, 0];
 
 	const assigneeId = selectedTicket?.assignedToUserId;
 	const visiblePeople: PersonSummary[] =

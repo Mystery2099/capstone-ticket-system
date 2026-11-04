@@ -5,7 +5,7 @@
  */
 import { and, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { NotificationKind } from '../notifications';
-import { hasPermission } from '../permissions';
+import { hasPermission, type PermissionSubject } from '../permissions';
 import type { Person } from './access';
 import { db } from './db';
 import { applyRolePermissions, loadRoles } from './roles';
@@ -36,22 +36,36 @@ export async function followTicket(
 }
 
 /**
- * Everyone connected to a ticket: its followers, requester, assignee and past commenters.
- * Anyone commenting may choose who to notify from these people.
+ * Everyone connected to a ticket whom the viewer may know about. Anyone commenting may choose
+ * who to notify from these people.
+ *
+ * The support team sees the followers, requester, assignee and every commenter. Anyone who
+ * can't read internal notes only sees who the conversation already shows them: the requester,
+ * the assignee and public commenters. Otherwise the list would reveal staff who only left
+ * internal notes or follow quietly.
  */
 export async function loadConnectedPersonIds(
 	connection: Pick<Transaction, 'select' | 'selectDistinct'>,
-	ticketRecord: Ticket
+	ticketRecord: Ticket,
+	viewer: PermissionSubject
 ): Promise<Set<string>> {
+	const canSeeSupportTeamActivity = hasPermission(viewer, 'useInternalNotes');
 	const [followers, commenters] = await Promise.all([
-		connection
-			.select({ userId: ticketFollower.userId })
-			.from(ticketFollower)
-			.where(eq(ticketFollower.ticketId, ticketRecord.id)),
+		canSeeSupportTeamActivity
+			? connection
+					.select({ userId: ticketFollower.userId })
+					.from(ticketFollower)
+					.where(eq(ticketFollower.ticketId, ticketRecord.id))
+			: [],
 		connection
 			.selectDistinct({ userId: ticketComment.authorId })
 			.from(ticketComment)
-			.where(eq(ticketComment.ticketId, ticketRecord.id))
+			.where(
+				and(
+					eq(ticketComment.ticketId, ticketRecord.id),
+					...(canSeeSupportTeamActivity ? [] : [eq(ticketComment.isInternal, false)])
+				)
+			)
 	]);
 	const connectedPersonIds = new Set<string>([ticketRecord.requesterId]);
 	if (ticketRecord.assignedToUserId) connectedPersonIds.add(ticketRecord.assignedToUserId);
@@ -194,13 +208,19 @@ export async function markNotificationsRead(actor: Person, notificationId?: stri
 
 /**
  * Opening a ticket reads its notifications, so they leave the inbox without a separate step.
+ * Only notifications up to the newest activity the person was shown are read: one about a
+ * comment posted while the page loaded stays unread. A notification and its activity event
+ * are written in one transaction, so they share a timestamp.
  *
+ * @param latestShownActivityAt when the newest activity event the person was shown happened
  * @return how many notifications this marked read
  */
 export async function markTicketNotificationsRead(
 	actor: Person,
-	ticketId: string
+	ticketId: string,
+	latestShownActivityAt: Date | null
 ): Promise<number> {
+	if (!latestShownActivityAt) return 0;
 	const readNotifications = await db
 		.update(notification)
 		.set({ readAt: new Date() })
@@ -208,7 +228,9 @@ export async function markTicketNotificationsRead(
 			and(
 				eq(notification.recipientId, actor.id),
 				eq(notification.ticketId, ticketId),
-				isNull(notification.readAt)
+				isNull(notification.readAt),
+				// The shown time came through JavaScript, which keeps milliseconds only.
+				sql`date_trunc('milliseconds', ${notification.createdAt}) <= ${latestShownActivityAt.toISOString()}::timestamptz`
 			)
 		)
 		.returning({ id: notification.id });
@@ -218,9 +240,12 @@ export async function markTicketNotificationsRead(
 /**
  * The people a commenter may notify on a ticket, with what they may read. The composer shows
  * these as choices; the server checks the choice again when the comment is posted.
+ *
+ * @return the people, and whether some followers are left out because the viewer may not
+ *         know about them; a comment still notifies those followers unless people are chosen
  */
-export async function loadNotificationAudience(ticketRecord: Ticket) {
-	const connectedPersonIds = await loadConnectedPersonIds(db, ticketRecord);
+export async function loadNotificationAudience(viewer: Person, ticketRecord: Ticket) {
+	const connectedPersonIds = await loadConnectedPersonIds(db, ticketRecord, viewer);
 	const [roles, people, followerIds] = await Promise.all([
 		loadRoles(),
 		db
@@ -230,7 +255,10 @@ export async function loadNotificationAudience(ticketRecord: Ticket) {
 		loadFollowerIds(db, ticketRecord.id)
 	]);
 	const followerIdSet = new Set(followerIds);
-	return people
+	const hasHiddenFollowers = followerIds.some(
+		(followerId) => followerId !== viewer.id && !connectedPersonIds.has(followerId)
+	);
+	const members = people
 		.map((person) => applyRolePermissions(person, roles))
 		.filter((person) => canReceiveNotification(person, ticketRecord, NotificationKind.COMMENT))
 		.map((person) => ({
@@ -242,4 +270,5 @@ export async function loadNotificationAudience(ticketRecord: Ticket) {
 			isAssignee: person.id === ticketRecord.assignedToUserId
 		}))
 		.sort((first, second) => first.name.localeCompare(second.name));
+	return { members, hasHiddenFollowers };
 }
