@@ -7,3 +7,4 @@ assets
 drizzle
 playwright-report
 test-results
+.worktrees

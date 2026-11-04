@@ -3,9 +3,12 @@ import { message, superValidate, type SuperValidated } from 'sveltekit-superform
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { createTicketSchema, commentSchema } from '$lib/validation';
 import { requireUser } from '$lib/server/access';
+import { markTicketNotificationsRead } from '$lib/server/notifications';
+import { parseTicketNumber } from '$lib/server/validation';
 import {
 	addTicketComment,
 	createTicket,
+	editTicketContent,
 	findTicketSearchRedirect,
 	loadTicketConversation,
 	updateTicketField
@@ -23,7 +26,7 @@ export const load: PageServerLoad = async ({ locals, url, params }) => {
 	}
 	// The list comes from the layout load, so opening a ticket only loads its conversation.
 	const [conversation, createForm, replyForm] = await Promise.all([
-		loadTicketConversation(actor, params.id),
+		loadTicketConversation(actor, params.id, locals.requestCache),
 		superValidate(createTicketFormSchema, { id: 'ticket-create' }),
 		superValidate(replyFormSchema, { id: 'ticket-reply' })
 	]);
@@ -66,6 +69,32 @@ export const actions: Actions = {
 		} catch (caughtError) {
 			return buildFormFailure(form, caughtError);
 		}
+	},
+	editContent: async ({ locals, request, params }) => {
+		try {
+			await editTicketContent(
+				requireUser(locals.user),
+				Number(params.id),
+				await request.formData()
+			);
+			return { success: 'Ticket updated.' };
+		} catch (caughtError) {
+			if (isHttpError(caughtError))
+				return fail(caughtError.status, { error: caughtError.body.message });
+			throw caughtError;
+		}
+	},
+	/** Called by the page once it has shown the ticket, not by loading it. */
+	readNotifications: async ({ locals, request, params }) => {
+		const latestShownActivityAt = new Date(
+			String((await request.formData()).get('latestShownActivityAt'))
+		);
+		if (Number.isNaN(+latestShownActivityAt)) return fail(400, { error: 'Invalid time.' });
+		await markTicketNotificationsRead(
+			requireUser(locals.user),
+			parseTicketNumber(Number(params.id)),
+			latestShownActivityAt
+		);
 	},
 	update: async ({ locals, request, params }) => {
 		try {

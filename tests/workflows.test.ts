@@ -527,3 +527,156 @@ test('managed roles persist permissions, protect administration, and reassign us
 	);
 	assert(!(await loadRoles()).some((role) => role.id === roleId));
 });
+test('staff edit a ticket subject and description with timeline events; requesters cannot', async () => {
+	const isForbidden = (e: unknown) =>
+		typeof e === 'object' && e !== null && 'status' in e && e.status === 403;
+	await assert.rejects(
+		() =>
+			service.editTicketContent(
+				people.marcus,
+				1046,
+				form({ field: 'subject', value: 'Requester rewrite' })
+			),
+		isForbidden
+	);
+	// An earlier test reopens 1039, so it's closed again here.
+	await service.updateTicketField(
+		people.priya,
+		1039,
+		form({ field: 'statusCode', value: 'closed' })
+	);
+	await assert.rejects(
+		() =>
+			service.editTicketContent(people.priya, 1039, form({ field: 'subject', value: 'Closed' })),
+		isForbidden
+	);
+
+	const url = new URL('http://localhost/app/tickets');
+	const before = (await service.loadTicketWorkspace(people.priya, url, '1046')).selectedTicket!;
+	await service.editTicketContent(
+		people.priya,
+		1046,
+		form({ field: 'subject', value: 'Laptop drops Wi-Fi after sleep' })
+	);
+	await service.editTicketContent(
+		people.priya,
+		1046,
+		form({ field: 'description', value: 'Drops **every** time the lid closes.' })
+	);
+	const after = await service.loadTicketWorkspace(people.marcus, url, '1046');
+	assert.equal(after.selectedTicket!.subject, 'Laptop drops Wi-Fi after sleep');
+	assert.equal(after.selectedTicket!.description, 'Drops **every** time the lid closes.');
+	assert.equal(after.selectedTicket!.descriptionFormat, 'markdown');
+	const subjectEvent = after.events.find((e) => e.eventType === 'subject');
+	assert.deepEqual(subjectEvent?.details, {
+		from: before.subject,
+		to: 'Laptop drops Wi-Fi after sleep'
+	});
+	// The requester sees that the description changed, without a copy of the old text.
+	const descriptionEvent = after.events.find((e) => e.eventType === 'description');
+	assert.deepEqual(descriptionEvent?.details, {});
+	// Saving an untouched plain-text description, which the editor shows as Markdown, is a no-op.
+	const { eq } = await import('drizzle-orm');
+	const { convertPlainTextToMarkdown } =
+		await import('../src/lib/ticket-content/ticket-content-format');
+	await db
+		.update(schema.ticket)
+		.set({ description: 'Plain text * kept as typed', descriptionFormat: 'plain' })
+		.where(eq(schema.ticket.ticketNumber, 1046));
+	await service.editTicketContent(
+		people.priya,
+		1046,
+		form({
+			field: 'description',
+			value: convertPlainTextToMarkdown('Plain text * kept as typed')
+		})
+	);
+	const untouched = await service.loadTicketWorkspace(people.priya, url, '1046');
+	assert.equal(untouched.selectedTicket!.descriptionFormat, 'plain');
+	assert.equal(untouched.events.filter((e) => e.eventType === 'description').length, 1);
+});
+test('notifications reach followers and chosen people only, and respect note privacy', async () => {
+	const notifications = await import('../src/lib/server/notifications');
+	const [cat] = await db.select().from(schema.category);
+	const created = await service.createTicket(
+		people.priya,
+		form({
+			subject: 'Projector flickers',
+			description: 'Room 204',
+			categoryId: cat.id,
+			requesterId: 'marcus',
+			assignedToUserId: 'jordan'
+		})
+	);
+	// Earlier tests notify the same people about other tickets, so only this ticket counts.
+	const inboxKinds = async (personId: string) =>
+		(await notifications.loadInbox(people[personId], false))
+			.filter((item) => item.ticketNumber === created.ticketNumber)
+			.map((item) => item.kind);
+	assert.deepEqual(await inboxKinds('jordan'), ['assigned']);
+	// A page cursor continues after the item it names, so paging never repeats it.
+	const [newestForJordan] = await notifications.loadInbox(people.jordan, false);
+	const olderForJordan = await notifications.loadInbox(
+		people.jordan,
+		false,
+		newestForJordan.pageCursor
+	);
+	assert(!olderForJordan.some((item) => item.id === newestForJordan.id));
+
+	// The requester's comment goes to the followers: here the assignee, never the commenter.
+	await service.addTicketComment(
+		people.marcus,
+		created.ticketNumber,
+		form({ body: 'Still flickering' })
+	);
+	assert.deepEqual(await inboxKinds('jordan'), ['comment', 'assigned']);
+	assert.deepEqual(await inboxKinds('priya'), []);
+
+	// A chosen list keeps only connected people; an internal note never reaches the requester.
+	const noteForm = form({ body: 'Swap the HDMI cable', internal: 'true', follow: 'true' });
+	noteForm.set('notifySelection', 'custom');
+	for (const recipientId of ['marcus', 'jordan', 'rosa'])
+		noteForm.append('notifyRecipientId', recipientId);
+	await service.addTicketComment(people.priya, created.ticketNumber, noteForm);
+	assert.deepEqual(await inboxKinds('jordan'), ['internal_note', 'comment', 'assigned']);
+	assert.deepEqual(await inboxKinds('rosa'), []);
+	assert.deepEqual(await inboxKinds('marcus'), []);
+	const followerIds = await notifications.loadFollowerIds(db, created.id);
+	assert(followerIds.includes('priya'));
+
+	// Resolving tells the requester; marking read clears the unread count.
+	await service.updateTicketField(
+		people.priya,
+		created.ticketNumber,
+		form({ field: 'statusCode', value: 'resolved' })
+	);
+	assert.deepEqual(await inboxKinds('marcus'), ['status']);
+	// Opening the ticket reads it. Priya only left an internal note, so the requester's
+	// recipient list doesn't name her; she's covered by "the support team" instead.
+	const opened = await service.loadTicketWorkspace(
+		people.marcus,
+		new URL('http://localhost/app/tickets'),
+		String(created.ticketNumber)
+	);
+	assert(!opened.notificationAudience.members.some((member) => member.id === 'priya'));
+	assert.equal(opened.notificationAudience.hasHiddenFollowers, true);
+	// Loading only reports unread notifications; the page marks them read once it shows them.
+	assert.equal(opened.hasUnreadNotifications, true);
+	await notifications.markTicketNotificationsRead(
+		people.marcus,
+		created.ticketNumber,
+		new Date(opened.latestShownActivityAt!)
+	);
+	const unreadForTicket = (await notifications.loadInbox(people.marcus, true)).filter(
+		(item) => item.ticketNumber === created.ticketNumber
+	);
+	assert.deepEqual(unreadForTicket, []);
+
+	// Resuming work straight to In progress counts as reopening, so the requester hears of it.
+	await service.updateTicketField(
+		people.priya,
+		created.ticketNumber,
+		form({ field: 'statusCode', value: 'in_progress' })
+	);
+	assert.deepEqual(await inboxKinds('marcus'), ['status', 'status']);
+});

@@ -7,4 +7,4 @@ import type { LayoutServerLoad } from './$types';
  * parameters, so opening another ticket reruns the page load but not this one.
  */
 export const load: LayoutServerLoad = async ({ locals, url }) =>
-	loadTicketList(requireUser(locals.user), url);
+	loadTicketList(requireUser(locals.user), url, locals.requestCache);

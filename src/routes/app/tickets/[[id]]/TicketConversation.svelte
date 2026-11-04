@@ -1,6 +1,8 @@
 <!-- The reading pane for one ticket: its toolbar, details, timeline, and reply composer. -->
 <script lang="ts">
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { afterNavigate } from '$app/navigation';
+	import UnsavedChangesNotice from '$lib/components/UnsavedChangesNotice.svelte';
+	import { UnsavedChangesGuard } from '$lib/unsaved-changes.svelte';
 	import { hasPermission } from '$lib/permissions';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Link, LockKeyhole } from '@lucide/svelte';
@@ -13,6 +15,8 @@
 	import { TICKET_STATUSES, TicketEventType } from '$lib/status';
 	import CommentMessage from './CommentMessage.svelte';
 	import TicketActivityEntry from './TicketActivityEntry.svelte';
+	import TicketDescription from './TicketDescription.svelte';
+	import TicketSubjectHeading from './TicketSubjectHeading.svelte';
 	import TicketFieldSelect from './TicketFieldSelect.svelte';
 	import TicketReplyForm from './TicketReplyForm.svelte';
 	import type { TicketDirectory } from './ticket-directory';
@@ -55,6 +59,7 @@
 		categories: CategoryRecord[];
 		assignees: PersonSummary[];
 		replyFormData: PageData['replyForm'];
+		notificationAudience: PageData['notificationAudience'];
 		directory: TicketDirectory;
 		/** The list row was used to paint the heading, and the rest is still loading. */
 		isLoading: boolean;
@@ -72,6 +77,7 @@
 		categories,
 		assignees,
 		replyFormData,
+		notificationAudience,
 		directory,
 		isLoading,
 		backHref,
@@ -94,13 +100,14 @@
 		showAllActivity = false;
 		showTicketDetails = false;
 	});
-	beforeNavigate(({ cancel }) => {
-		if (hasUnsentReply && !confirm('Discard your unsent text and leave this page?')) cancel();
-	});
+	const unsentReplyGuard = new UnsavedChangesGuard(() => hasUnsentReply);
 
 	let canUseInternalNotes = $derived(hasPermission(currentUser, 'useInternalNotes'));
 	let canReopenClosedTickets = $derived(hasPermission(currentUser, 'reopenClosedTickets'));
 	let isTicketClosed = $derived(ticket.statusCode === 'closed');
+	let canEditContent = $derived(
+		!isTicketClosed && !isLoading && hasPermission(currentUser, 'editTicketContent')
+	);
 	let canReopen = $derived(
 		(ticket.statusCode === 'resolved' &&
 			(hasPermission(currentUser, 'setTicketStatus') ||
@@ -139,21 +146,12 @@
 	}
 </script>
 
-<svelte:window
-	onbeforeunload={(event) => {
-		if (hasUnsentReply) {
-			event.preventDefault();
-			event.returnValue = '';
-		}
-	}}
-/>
-
 <div class="reading-toolbar">
 	<TooltipIconButton label="Back to tickets" href={backHref} class="icon-button back"
 		><ArrowLeft size={21} /></TooltipIconButton
 	>
 	<div class="pane-title">
-		<h1>{ticket.subject}</h1>
+		<TicketSubjectHeading subject={ticket.subject} canEdit={canEditContent} />
 		<p class="pane-subtitle">
 			<TooltipWrapper
 				content="Copy ticket number"
@@ -251,15 +249,20 @@
 				>{/if}
 		</div>
 	</div>
-	<CommentMessage
-		authorName={directory.getPersonName(ticket.requesterId)}
-		roleLabel="Requester"
-		timestampLabel={formatDateTime(ticket.createdAt)}
-		caption="Opened this ticket"
-		body={ticket.description}
-		bodyFormat={ticket.descriptionFormat}
+	<TicketDescription
+		description={'description' in ticket ? ticket.description : undefined}
+		descriptionFormat={ticket.descriptionFormat}
+		canEdit={canEditContent}
 	/>
+	<h2 class="section-heading timeline-heading">
+		Comments and activity{#if !isLoading && conversationTimeline.length}<span class="timeline-count"
+				>{conversationTimeline.length}</span
+			>{/if}
+	</h2>
 	{#if isLoading}<ConversationSkeleton />{:else}
+		{#if !conversationTimeline.length}<p class="py-3 text-[13px] text-muted-foreground">
+				No comments yet.
+			</p>{/if}
 		{#if hiddenEntryCount}<div
 				class="flex items-center gap-3 border-b border-dashed border-input py-3 text-[13px] text-muted-foreground"
 			>
@@ -284,7 +287,14 @@
 				authorName={directory.getPersonName(currentUser.id)}
 				authorRoleLabel={directory.getPersonRoleLabel(currentUser.id)}
 				{canUseInternalNotes}
-			/>{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
+				{notificationAudience}
+				currentUserId={currentUser.id}
+				canChooseToFollow={hasPermission(currentUser, 'viewAllTickets')}
+				sentCommentCount={comments.length}
+			/>{#if unsentReplyGuard.isNoticeVisible}<UnsavedChangesNotice
+					guard={unsentReplyGuard}
+					unsavedChangeLabel={isInternalNote ? 'internal note' : 'comment'}
+				/>{/if}{:else}<div class="mt-5 flex gap-3 rounded-[10px] bg-muted p-[18px]">
 				<LockKeyhole size={18} />
 				<div>
 					<strong>This ticket is closed</strong>

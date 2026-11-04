@@ -43,6 +43,20 @@
       "when": 1793730110650,
       "tag": "0005_right_marvex",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793812105315,
+      "tag": "0006_grant_edit_ticket_content",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793817244566,
+      "tag": "0007_ticket_notifications",
+      "breakpoints": true
     }
   ]
 }

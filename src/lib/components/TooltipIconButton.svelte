@@ -20,6 +20,7 @@
 		label,
 		tooltip = label,
 		asLink = false,
+		type = 'button',
 		side = 'bottom',
 		class: className = 'icon-button',
 		href,
@@ -36,7 +37,7 @@
 		{#if rendersAsLink}
 			<a {...props} {href} class={className} aria-label={label}>{@render children()}</a>
 		{:else}
-			<button {...props} type="button" class={className} {disabled} aria-label={label}
+			<button {...props} {type} class={className} {disabled} aria-label={label}
 				>{@render children()}</button
 			>
 		{/if}

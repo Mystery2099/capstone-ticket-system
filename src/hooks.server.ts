@@ -1,7 +1,8 @@
 import { hasPermission } from '$lib/permissions';
 import { building } from '$app/environment';
 import { db } from '$lib/server/db';
-import { applyRolePermissions, loadRoles } from '$lib/server/roles';
+import { applyRolePermissions } from '$lib/server/roles';
+import { RequestCache } from '$lib/server/request-cache';
 import { user } from '$lib/server/schema';
 import { eq } from 'drizzle-orm';
 import { applySecurityHeaders, RequestLimiter } from '$lib/server/security';
@@ -16,10 +17,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return applySecurityHeaders(await auth.handler(event.request), event.url.protocol === 'https:');
 	const session = await auth.api.getSession({ headers: event.request.headers });
 	event.locals.user = null;
+	event.locals.requestCache = new RequestCache();
 	if (session) {
-		const [person] = await db.select().from(user).where(eq(user.id, session.user.id));
-		if (person && !person.banned)
-			event.locals.user = applyRolePermissions(person, await loadRoles());
+		const [[person], roles] = await Promise.all([
+			db.select().from(user).where(eq(user.id, session.user.id)),
+			event.locals.requestCache.getRoles()
+		]);
+		if (person && !person.banned) event.locals.user = applyRolePermissions(person, roles);
 	}
 	if (
 		hasPermission(event.locals.user, 'manageAdministration') &&

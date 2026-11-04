@@ -1,36 +1,51 @@
-# PostgreSQL Database Design
+# Database design
 
-Drizzle schemas and tracked migrations are authoritative. The [data dictionary](database/data-dictionary.md) links to column definitions; the standalone SQL proposal is historical.
+Drizzle schemas and tracked migrations are authoritative and serve as the
+column-level reference: [auth tables](../src/lib/server/auth-schema.ts),
+[ticket tables](../src/lib/server/ticket-schema.ts), and
+[role tables](../src/lib/server/role-schema.ts). The
+[SQL proposal](database/schema-reference.sql) predates Better Auth and is kept
+for reference only; do not use it for setup.
 
-[ERD](diagrams/entity-relationship.mmd) · [Authentication](auth-integration.md) · [SQL design reference](database/schema-reference.sql) · [Data dictionary](database/data-dictionary.md) · [Review checklist](database/schema-review-checklist.md)
+[ERD](diagrams/entity-relationship.mmd) · [Schema changes](schema-implementation.md) · [Permissions](permissions.md)
 
-## Implemented tables
+## Tables
 
-Better Auth owns `user`, `session`, `account`, `verification`, and `two_factor`. Definitions are in `src/lib/server/auth-schema.ts`; ticket and audit tables are in `src/lib/server/ticket-schema.ts`. The application tables include:
+Better Auth owns `user`, `session`, `account`, `verification`, and `two_factor`.
 
-| Table              | Purpose                                                                                       |
-| ------------------ | --------------------------------------------------------------------------------------------- |
-| `application_role` | Saved role names and capability grants                                                        |
-| `category`         | Ticket categories, with an active flag                                                        |
-| `ticket_status`    | Open, In Progress, On Hold, Resolved and Closed                                               |
-| `ticket`           | Subject, description, requester, optional assignee, status, category, priority and timestamps |
-| `ticket_comment`   | Public replies and staff-only internal notes, using `is_internal`                             |
-| `ticket_event`     | Server-written status, assignment, priority and category history                              |
-| `security_event`   | Transactional administrator and operator audit records                                        |
+| Table              | Purpose                                                                                                   |
+| ------------------ | --------------------------------------------------------------------------------------------------------- |
+| `application_role` | Saved role names and capability grants; `user.role` references it                                         |
+| `category`         | Ticket categories, with an active flag                                                                    |
+| `ticket_status`    | Open, In Progress, On Hold, Resolved, and Closed                                                          |
+| `ticket`           | Subject, description and its format, requester, optional assignee, status, category, priority, timestamps |
+| `ticket_comment`   | Public replies and internal notes (`is_internal`), with body format                                       |
+| `ticket_event`     | Server-written status, assignment, priority, and category history                                         |
+| `security_event`   | Transactional administrator and operator audit records                                                    |
+| `ticket_follower`  | Who hears about a ticket: requester, assignee, and staff who chose to follow                              |
+| `notification`     | Inbox items pointing at a ticket (and comment); never a copy of the message                               |
 
-Ticket requester, assignee, comment author and event actor link to Better Auth `user.id`. User IDs and referencing foreign keys use text. Application records use UUIDs, alongside a separate unique, generated numeric ticket number.
+User IDs and their foreign keys are text. Application records use UUIDs; tickets
+also have a unique generated ticket number. Timestamps use time zones. Categories,
+statuses, and users are referenced rather than copied.
 
-## Data integrity and access
+## Integrity and access
 
-Required foreign keys protect ticket relationships. Priority accepts only `low`, `normal` and `high`, defaulting to `normal`; requesters cannot set or change priority. A ticket has at most one assignee, who must be enabled and have assignment eligibility.
-[Saved permissions](permissions.md) govern staff actions and reopening.
+- Required foreign keys protect ticket relationships.
+- Priority accepts `low`, `normal`, or `high` (default `normal`). Formats accept
+  `plain` or `markdown`.
+- A ticket has at most one assignee, who must be enabled and assignment-eligible.
+- Event `details` store change metadata, never private-note bodies or credentials.
+- Ticket mutations and their events commit in one transaction.
 
-Internal note text must be excluded in the server's requester-facing queries, previews and history payloads. The audit event table should record metadata about changes, not copies of private-note bodies. Status updates and their audit records must commit in one transaction.
+SvelteKit owns data access and authorizes before querying or returning records,
+so PostgreSQL RLS is not used. Revisit that if untrusted clients ever get direct
+database access.
 
-## Practical indexing and recovery
+## Indexing and recovery
 
-Indexes support requester tickets, assignment and status filters, and chronological comment/event history. Migration `0003_search_subject_trigram` enables `pg_trgm` and adds a subject GIN trigram index. Full-text search documents are assembled at query time from ticket content, names, categories and permitted comments; no search column is stored. Check query plans with realistic data before scaling. Use a `pg_dump` backup and verify restoration into another database.
-
-PostgreSQL RLS isn't part of this first design: SvelteKit owns data access and applies authorization before querying or returning records. Revisit that if we ever expose database access to untrusted clients.
-
-See [schema changes](schema-implementation.md) for migration steps.
+Indexes support requester tickets, assignment and status filters, and chronological
+comment/event history. `0003_search_subject_trigram` adds a `pg_trgm` subject index.
+Full-text documents are assembled at query time from permitted content; no search
+column is stored. Check plans with `EXPLAIN (ANALYZE, BUFFERS)` on realistic data.
+Back up with `pg_dump` and verify restoration into a separate database.

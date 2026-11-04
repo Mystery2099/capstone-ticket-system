@@ -15,6 +15,7 @@ Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`.
 | Status         | Requesters reopen own Resolved tickets; Closed is read-only until permitted reopening                            |
 | Transactions   | Failed event insertion rolls back its ticket change                                                              |
 | Administration | Account, category, and role changes persist; unauthorized access rejected; last-admin protection holds           |
+| Formatting     | Formatting survives save/reload and draft recovery; raw HTML, images, and unsafe links are not rendered          |
 | Search         | Word order/forms, typos, comments/names, highlights, filters, number redirects, and permission boundaries        |
 | Recovery       | Restore PostgreSQL into a separate database and verify relationships, records, and sign-in                       |
 
@@ -34,6 +35,11 @@ operational task; see the [backup drill](azure-deployment.md#hosted-acceptance-a
 5. Demonstrate a rejected reference or unauthorized operation and transaction rollback.
 6. Show backup/restore evidence from a separate database.
 
-Use fictional data and individual accounts. For professor-requested changes, record
-the request, affected schema/screens, migration or recovery plan, and verification
-in the [change log](change-log.md).
+Use fictional data and individual accounts. Record professor-requested changes in
+the [change log](change-log.md).
+
+## Before the demonstration
+
+- Run the acceptance checks above with disposable data.
+- Verify hosted HTTPS, proxy handling, login throttling, and restricted database grants.
+- Complete a PostgreSQL backup/restore drill in a separate database.

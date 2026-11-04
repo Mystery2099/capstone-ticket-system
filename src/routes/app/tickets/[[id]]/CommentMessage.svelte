@@ -12,7 +12,6 @@
 		timestampLabel: string;
 		body: string;
 		bodyFormat: TicketContentFormat;
-		caption?: string;
 		isInternal?: boolean;
 		isSending?: boolean;
 	};
@@ -22,7 +21,6 @@
 		timestampLabel,
 		body,
 		bodyFormat,
-		caption,
 		isInternal = false,
 		isSending = false
 	}: CommentMessageProps = $props();
@@ -48,7 +46,6 @@
 				>{timestampLabel}</time
 			>
 		</div>
-		{#if caption}<p class="mb-2 text-[12px] text-muted-foreground">{caption}</p>{/if}
 		{#if isInternal}<p class="mt-1 flex items-center gap-[5px] text-[11px] text-muted-foreground">
 				<LockKeyhole size={13} /> Internal note · only visible to support team
 			</p>{/if}

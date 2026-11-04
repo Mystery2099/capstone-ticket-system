@@ -9,6 +9,7 @@ declare global {
 		}
 		interface Locals {
 			user: import('$lib/server/access').Person | null;
+			requestCache: import('$lib/server/request-cache').RequestCache;
 		}
 	}
 }

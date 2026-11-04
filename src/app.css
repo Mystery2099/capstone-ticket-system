@@ -640,6 +640,39 @@
 		padding: 18px 0;
 		border-bottom: 1px solid var(--border);
 	}
+	/* The description and the conversation each get a small label, so it's clear where the
+	   ticket itself ends and the replies begin. */
+	.section-heading {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 8px;
+		font-size: 11px;
+		font-weight: 600;
+		letter-spacing: 0.05em;
+		text-transform: uppercase;
+		color: var(--muted-fg);
+	}
+	.ticket-description {
+		padding: 18px 0 22px;
+		border-bottom: 1px solid var(--border);
+	}
+	.ticket-description-body {
+		border: 1px solid var(--border);
+		border-radius: 10px;
+		background: color-mix(in oklab, var(--muted) 45%, transparent);
+		padding: 14px 16px;
+	}
+	.timeline-heading {
+		margin: 22px 0 0;
+	}
+	.timeline-count {
+		border: 1px solid var(--border);
+		border-radius: 16px;
+		padding: 0 7px;
+		font-size: 11px;
+		letter-spacing: 0;
+	}
 	.message .avatar {
 		width: 40px;
 		height: 40px;

@@ -5,9 +5,20 @@
 import { error } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { TicketEventType } from '../status';
+import {
+	TicketContentFormat,
+	convertPlainTextToMarkdown
+} from '../ticket-content/ticket-content-format';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission, type Permission } from '../permissions';
 import { db } from './db';
+import { NotificationKind } from '../notifications';
+import {
+	followTicket,
+	loadConnectedPersonIds,
+	loadFollowerIds,
+	notifyPeople
+} from './notifications';
 import { applyRolePermissions, loadRoles } from './roles';
 import { ticket, category, user, ticketComment, ticketEvent } from './schema';
 import {
@@ -21,6 +32,9 @@ import {
 
 type Ticket = typeof ticket.$inferSelect;
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** Statuses the requester hears about. Work-in-progress changes would only add noise. */
+const FINISHED_STATUSES: readonly string[] = ['resolved', 'closed'];
 
 /**
  * Creates a ticket. Staff may open it for someone else and assign it straight away.
@@ -107,13 +121,34 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 					]
 				: [])
 		]);
+		// The requester and the assignee follow the ticket from the start.
+		await followTicket(transaction, createdTicket.id, requesterId);
+		if (assignedToUserId) {
+			await followTicket(transaction, createdTicket.id, assignedToUserId);
+			await notifyPeople(transaction, {
+				recipientIds: [assignedToUserId],
+				ticketRecord: createdTicket,
+				actorId: actor.id,
+				kind: NotificationKind.ASSIGNED
+			});
+		}
 		return createdTicket;
 	});
 }
 
-/** @throws 400 unless the person is an enabled agent or administrator */
+/**
+ * An assignee must be able to open the ticket they're given, so they need ticket-wide access
+ * as well as the assignment capability.
+ *
+ * @throws 400 unless the person is an enabled agent or administrator
+ */
 function requireEligibleTicketAssignee(person: Person | undefined): void {
-	if (!person || person.banned || !hasPermission(person, 'receiveAssignments'))
+	if (
+		!person ||
+		person.banned ||
+		!hasPermission(person, 'receiveAssignments') ||
+		!hasPermission(person, 'viewAllTickets')
+	)
 		error(400, 'Choose an enabled agent or administrator.');
 }
 
@@ -130,9 +165,10 @@ async function insertTicketCommentAndActivity(
 		error(403, 'Internal notes are for the support team.');
 	const { body } = parseFormInput(commentSchema, { body: formData.get('body') });
 
-	await transaction
+	const [createdComment] = await transaction
 		.insert(ticketComment)
-		.values({ ticketId: ticketRecord.id, authorId: actor.id, body, isInternal });
+		.values({ ticketId: ticketRecord.id, authorId: actor.id, body, isInternal })
+		.returning({ id: ticketComment.id });
 	await transaction.insert(ticketEvent).values({
 		ticketId: ticketRecord.id,
 		actorId: actor.id,
@@ -143,6 +179,39 @@ async function insertTicketCommentAndActivity(
 		.update(ticket)
 		.set({ updatedAt: new Date() })
 		.where(eq(ticket.id, ticketRecord.id));
+
+	// Requesters always follow their own tickets. Support staff choose when they comment.
+	if (
+		ticketRecord.requesterId === actor.id ||
+		(formData.get('follow') === 'true' && hasPermission(actor, 'viewAllTickets'))
+	)
+		await followTicket(transaction, ticketRecord.id, actor.id);
+	await notifyPeople(transaction, {
+		recipientIds: await chooseCommentRecipients(transaction, actor, ticketRecord, formData),
+		ticketRecord,
+		actorId: actor.id,
+		kind: isInternal ? NotificationKind.INTERNAL_NOTE : NotificationKind.COMMENT,
+		commentId: createdComment.id
+	});
+}
+
+/**
+ * Who a comment notifies. The commenter may choose from the people connected to the ticket;
+ * anyone else they name is ignored. Without a choice, the ticket's followers are notified.
+ */
+async function chooseCommentRecipients(
+	transaction: Transaction,
+	actor: Person,
+	ticketRecord: Ticket,
+	formData: FormData
+): Promise<string[]> {
+	if (formData.get('notifySelection') !== 'custom')
+		return loadFollowerIds(transaction, ticketRecord.id);
+	const connectedPersonIds = await loadConnectedPersonIds(transaction, ticketRecord, actor);
+	return formData
+		.getAll('notifyRecipientId')
+		.map(String)
+		.filter((recipientId) => connectedPersonIds.has(recipientId));
 }
 
 /** Validates and writes a field change and its activity event, once the ticket is locked. */
@@ -225,6 +294,86 @@ async function applyTicketFieldChange(
 		eventType: ticketField === 'statusCode' ? TicketEventType.STATUS : ticketField,
 		details: { from: previousFieldValue, to: nextFieldValue }
 	});
+
+	if (ticketField === 'assignedToUserId' && nextFieldValue) {
+		await followTicket(transaction, ticketRecord.id, nextFieldValue);
+		await notifyPeople(transaction, {
+			recipientIds: [nextFieldValue],
+			ticketRecord,
+			actorId: actor.id,
+			kind: NotificationKind.ASSIGNED
+		});
+	}
+	// Reopening is any move from Resolved or Closed back to an active status, not only Open.
+	const isReopening =
+		FINISHED_STATUSES.includes(String(previousFieldValue)) &&
+		!FINISHED_STATUSES.includes(String(nextFieldValue));
+	if (
+		ticketField === 'statusCode' &&
+		(FINISHED_STATUSES.includes(String(nextFieldValue)) || isReopening)
+	)
+		await notifyPeople(transaction, {
+			recipientIds: [ticketRecord.requesterId],
+			ticketRecord,
+			actorId: actor.id,
+			kind: NotificationKind.STATUS,
+			details: { from: previousFieldValue, to: nextFieldValue }
+		});
+}
+
+/**
+ * Rewrites a ticket's subject or description, once the ticket is locked. The new subject is
+ * kept in the event, as subjects are short and public. A description edit only records that
+ * it happened, so the event never holds a copy of a long message.
+ */
+async function applyTicketContentEdit(
+	transaction: Transaction,
+	actor: Person,
+	ticketRecord: Ticket,
+	formData: FormData
+): Promise<void> {
+	// Permission checks keep precedence over value validation.
+	if (!hasPermission(actor, 'editTicketContent')) error(403, 'You cannot edit this ticket.');
+	if (ticketRecord.statusCode === 'closed') error(403, 'Closed tickets are read-only.');
+	const contentField = String(formData.get('field'));
+	if (contentField === TicketEventType.SUBJECT) {
+		const { subject } = parseFormInput(createTicketSchema.pick({ subject: true }), {
+			subject: formData.get('value')
+		});
+		if (subject === ticketRecord.subject) return;
+		await transaction
+			.update(ticket)
+			.set({ subject, updatedAt: new Date() })
+			.where(eq(ticket.id, ticketRecord.id));
+		await transaction.insert(ticketEvent).values({
+			ticketId: ticketRecord.id,
+			actorId: actor.id,
+			eventType: TicketEventType.SUBJECT,
+			details: { from: ticketRecord.subject, to: subject }
+		});
+	} else if (contentField === TicketEventType.DESCRIPTION) {
+		const { description } = parseFormInput(createTicketSchema.pick({ description: true }), {
+			description: formData.get('value')
+		});
+		// A plain-text description opens in the editor as Markdown, so compare it that way too.
+		// Saving it untouched then changes nothing and adds no "edited" event.
+		const storedDescriptionAsMarkdown =
+			ticketRecord.descriptionFormat === TicketContentFormat.PLAIN
+				? convertPlainTextToMarkdown(ticketRecord.description).trim()
+				: ticketRecord.description;
+		if (description === storedDescriptionAsMarkdown) return;
+		// The editor always writes Markdown, so an edited plain-text description becomes Markdown.
+		await transaction
+			.update(ticket)
+			.set({ description, descriptionFormat: TicketContentFormat.MARKDOWN, updatedAt: new Date() })
+			.where(eq(ticket.id, ticketRecord.id));
+		await transaction.insert(ticketEvent).values({
+			ticketId: ticketRecord.id,
+			actorId: actor.id,
+			eventType: TicketEventType.DESCRIPTION,
+			details: {}
+		});
+	} else error(400, 'Invalid field.');
 }
 
 /**
@@ -279,5 +428,21 @@ export async function updateTicketField(
 ): Promise<void> {
 	return executeWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
 		applyTicketFieldChange(transaction, actor, ticketRecord, formData)
+	);
+}
+
+/**
+ * Edits a ticket's subject or description.
+ *
+ * @throws 403 when the actor may not edit tickets, or the ticket is closed
+ * @throws 400 when the field or new text isn't valid
+ */
+export async function editTicketContent(
+	actor: Person,
+	ticketNumber: number,
+	formData: FormData
+): Promise<void> {
+	return executeWithLockedTicket(actor, ticketNumber, (transaction, ticketRecord) =>
+		applyTicketContentEdit(transaction, actor, ticketRecord, formData)
 	);
 }

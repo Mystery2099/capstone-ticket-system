@@ -6,6 +6,7 @@ import {
 	index,
 	jsonb,
 	pgTable,
+	primaryKey,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -15,6 +16,7 @@ import {
 // References the generated Better Auth user model.
 import { user } from './auth-schema';
 import { TicketContentFormat } from '../ticket-content/ticket-content-format';
+import { NotificationKind } from '../notifications';
 
 const createdAtColumn = () =>
 	timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
@@ -137,4 +139,58 @@ export const securityEvent = pgTable(
 		createdAt: createdAtColumn()
 	},
 	(table) => [index('security_event_created_idx').on(table.createdAt)]
+);
+
+/**
+ * People who hear about a ticket's activity. The requester and assignee follow it
+ * automatically; support staff can choose to follow when they comment.
+ */
+export const ticketFollower = pgTable(
+	'ticket_follower',
+	{
+		ticketId: uuid('ticket_id')
+			.notNull()
+			.references(() => ticket.id, { onDelete: 'cascade' }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		createdAt: createdAtColumn()
+	},
+	(table) => [
+		primaryKey({ columns: [table.ticketId, table.userId] }),
+		index('ticket_follower_user_idx').on(table.userId)
+	]
+);
+
+/**
+ * One item in someone's inbox. It points at the ticket and, for comments, the comment; the
+ * message itself is never copied, so the inbox always shows what the person may still see.
+ */
+export const notification = pgTable(
+	'notification',
+	{
+		id: uuid('id').defaultRandom().primaryKey(),
+		recipientId: text('recipient_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		ticketId: uuid('ticket_id')
+			.notNull()
+			.references(() => ticket.id, { onDelete: 'cascade' }),
+		actorId: text('actor_id').references(() => user.id, { onDelete: 'restrict' }),
+		kind: text('kind').$type<NotificationKind>().notNull(),
+		commentId: uuid('comment_id').references(() => ticketComment.id, { onDelete: 'cascade' }),
+		details: jsonb('details').$type<Record<string, unknown>>().notNull().default({}),
+		createdAt: createdAtColumn(),
+		readAt: timestamp('read_at', { withTimezone: true })
+	},
+	(table) => [
+		index('notification_recipient_created_idx').on(table.recipientId, table.createdAt),
+		index('notification_recipient_unread_idx')
+			.on(table.recipientId)
+			.where(sql`${table.readAt} is null`),
+		check(
+			'notification_kind_valid',
+			sql`${table.kind} in ('comment', 'internal_note', 'assigned', 'status')`
+		)
+	]
 );
