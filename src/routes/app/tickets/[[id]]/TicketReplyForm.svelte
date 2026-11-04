@@ -53,9 +53,7 @@
 	function buildTabClass(isChosen: boolean): string {
 		return cn(
 			'flex items-center gap-[7px] rounded-[18px] px-2.5 py-1.5 text-[12px] text-muted-foreground',
-			isChosen
-				? 'bg-selected font-[650] text-primary'
-				: 'hover:bg-muted hover:text-foreground'
+			isChosen ? 'bg-selected font-[650] text-primary' : 'hover:bg-muted hover:text-foreground'
 		);
 	}
 	let hasUnsentText = $derived(!!$replyFields.body.trim());
