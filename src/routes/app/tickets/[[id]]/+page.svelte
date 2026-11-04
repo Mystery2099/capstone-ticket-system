@@ -59,9 +59,15 @@
 			method: 'POST',
 			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' },
 			body: requestBody
-		}).then((response) => {
-			if (response.ok) void invalidate('app:notifications');
-		});
+		})
+			.then((response) => {
+				if (!response.ok) throw new Error(`Marking notifications read failed: ${response.status}`);
+				void invalidate('app:notifications');
+			})
+			.catch(() => {
+				// Try again on the next update, unless another ticket or activity is shown by then.
+				if (lastReadNotificationKey === notificationKey) lastReadNotificationKey = null;
+			});
 	});
 
 	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));
@@ -176,7 +182,10 @@
 			.sort((firstPerson, secondPerson) => firstPerson.name.localeCompare(secondPerson.name))
 	);
 	let assignees = $derived(
-		requesters.filter((person) => hasPermission(person, 'receiveAssignments'))
+		requesters.filter(
+			(person) =>
+				hasPermission(person, 'receiveAssignments') && hasPermission(person, 'viewAllTickets')
+		)
 	);
 	let categoryOptions = $derived(
 		data.categories.map(({ id, name, active }) => ({ value: id, label: name, active }))

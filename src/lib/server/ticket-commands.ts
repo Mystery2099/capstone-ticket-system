@@ -136,9 +136,19 @@ export async function createTicket(actor: Person, formData: FormData): Promise<T
 	});
 }
 
-/** @throws 400 unless the person is an enabled agent or administrator */
+/**
+ * An assignee must be able to open the ticket they're given, so they need ticket-wide access
+ * as well as the assignment capability.
+ *
+ * @throws 400 unless the person is an enabled agent or administrator
+ */
 function requireEligibleTicketAssignee(person: Person | undefined): void {
-	if (!person || person.banned || !hasPermission(person, 'receiveAssignments'))
+	if (
+		!person ||
+		person.banned ||
+		!hasPermission(person, 'receiveAssignments') ||
+		!hasPermission(person, 'viewAllTickets')
+	)
 		error(400, 'Choose an enabled agent or administrator.');
 }
 
