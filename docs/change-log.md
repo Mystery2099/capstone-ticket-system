@@ -3,6 +3,12 @@
 Record professor-requested changes with the date, expected behavior, affected
 schema/UI/permissions, migration or recovery plan, and verification.
 
+## 2026-11-04 — Ticket layout and editing
+
+The description now has its own section above the conversation. Staff can edit a
+ticket's subject and description in place; each edit appears in the timeline.
+`0006_grant_edit_ticket_content` grants the new capability to the built-in roles.
+
 ## 2026-11-03 — Formatted messages and shortcuts
 
 Professor-requested: descriptions, replies, and notes support rich-text formatting

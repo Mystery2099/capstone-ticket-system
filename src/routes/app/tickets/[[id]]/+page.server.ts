@@ -6,6 +6,7 @@ import { requireUser } from '$lib/server/access';
 import {
 	addTicketComment,
 	createTicket,
+	editTicketContent,
 	findTicketSearchRedirect,
 	loadTicketConversation,
 	updateTicketField
@@ -65,6 +66,20 @@ export const actions: Actions = {
 			return message(form, { text: 'Comment posted.' });
 		} catch (caughtError) {
 			return buildFormFailure(form, caughtError);
+		}
+	},
+	editContent: async ({ locals, request, params }) => {
+		try {
+			await editTicketContent(
+				requireUser(locals.user),
+				Number(params.id),
+				await request.formData()
+			);
+			return { success: 'Ticket updated.' };
+		} catch (caughtError) {
+			if (isHttpError(caughtError))
+				return fail(caughtError.status, { error: caughtError.body.message });
+			throw caughtError;
 		}
 	},
 	update: async ({ locals, request, params }) => {

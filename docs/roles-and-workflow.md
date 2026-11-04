@@ -16,6 +16,7 @@ server checks use granted capabilities rather than role names.
 | Read/write internal notes                   | No        | Yes   | Yes           |
 | Assign ticket or change status/category     | No        | Yes   | Yes           |
 | Change priority (Low/Normal/High)           | No        | Yes   | Yes           |
+| Edit subject and description                | No        | Yes   | Yes           |
 | Reopen own Resolved ticket                  | Yes       | Yes   | Yes           |
 | Reopen Closed ticket                        | No        | No    | Yes           |
 | Manage users and categories                 | No        | No    | Yes           |
