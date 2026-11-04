@@ -652,7 +652,13 @@ test('notifications reach followers and chosen people only, and respect note pri
 	);
 	assert(!opened.notificationAudience.members.some((member) => member.id === 'priya'));
 	assert.equal(opened.notificationAudience.hasHiddenFollowers, true);
-	assert.equal(opened.hasReadNotifications, true);
+	// Loading only reports unread notifications; the page marks them read once it shows them.
+	assert.equal(opened.hasUnreadNotifications, true);
+	await notifications.markTicketNotificationsRead(
+		people.marcus,
+		created.ticketNumber,
+		new Date(opened.latestShownActivityAt!)
+	);
 	const unreadForTicket = (await notifications.loadInbox(people.marcus, true)).filter(
 		(item) => item.ticketNumber === created.ticketNumber
 	);

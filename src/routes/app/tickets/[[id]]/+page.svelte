@@ -40,9 +40,28 @@
 	];
 
 	let { data, form } = $props();
-	// Opening a ticket read its inbox notifications, so the sidebar's unread count reloads.
+	/** The ticket and activity whose notifications were last marked read, so it happens once. */
+	let lastReadNotificationKey: string | null = null;
+	/**
+	 * Marks the open ticket's notifications read once it's actually shown. A load alone can run
+	 * for a ticket that never appears, such as one pressed and then not opened.
+	 */
 	$effect(() => {
-		if (data.hasReadNotifications) void invalidate('app:notifications');
+		const { selectedTicket, hasUnreadNotifications, latestShownActivityAt } = data;
+		if (!selectedTicket || !hasUnreadNotifications || !latestShownActivityAt || navigating.to)
+			return;
+		const notificationKey = `${selectedTicket.ticketNumber}:${latestShownActivityAt}`;
+		if (notificationKey === lastReadNotificationKey) return;
+		lastReadNotificationKey = notificationKey;
+		const requestBody = new FormData();
+		requestBody.set('latestShownActivityAt', latestShownActivityAt);
+		void fetch(`/app/tickets/${selectedTicket.ticketNumber}?/readNotifications`, {
+			method: 'POST',
+			headers: { accept: 'application/json', 'x-sveltekit-action': 'true' },
+			body: requestBody
+		}).then((response) => {
+			if (response.ok) void invalidate('app:notifications');
+		});
 	});
 
 	let isStaffUser = $derived(hasPermission(data.user, 'viewAllTickets'));

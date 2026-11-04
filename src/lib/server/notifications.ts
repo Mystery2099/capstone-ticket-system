@@ -206,8 +206,30 @@ export async function markNotificationsRead(actor: Person, notificationId?: stri
 		);
 }
 
+/** Whether a person has unread notifications about one ticket. Reads only, never marks. */
+export async function hasUnreadTicketNotifications(
+	actor: Person,
+	ticketId: string
+): Promise<boolean> {
+	const [unreadNotification] = await db
+		.select({ id: notification.id })
+		.from(notification)
+		.where(
+			and(
+				eq(notification.recipientId, actor.id),
+				eq(notification.ticketId, ticketId),
+				isNull(notification.readAt)
+			)
+		)
+		.limit(1);
+	return !!unreadNotification;
+}
+
 /**
- * Opening a ticket reads its notifications, so they leave the inbox without a separate step.
+ * Reads a ticket's notifications once the person has actually been shown the ticket, so they
+ * leave the inbox without a separate step. The page calls this after it displays the
+ * conversation; loading alone never does, since a load can run for a page never shown.
+ *
  * Only notifications up to the newest activity the person was shown are read: one about a
  * comment posted while the page loaded stays unread. A notification and its activity event
  * are written in one transaction, so they share a timestamp.
@@ -217,17 +239,16 @@ export async function markNotificationsRead(actor: Person, notificationId?: stri
  */
 export async function markTicketNotificationsRead(
 	actor: Person,
-	ticketId: string,
-	latestShownActivityAt: Date | null
+	ticketNumber: number,
+	latestShownActivityAt: Date
 ): Promise<number> {
-	if (!latestShownActivityAt) return 0;
 	const readNotifications = await db
 		.update(notification)
 		.set({ readAt: new Date() })
 		.where(
 			and(
 				eq(notification.recipientId, actor.id),
-				eq(notification.ticketId, ticketId),
+				sql`${notification.ticketId} = (select ${ticket.id} from ${ticket} where ${ticket.ticketNumber} = ${ticketNumber})`,
 				isNull(notification.readAt),
 				// The shown time came through JavaScript, which keeps milliseconds only.
 				sql`date_trunc('milliseconds', ${notification.createdAt}) <= ${latestShownActivityAt.toISOString()}::timestamptz`

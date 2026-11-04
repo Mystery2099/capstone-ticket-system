@@ -8,7 +8,7 @@ import { OPEN_STATUSES, TicketEventType } from '../status';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission } from '../permissions';
 import { RequestCache, type CategoryRecord, type PersonSummary } from './request-cache';
-import { loadNotificationAudience, markTicketNotificationsRead } from './notifications';
+import { hasUnreadTicketNotifications, loadNotificationAudience } from './notifications';
 import { db } from './db';
 import { ticket, ticketComment, ticketEvent } from './schema';
 import { TicketSearchQuery, type TicketSearchHighlight } from './ticket-search';
@@ -370,15 +370,16 @@ export async function loadTicketConversation(
 		events = conversation.events;
 	}
 	// Opening a ticket reads its inbox notifications, and lists who a new comment may notify.
+	// The page marks notifications read once it shows the ticket, up to this activity.
 	const latestShownActivityAt = events.length
-		? new Date(Math.max(...events.map((event) => +new Date(event.createdAt))))
+		? new Date(Math.max(...events.map((event) => +new Date(event.createdAt)))).toISOString()
 		: null;
-	const [notificationAudience, readNotificationCount] = selectedTicket
+	const [notificationAudience, hasUnreadNotifications] = selectedTicket
 		? await Promise.all([
 				loadNotificationAudience(actor, selectedTicket),
-				markTicketNotificationsRead(actor, selectedTicket.id, latestShownActivityAt)
+				hasUnreadTicketNotifications(actor, selectedTicket.id)
 			])
-		: [{ members: [], hasHiddenFollowers: false }, 0];
+		: [{ members: [], hasHiddenFollowers: false }, false];
 
 	const assigneeId = selectedTicket?.assignedToUserId;
 	const visiblePeople: PersonSummary[] =
@@ -398,8 +399,8 @@ export async function loadTicketConversation(
 		comments,
 		events,
 		notificationAudience,
-		/** True when opening the ticket read some inbox notifications, so the count is stale. */
-		hasReadNotifications: readNotificationCount > 0,
+		hasUnreadNotifications,
+		latestShownActivityAt,
 		isNewTicket: routeTicketId === 'new'
 	};
 }
