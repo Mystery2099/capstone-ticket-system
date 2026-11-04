@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { afterNavigate, invalidate } from '$app/navigation';
 	import { Check, CheckCheck } from '@lucide/svelte';
 	import EmptyState from '$lib/components/EmptyState.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
@@ -14,6 +15,12 @@
 	import { formatDateTime } from '../tickets/[[id]]/ticket-formatting';
 
 	let { data } = $props();
+
+	// The sidebar's unread count loads once for the whole app, so it's refreshed here, where a
+	// person comes to see what's new.
+	afterNavigate(({ from }) => {
+		if (from) void invalidate('app:notifications');
+	});
 
 	const FILTER_LINK_CLASS = 'rounded-[18px] px-3 py-1.5 text-[13px] text-muted-foreground';
 
@@ -90,7 +97,19 @@
 								>
 							</form>{/if}
 					</li>{/each}
-			</ul>{:else}<EmptyState
+			</ul>
+			{#if data.olderPageHref || !data.isFirstPage}<nav
+					class="flex max-w-[860px] gap-4 px-6 py-4 text-[13px] max-md:px-4"
+					aria-label="Inbox pages"
+				>
+					{#if !data.isFirstPage}<a
+							class="text-link"
+							href={data.isUnreadOnly ? '/app/inbox' : '/app/inbox?show=all'}>Newest</a
+						>{/if}
+					{#if data.olderPageHref}<a class="text-link" href={data.olderPageHref}
+							>Older notifications</a
+						>{/if}
+				</nav>{/if}{:else}<EmptyState
 				title={data.isUnreadOnly ? 'You’re all caught up.' : 'Nothing here yet.'}
 				isPane
 			>

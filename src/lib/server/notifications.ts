@@ -15,7 +15,10 @@ type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type Ticket = typeof ticket.$inferSelect;
 
 /** How many inbox items one page shows. */
-const INBOX_PAGE_SIZE = 50;
+export const INBOX_PAGE_SIZE = 50;
+/** An inbox page cursor: the exact creation time and id of the last item already shown. */
+const INBOX_CURSOR_PATTERN =
+	/^(.+)\|([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 
 export type TicketNotification = {
 	recipientIds: readonly string[];
@@ -160,14 +163,19 @@ export async function countUnreadNotifications(actor: Person): Promise<number> {
 }
 
 /**
- * Loads a person's newest notifications, with the ticket and who made the change.
+ * Loads a page of a person's notifications, newest first, with the ticket and who made the
+ * change. Each item carries a `pageCursor`; passing the last one loads the page after it.
  *
  * @param isUnreadOnly leave out notifications already read
+ * @param olderThanCursor a `pageCursor` from an earlier page; a malformed one is ignored
  */
-export async function loadInbox(actor: Person, isUnreadOnly: boolean) {
+export async function loadInbox(actor: Person, isUnreadOnly: boolean, olderThanCursor?: string) {
+	const cursorMatch = olderThanCursor ? INBOX_CURSOR_PATTERN.exec(olderThanCursor) : null;
 	return db
 		.select({
 			id: notification.id,
+			// The database's own text for the time keeps every digit, so paging never skips a row.
+			pageCursor: sql<string>`${notification.createdAt}::text || '|' || ${notification.id}::text`,
 			kind: notification.kind,
 			details: notification.details,
 			createdAt: notification.createdAt,
@@ -182,7 +190,12 @@ export async function loadInbox(actor: Person, isUnreadOnly: boolean) {
 		.where(
 			and(
 				...buildVisibleNotificationConditions(actor),
-				...(isUnreadOnly ? [isNull(notification.readAt)] : [])
+				...(isUnreadOnly ? [isNull(notification.readAt)] : []),
+				...(cursorMatch
+					? [
+							sql`(${notification.createdAt}, ${notification.id}) < (${cursorMatch[1]}::timestamptz, ${cursorMatch[2]}::uuid)`
+						]
+					: [])
 			)
 		)
 		.orderBy(desc(notification.createdAt), desc(notification.id))

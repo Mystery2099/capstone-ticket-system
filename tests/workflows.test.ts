@@ -614,6 +614,14 @@ test('notifications reach followers and chosen people only, and respect note pri
 			.filter((item) => item.ticketNumber === created.ticketNumber)
 			.map((item) => item.kind);
 	assert.deepEqual(await inboxKinds('jordan'), ['assigned']);
+	// A page cursor continues after the item it names, so paging never repeats it.
+	const [newestForJordan] = await notifications.loadInbox(people.jordan, false);
+	const olderForJordan = await notifications.loadInbox(
+		people.jordan,
+		false,
+		newestForJordan.pageCursor
+	);
+	assert(!olderForJordan.some((item) => item.id === newestForJordan.id));
 
 	// The requester's comment goes to the followers: here the assignee, never the commenter.
 	await service.addTicketComment(
