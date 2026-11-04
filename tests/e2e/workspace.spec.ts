@@ -342,6 +342,10 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(
 		page.getByRole('heading', { name: 'Service Technician', exact: true })
 	).toBeVisible();
+	// Deleting without a replacement points at the visible picker instead of a hidden input.
+	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
+	await expect(page.getByRole('alert').filter({ hasText: 'Choose an option.' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Reassign users to', exact: true })).toBeFocused();
 	await choose(page, 'Reassign users to', 'Requester');
 	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
 	await expect(page).toHaveURL(/\/app\/admin\/roles$/);
