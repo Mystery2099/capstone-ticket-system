@@ -15,7 +15,9 @@ export default defineConfig(
 			'.data/**',
 			'drizzle/**',
 			'playwright-report/**',
-			'test-results/**'
+			'test-results/**',
+			// Other checkouts of this repository, linted from their own folder.
+			'.worktrees/**'
 		]
 	},
 	js.configs.recommended,
@@ -32,7 +34,7 @@ export default defineConfig(
 		},
 		languageOptions: {
 			globals: { ...globals.browser, ...globals.node },
-			parserOptions: { extraFileExtensions: ['.svelte'] }
+			parserOptions: { extraFileExtensions: ['.svelte'], tsconfigRootDir: import.meta.dirname }
 		}
 	},
 	{
