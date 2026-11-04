@@ -595,3 +595,52 @@ test('staff edit a ticket subject and description with timeline events; requeste
 	assert.equal(untouched.selectedTicket!.descriptionFormat, 'plain');
 	assert.equal(untouched.events.filter((e) => e.eventType === 'description').length, 1);
 });
+test('notifications reach followers and chosen people only, and respect note privacy', async () => {
+	const notifications = await import('../src/lib/server/notifications');
+	const [cat] = await db.select().from(schema.category);
+	const created = await service.createTicket(
+		people.priya,
+		form({
+			subject: 'Projector flickers',
+			description: 'Room 204',
+			categoryId: cat.id,
+			requesterId: 'marcus',
+			assignedToUserId: 'jordan'
+		})
+	);
+	const inboxKinds = async (personId: string) =>
+		(await notifications.loadInbox(people[personId], false)).map((item) => item.kind);
+	assert.deepEqual(await inboxKinds('jordan'), ['assigned']);
+
+	// The requester's comment goes to the followers: here the assignee, never the commenter.
+	await service.addTicketComment(
+		people.marcus,
+		created.ticketNumber,
+		form({ body: 'Still flickering' })
+	);
+	assert.deepEqual(await inboxKinds('jordan'), ['comment', 'assigned']);
+	assert.deepEqual(await inboxKinds('priya'), []);
+
+	// A chosen list keeps only connected people; an internal note never reaches the requester.
+	const noteForm = form({ body: 'Swap the HDMI cable', internal: 'true', follow: 'true' });
+	noteForm.set('notifySelection', 'custom');
+	for (const recipientId of ['marcus', 'jordan', 'rosa'])
+		noteForm.append('notifyRecipientId', recipientId);
+	await service.addTicketComment(people.priya, created.ticketNumber, noteForm);
+	assert.deepEqual(await inboxKinds('jordan'), ['internal_note', 'comment', 'assigned']);
+	assert.deepEqual(await inboxKinds('rosa'), []);
+	assert.deepEqual(await inboxKinds('marcus'), []);
+	const followerIds = await notifications.loadFollowerIds(db, created.id);
+	assert(followerIds.includes('priya'));
+
+	// Resolving tells the requester; marking read clears the unread count.
+	await service.updateTicketField(
+		people.priya,
+		created.ticketNumber,
+		form({ field: 'statusCode', value: 'resolved' })
+	);
+	assert.deepEqual(await inboxKinds('marcus'), ['status']);
+	assert.equal(await notifications.countUnreadNotifications(people.marcus), 1);
+	await notifications.markNotificationsRead(people.marcus);
+	assert.equal(await notifications.countUnreadNotifications(people.marcus), 0);
+});
