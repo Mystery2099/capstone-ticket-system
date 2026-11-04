@@ -30,8 +30,14 @@
 
 	function handleDocumentKeyDown(event: KeyboardEvent): void {
 		if (isMenuOpen && event.key === 'Escape') {
+			// Closing removes the focused menu item, so focus goes back to the button first.
+			if (accountMenuElement?.contains(document.activeElement)) focusAccountMenuButton();
 			isMenuOpen = false;
 		}
+	}
+
+	function focusAccountMenuButton(): void {
+		accountMenuElement?.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus();
 	}
 
 	/**
@@ -39,7 +45,7 @@
 	 * button first. The dialog then has a control that still exists to return focus to.
 	 */
 	function showShortcutsFromMenu(): void {
-		accountMenuElement?.querySelector<HTMLButtonElement>('[aria-label="Account menu"]')?.focus();
+		focusAccountMenuButton();
 		isMenuOpen = false;
 		onShowShortcuts();
 	}
