@@ -5,7 +5,10 @@
 import { error } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import { TicketEventType } from '../status';
-import { TicketContentFormat } from '../ticket-content/ticket-content-format';
+import {
+	TicketContentFormat,
+	convertPlainTextToMarkdown
+} from '../ticket-content/ticket-content-format';
 import { requireTicketAccess, type Person } from './access';
 import { hasPermission, type Permission } from '../permissions';
 import { db } from './db';
@@ -262,11 +265,13 @@ async function applyTicketContentEdit(
 		const { description } = parseFormInput(createTicketSchema.pick({ description: true }), {
 			description: formData.get('value')
 		});
-		if (
-			description === ticketRecord.description &&
-			ticketRecord.descriptionFormat === TicketContentFormat.MARKDOWN
-		)
-			return;
+		// A plain-text description opens in the editor as Markdown, so compare it that way too.
+		// Saving it untouched then changes nothing and adds no "edited" event.
+		const storedDescriptionAsMarkdown =
+			ticketRecord.descriptionFormat === TicketContentFormat.PLAIN
+				? convertPlainTextToMarkdown(ticketRecord.description).trim()
+				: ticketRecord.description;
+		if (description === storedDescriptionAsMarkdown) return;
 		// The editor always writes Markdown, so an edited plain-text description becomes Markdown.
 		await transaction
 			.update(ticket)

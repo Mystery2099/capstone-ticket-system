@@ -575,4 +575,23 @@ test('staff edit a ticket subject and description with timeline events; requeste
 	// The requester sees that the description changed, without a copy of the old text.
 	const descriptionEvent = after.events.find((e) => e.eventType === 'description');
 	assert.deepEqual(descriptionEvent?.details, {});
+	// Saving an untouched plain-text description, which the editor shows as Markdown, is a no-op.
+	const { eq } = await import('drizzle-orm');
+	const { convertPlainTextToMarkdown } =
+		await import('../src/lib/ticket-content/ticket-content-format');
+	await db
+		.update(schema.ticket)
+		.set({ description: 'Plain text * kept as typed', descriptionFormat: 'plain' })
+		.where(eq(schema.ticket.ticketNumber, 1046));
+	await service.editTicketContent(
+		people.priya,
+		1046,
+		form({
+			field: 'description',
+			value: convertPlainTextToMarkdown('Plain text * kept as typed')
+		})
+	);
+	const untouched = await service.loadTicketWorkspace(people.priya, url, '1046');
+	assert.equal(untouched.selectedTicket!.descriptionFormat, 'plain');
+	assert.equal(untouched.events.filter((e) => e.eventType === 'description').length, 1);
 });

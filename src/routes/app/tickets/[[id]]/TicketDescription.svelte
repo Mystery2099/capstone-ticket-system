@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { toast } from 'svelte-sonner';
 	import { afterNavigate } from '$app/navigation';
 	import UnsavedChangesNotice from '$lib/components/UnsavedChangesNotice.svelte';
 	import { UnsavedChangesGuard } from '$lib/unsaved-changes.svelte';
@@ -82,9 +83,21 @@
 			action="?/editContent"
 			bind:this={editFormElement}
 			{@attach editFormHotkeys}
-			use:enhance={() => {
+			use:enhance={({ cancel }) => {
+				// Nothing changed, so there's nothing to save.
+				if (editedDescription.trim() === originalDescription.trim()) {
+					cancel();
+					isEditing = false;
+					return;
+				}
 				isSaving = true;
 				return async ({ result, update }) => {
+					if (result.type === 'error') {
+						// A dropped connection, not a rejection: keep the editor and its text for a retry.
+						isSaving = false;
+						toast.error('Couldn’t save. Check your connection and try again.');
+						return;
+					}
 					await update({ reset: false });
 					isSaving = false;
 					if (result.type === 'success') isEditing = false;
