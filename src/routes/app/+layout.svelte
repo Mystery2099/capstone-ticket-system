@@ -213,6 +213,7 @@
 		{activeView}
 		{activeCategoryId}
 		{newTicketHref}
+		unreadNotificationCount={data.unreadNotificationCount}
 	/>
 	<main>
 		{#if slowRouteNavigation.current}<RouteSkeleton
@@ -232,7 +233,21 @@
 				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
 					><navigationView.icon size={23} /></span
 				>{navigationView.label}</a
-			>{/each}<a class={MOBILE_NAV_LINK_CLASS} href="/app/settings"
+			>{/each}<a
+			class={cn(MOBILE_NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox' && 'font-[650]')}
+			href="/app/inbox"
+			><span
+				class={cn(
+					MOBILE_NAV_ICON_CLASS,
+					'relative',
+					activeUrl.pathname === '/app/inbox' && 'bg-selected text-primary'
+				)}
+				><Inbox size={23} />{#if data.unreadNotificationCount}<span
+						class="absolute top-0 right-2 size-2 rounded-full bg-primary"
+						aria-hidden="true"
+					></span>{/if}</span
+			>Inbox</a
+		><a class={MOBILE_NAV_LINK_CLASS} href="/app/settings"
 			><span class={MOBILE_NAV_ICON_CLASS}><Settings size={23} /></span>Settings</a
 		>
 	</nav>

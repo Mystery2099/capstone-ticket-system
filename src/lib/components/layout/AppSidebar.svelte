@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	import type { Component } from 'svelte';
-	import { ChevronDown, Settings, SquarePen, Tags, Users, X } from '@lucide/svelte';
+	import { ChevronDown, Inbox, Settings, SquarePen, Tags, Users, X } from '@lucide/svelte';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { cn } from '$lib/utils';
@@ -20,6 +20,8 @@
 		activeView: string;
 		activeCategoryId: string | null;
 		newTicketHref: string;
+		/** Unread inbox notifications, shown beside the Inbox link. */
+		unreadNotificationCount: number;
 	};
 	let {
 		navigationViews,
@@ -28,7 +30,8 @@
 		activeUrl,
 		activeView,
 		activeCategoryId,
-		newTicketHref
+		newTicketHref,
+		unreadNotificationCount
 	}: Props = $props();
 
 	/** Hides labels and counts when the sidebar is icons only: on tablets, and in the rail. */
@@ -72,6 +75,23 @@
 			><SquarePen size={25} /><span>New ticket</span></a
 		>
 		<div class="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+			<nav aria-label="Inbox">
+				<a
+					class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox')}
+					href="/app/inbox"
+					aria-label={unreadNotificationCount
+						? `Inbox, ${unreadNotificationCount} unread`
+						: 'Inbox'}
+					onclick={closeMobileSidebar}
+					><Inbox size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Inbox</span
+					>{#if unreadNotificationCount}<small
+							class={cn(
+								'ml-auto rounded-full bg-primary px-2 text-[12px] font-[650] text-primary-foreground',
+								HIDDEN_WHEN_COMPACT
+							)}>{unreadNotificationCount}</small
+						>{/if}</a
+				>
+			</nav>
 			<nav aria-label="Tickets">
 				{#each navigationViews as navigationView (navigationView.key)}
 					{#snippet viewNavigationLink()}
