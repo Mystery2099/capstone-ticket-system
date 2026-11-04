@@ -1,6 +1,7 @@
 <!-- The reading pane for one ticket: its toolbar, details, timeline, and reply composer. -->
 <script lang="ts">
-	import { afterNavigate, beforeNavigate } from '$app/navigation';
+	import { afterNavigate } from '$app/navigation';
+	import { guardUnsavedChanges } from '$lib/unsaved-changes';
 	import { hasPermission } from '$lib/permissions';
 	import { enhance } from '$app/forms';
 	import { ArrowLeft, ChevronLeft, ChevronRight, Link, LockKeyhole } from '@lucide/svelte';
@@ -96,9 +97,7 @@
 		showAllActivity = false;
 		showTicketDetails = false;
 	});
-	beforeNavigate(({ cancel }) => {
-		if (hasUnsentReply && !confirm('Discard your unsent text and leave this page?')) cancel();
-	});
+	guardUnsavedChanges(() => hasUnsentReply, 'comment');
 
 	let canUseInternalNotes = $derived(hasPermission(currentUser, 'useInternalNotes'));
 	let canReopenClosedTickets = $derived(hasPermission(currentUser, 'reopenClosedTickets'));
@@ -143,15 +142,6 @@
 		}
 	}
 </script>
-
-<svelte:window
-	onbeforeunload={(event) => {
-		if (hasUnsentReply) {
-			event.preventDefault();
-			event.returnValue = '';
-		}
-	}}
-/>
 
 <div class="reading-toolbar">
 	<TooltipIconButton label="Back to tickets" href={backHref} class="icon-button back"

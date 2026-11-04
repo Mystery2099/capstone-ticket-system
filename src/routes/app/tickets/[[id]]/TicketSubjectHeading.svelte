@@ -5,6 +5,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
+	import { guardUnsavedChanges } from '$lib/unsaved-changes';
 	import { Pencil } from '@lucide/svelte';
 	import { matchesKeyboardEvent } from '@tanstack/svelte-hotkeys';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
@@ -25,6 +26,7 @@
 	afterNavigate(() => (isEditing = false));
 	let isSaving = $state(false);
 	let editedSubject = $state('');
+	guardUnsavedChanges(() => isEditing && editedSubject.trim() !== subject, 'subject');
 
 	function startEditing(): void {
 		editedSubject = subject;

@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { afterNavigate } from '$app/navigation';
+	import { guardUnsavedChanges } from '$lib/unsaved-changes';
 	import { Pencil } from '@lucide/svelte';
 	import { createHotkeysAttachment } from '@tanstack/svelte-hotkeys';
 	import TicketContent from '$lib/components/tickets/TicketContent.svelte';
@@ -34,6 +35,12 @@
 	afterNavigate(() => (isEditing = false));
 	let isSaving = $state(false);
 	let editedDescription = $state('');
+	/** The text the editor opened with, so an unchanged edit can be left without a warning. */
+	let originalDescription = '';
+	guardUnsavedChanges(
+		() => isEditing && editedDescription.trim() !== originalDescription.trim(),
+		'description'
+	);
 
 	function startEditing(): void {
 		if (description === undefined) return;
@@ -42,6 +49,7 @@
 			descriptionFormat === TicketContentFormat.PLAIN
 				? convertPlainTextToMarkdown(description)
 				: description;
+		originalDescription = editedDescription;
 		isEditing = true;
 	}
 
