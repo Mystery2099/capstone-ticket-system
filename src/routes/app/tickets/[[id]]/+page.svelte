@@ -220,6 +220,8 @@
 	let viewTitle = $derived(TICKET_VIEW_TITLES[activeView] || 'All tickets');
 	const readTicketViewLinks = getTicketViewLinks();
 	let ticketViewLinks = $derived(readTicketViewLinks());
+	// On phones the view chips stand in for the heading, except over search results.
+	let isShowingViewChips = $derived(!data.searchText && ticketViewLinks.length > 1);
 	let listHeading = $derived(activeCategory ? `Open · ${activeCategory.name}` : viewTitle);
 	// On phones the quick filters fold behind one button, so they don't push the list down.
 	let isFilterPanelOpen = $state(false);
@@ -241,12 +243,13 @@
 
 <div class="workspace" class:has-ticket={hasTicket}>
 	<section class="list-pane" aria-label="Ticket list">
-		{#if !data.searchText && ticketViewLinks.length > 1}<TicketViewChips
-				{ticketViewLinks}
-				{activeView}
-			/>{/if}
 		<div class="list-top">
-			<h1>
+			{#if isShowingViewChips}<TicketViewChips
+					{ticketViewLinks}
+					{activeView}
+					activeCategoryName={activeCategory?.name}
+				/>{/if}
+			<h1 class={isShowingViewChips ? 'max-md:sr-only' : undefined}>
 				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
 					<span>{isShowingDrafts ? drafts.dirtyDraftCount : loadedTicketCountLabel}</span>{/if}
 			</h1>
