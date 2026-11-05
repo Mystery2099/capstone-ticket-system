@@ -9,13 +9,16 @@
 	import {
 		Ticket,
 		FilePen,
-		UserRound,
+		FolderOpen,
+		Send,
+		UserRoundCheck,
 		UserRoundPlus,
 		Inbox,
 		Layers,
 		Settings
 	} from '@lucide/svelte';
 	import { TICKET_VIEW_TITLES, getDefaultTicketView } from '$lib/ticket-views';
+	import { setTicketViewLinks, type TicketViewLink } from '$lib/ticket-view-links';
 	import TicketSearchBar from '$lib/components/tickets/TicketSearchBar.svelte';
 	import AccountMenu from '$lib/components/layout/AccountMenu.svelte';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
@@ -88,6 +91,7 @@
 		key: 'mine',
 		label: TICKET_VIEW_TITLES.mine,
 		hint: 'Tickets you opened, in any status',
+		icon: Send,
 		count: data.ticketCounts.mine
 	});
 	let draftsView = $derived({
@@ -104,7 +108,7 @@
 						key: 'queue',
 						label: TICKET_VIEW_TITLES.queue,
 						hint: 'Unresolved tickets assigned to you',
-						icon: UserRound,
+						icon: UserRoundCheck,
 						count: data.ticketCounts.queue
 					},
 					{
@@ -118,7 +122,7 @@
 						key: 'open',
 						label: TICKET_VIEW_TITLES.open,
 						hint: 'Every ticket that isn’t resolved or closed',
-						icon: Inbox,
+						icon: FolderOpen,
 						count: data.ticketCounts.open
 					},
 					{
@@ -128,14 +132,27 @@
 						icon: Layers,
 						count: data.ticketCounts.all
 					},
-					{ ...myRequestsView, icon: UserRound }
+					myRequestsView
 				]
-			: [{ ...myRequestsView, icon: Inbox }]
+			: [myRequestsView]
 	);
 	// Stays while its view is open, so emptying it doesn't pull the page out from under you.
-	let navigationViews = $derived(
+	let navigationViews = $derived<TicketViewLink[]>(
 		draftsView.count || activeView === 'drafts' ? [...ticketViews, draftsView] : ticketViews
 	);
+	setTicketViewLinks(() => navigationViews);
+	// The phone Tickets tab returns to the last list view, rather than resetting to the default.
+	let lastTicketListView = $state<string | null>(null);
+	$effect(() => {
+		if (page.url.pathname === '/app/tickets')
+			lastTicketListView = page.url.searchParams.get('view');
+	});
+	let ticketListHref = $derived(
+		lastTicketListView ? '/app/tickets?view=' + lastTicketListView : '/app/tickets'
+	);
+	let isInboxActive = $derived(activeUrl.pathname === '/app/inbox');
+	let isTicketsActive = $derived(activeUrl.pathname.startsWith('/app/tickets'));
+	let isSettingsActive = $derived(activeUrl.pathname === '/app/settings');
 	// Crossfades the main pane once a page's data is ready. Opening a new ticket is left out
 	// because its form is already on screen and being typed in. The layer is only named
 	// while transitioning, since a view-transition-name also creates a stacking context.
