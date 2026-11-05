@@ -444,13 +444,26 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 8px;
 		padding: 0 16px;
+	}
+	/* Phones only; wider screens always show the filters. */
+	.filter-toggle {
+		display: none;
 	}
 	.list-top:has(+ .rows) {
 		border-bottom: 1px solid var(--border);
 	}
+	/* A long search term truncates, so the buttons beside the heading stay on screen. */
 	.list-top h1 {
 		font-size: 16px;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.list-top > button {
+		flex-shrink: 0;
 	}
 	.list-top h1 span {
 		font-size: 13px;
@@ -903,7 +916,44 @@
 		.list-top > button.icon-button {
 			display: none;
 		}
-		/* One row that scrolls sideways, so filters don't push the ticket list down. */
+		/* The quick filters open from the Filters button as a two-column grid, so every label fits. */
+		.filter-toggle {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			height: 30px;
+			padding: 0 12px;
+			border: 1px solid var(--border);
+			border-radius: 999px;
+			font-size: 13px;
+			color: var(--foreground);
+		}
+		.filter-toggle[aria-expanded='true'] {
+			background: var(--muted);
+		}
+		.filter-count {
+			min-width: 18px;
+			height: 18px;
+			padding: 0 5px;
+			border-radius: 999px;
+			background: var(--primary);
+			color: var(--primary-fg);
+			font-size: 11px;
+			font-weight: 650;
+			line-height: 18px;
+			text-align: center;
+		}
+		.list-filters:not(.open) {
+			display: none;
+		}
+		.filters.list-filters.open {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			padding: 4px 16px 12px;
+			border-bottom: 1px solid var(--border);
+			overflow: visible;
+		}
+		/* Search controls stay one row that scrolls sideways. */
 		.filters {
 			padding: 4px 16px 12px;
 			border-bottom: 0;

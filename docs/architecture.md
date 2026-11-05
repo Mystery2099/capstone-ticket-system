@@ -8,7 +8,7 @@
 
 ## Introduction
 
-The ticket system is one SvelteKit application that serves both desktop and mobile browsers. Its server routes and actions validate the session, the user's permissions, and the submitted input before reading or changing any ticket data, and the browser never connects to the database directly. This document describes the layers of the application, what happens during a request, how the main features are built (navigation, search, and formatted messages), and how I would add file attachments, which I chose not to build.
+The ticket system is one SvelteKit application that serves both desktop and mobile browsers. Its server routes and actions validate the session, the user's permissions, and the submitted input before reading or changing any ticket data, and the browser never connects to the database directly. This document describes the layers of the application, what happens during a request, how the main features are built (navigation, search, and formatted messages), how I would add file attachments, which I chose not to build, and other planned improvements.
 
 ## 1. Layers
 
@@ -31,9 +31,11 @@ When the request changes a ticket, the service writes the change and its audit e
 
 Ticket creation and replies use Superforms. A draft or reply survives a failed submission, so a validation error never costs the user what they typed, and a successful creation removes the saved draft. Metadata edits such as status or priority are applied optimistically in the interface while the server confirms them. Keyboard shortcuts are defined once in `src/lib/hotkeys.ts`, and pressing `?` lists them.
 
+The ticket timeline mixes comments with the history of changes. When the same person makes several changes in a row, such as setting the status, priority, and assignee one after another, the timeline shows them as one entry instead of one line each. Changes are combined when they are less than 10 minutes apart and no comment comes between them. Only the display is combined: every change is still its own `ticket_event` row, written in the same transaction as the change. A friend testing the application pointed out that separate lines made phone users scroll too much, which is why I added this. The grouping lives in `ticket-activity-grouping.ts`, which has its own unit test.
+
 ## 3. Navigation
 
-I modeled the interface on an email client because I wanted the ticket system to feel familiar, especially to people who are less technically inclined. On desktop, the workspace has a sidebar, a ticket list, and an optional reading pane; phones show one main page at a time. Both layouts share the same routes and the same server-side permission checks. The workspace offers four views: My Tickets, Assigned to Me, Unassigned, and All Tickets.
+I modeled the interface on an email client because I wanted the ticket system to feel familiar, especially to people who are less technically inclined. On desktop, the workspace has a sidebar, a ticket list, and an optional reading pane; phones show one main page at a time. On a phone, the list's quick filters fold behind a single **Filters** button that shows how many filters are on, and open as a two-column grid. An earlier version kept them in one row that scrolled sideways, but it wasn't obvious that the row scrolled, and the labels were cut off. Both layouts share the same routes and the same server-side permission checks. The workspace offers four views: My Tickets, Assigned to Me, Unassigned, and All Tickets.
 
 | URL                           | Purpose                                                   |
 | ----------------------------- | --------------------------------------------------------- |
@@ -137,3 +139,11 @@ The tests I would add follow the same priorities as the rest of the project: a r
 ### 6.7 Cost
 
 For a small support team, storage would cost very little. A few gigabytes of hot-tier blob storage, its versions, and a weekly copy should stay under a few dollars a month. Defender for Storage is billed per storage account and per gigabyte scanned, so it would be the largest new cost and is the part I would confirm against the subscription before turning it on.
+
+## 7. Other planned improvements
+
+Two smaller timeline changes are planned but not built.
+
+**Showing how a description changed.** A subject edit already shows the old and new subject. A description edit only records that it happened, because the event deliberately does not keep a copy of a long message. To show the changes, I would store the old and new text in the event and add a collapsed "Show changes" link that highlights removed and added words. That has a cost: `ticket_event` cannot be edited, so if someone edits a description to remove something sensitive, such as a pasted password, the old text would be kept for good. I would therefore add a "remove sensitive text" option to the edit, which skips saving the old version and records only that sensitive information was removed. Edits made before the change would keep showing only that the description was edited.
+
+**A separate activity view.** A toggle on the timeline, such as **Comments | Everything**, would hide the change history for people who only want the conversation. Combining consecutive changes already solved most of the scrolling problem, so I would only add this if the timeline still feels too long in practice.

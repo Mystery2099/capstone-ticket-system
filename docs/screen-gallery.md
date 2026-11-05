@@ -5,7 +5,7 @@
 **Student:** Mathew Kennedy-Brewer  
 **Status:** Current as of November 5, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)  
-**Prepared by:** Claude Opus 5.5 (Anthropic's AI assistant, running in Claude Code), at my request. I also told it to replicate the writing style used in the rest of the documentation. 
+**Prepared by:** Claude Opus 5.5 (Anthropic's AI assistant, running in Claude Code), at my request. I also told it to replicate the writing style used in the rest of the documentation.
 
 ## Introduction
 
@@ -91,6 +91,10 @@ An agent sees every ticket and works through queue views, a category breakdown, 
 **Changing ticket details.** Status, priority, assignee, and category are each changed from a picker.
 
 ![Status picker](screenshots/app/desktop/17-agent-status-picker.png)
+
+**Changes made in a row share one timeline entry.** Here the status, priority, and assignee were changed one after another, so the timeline shows one entry instead of three. Each change is still recorded separately in the database.
+
+![Three changes shown as one timeline entry](screenshots/app/desktop/49-changes-in-a-row-combined.png)
 
 **Editing the subject and description.** Each edit is recorded in the ticket's history.
 
@@ -208,7 +212,7 @@ The application follows the device's light or dark setting unless the user picks
 
 ## 8. Phone layout
 
-On a phone the same pages show one at a time. A bottom bar replaces the sidebar, and ticket details fold away until needed.
+On a phone the same pages show one at a time. A bottom bar replaces the sidebar, and ticket details fold away until needed. The list filters sit behind a **Filters** button, which shows how many filters are on.
 
 | Sign in                                           | Requester list                                                        | Requester ticket                                                    | New ticket                                                        |
 | ------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
@@ -229,6 +233,10 @@ On a phone the same pages show one at a time. A bottom bar replaces the sidebar,
 | Edit role                                                   | Categories                                                    | Add user                                                  | Administrator drawer                                                           |
 | ----------------------------------------------------------- | ------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | ![Edit role](screenshots/app/mobile/17-admin-edit-role.png) | ![Categories](screenshots/app/mobile/18-admin-categories.png) | ![Add user](screenshots/app/mobile/19-admin-new-user.png) | ![Administrator drawer](screenshots/app/mobile/20-admin-navigation-drawer.png) |
+
+| Filters open                                                     | A filter applied                                                      | Changes combined                                                             |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| ![Filters open](screenshots/app/mobile/21-list-filters-open.png) | ![A filter applied](screenshots/app/mobile/22-list-filter-active.png) | ![Changes combined](screenshots/app/mobile/23-changes-in-a-row-combined.png) |
 
 ## 9. Production concepts (not built)
 
