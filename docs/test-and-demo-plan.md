@@ -3,7 +3,7 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 4, 2026  
+**Status:** Current as of November 5, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
@@ -14,7 +14,7 @@ This plan lists how I check that the ticket system meets its [requirements](requ
 
 Four commands check the project before every pull request: `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`. GitHub Actions runs the type checks and unit tests again before deploying. The unit tests run against disposable PGlite databases with fictional fixtures, and they cover ticket workflows, authorization, transaction rollback, provisioning, and security headers.
 
-`pnpm test:e2e` starts its own isolated server and drives a real browser through the main workflows: a requester who cannot read private notes or other tickets, an agent creating and replying to a ticket, drafts surviving a reload, administration screens, and a custom role signing in with its permissions. On November 4, 2026, all 31 unit tests and all 9 browser tests passed.
+`pnpm test:e2e` starts its own isolated server and drives a real browser through the main workflows: a requester who cannot read private notes or other tickets, an agent creating and replying to a ticket, drafts surviving a reload, administration screens, and a custom role signing in with its permissions. On November 5, 2026, all 32 unit tests and all 9 browser tests passed, and the production build succeeded.
 
 ## 2. Acceptance checks
 
@@ -22,24 +22,24 @@ Before the first browser run, install Chromium with `pnpm exec playwright instal
 
 The table below lists what has to hold in each area. Most of these are covered by the automated tests above; the recovery check and the hosted versions of the account checks still need to be done by hand.
 
-| Area           | What to verify                                                                                                           |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Accounts       | Sign-in and sign-out, MFA enrollment, single use of recovery codes, session revocation, and disabled-account rejection   |
-| Creation       | The ticket and its event are saved together; invalid fields and foreign keys are rejected                                |
-| Authorization  | Requesters cannot access others' tickets, change priority, or submit internal notes                                      |
-| Staff workflow | Unassigned tickets are visible; assignment rejects disabled or ineligible users; metadata edits are audited              |
-| Conversation   | Public replies are visible; internal notes are excluded from requester responses, previews, counts, activity, and search |
-| Status         | Requesters reopen their own Resolved tickets; Closed is read-only until someone permitted reopens it                     |
-| Transactions   | A failed event insert rolls back its ticket change                                                                       |
-| Administration | Account, category, and role changes persist; unauthorized access is rejected; the last administrator is protected        |
-| Formatting     | Formatting survives saving, reloading, and draft recovery; raw HTML, images, and unsafe links are not rendered           |
-| Notifications  | Followers and chosen people are notified, and internal notes only reach people who can read them                         |
-| Search         | Word order and forms, typos, comments and names, highlights, filters, ticket-number redirects, and permission boundaries |
-| Recovery       | PostgreSQL restores into a separate database with relationships, records, and sign-in intact                             |
+| Area           | What to verify                                                                                                                                                |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts       | Sign-in and sign-out, MFA enrollment, single use of recovery codes, session revocation, and disabled-account rejection                                        |
+| Creation       | The ticket and its event are saved together; invalid fields and foreign keys are rejected                                                                     |
+| Authorization  | Requesters cannot access others' tickets, change priority, or submit internal notes                                                                           |
+| Staff workflow | Unassigned tickets are visible; assignment rejects disabled or ineligible users; metadata edits are audited; changes made in a row show as one timeline entry |
+| Conversation   | Public replies are visible; internal notes are excluded from requester responses, previews, counts, activity, and search                                      |
+| Status         | Requesters reopen their own Resolved tickets; Closed is read-only until someone permitted reopens it                                                          |
+| Transactions   | A failed event insert rolls back its ticket change                                                                                                            |
+| Administration | Account, category, and role changes persist; unauthorized access is rejected; the last administrator is protected                                             |
+| Formatting     | Formatting survives saving, reloading, and draft recovery; raw HTML, images, and unsafe links are not rendered                                                |
+| Notifications  | Followers and chosen people are notified, and internal notes only reach people who can read them                                                              |
+| Search         | Word order and forms, typos, comments and names, highlights, filters, ticket-number redirects, and permission boundaries                                      |
+| Recovery       | PostgreSQL restores into a separate database with relationships, records, and sign-in intact                                                                  |
 
 ## 3. Manual browser checks
 
-Some interactions are only meaningful in a real browser, and database tests cannot verify them. I check that a search suggestion can be selected with the arrow keys and Enter, that submitting a ticket number opens that ticket, that sorting and filters change the results, that recent searches can be cleared, and that search works on a phone-sized screen. I also repeat a search that matches an internal note while signed in with and without note access, to confirm the results differ in the way they should.
+Some interactions are only meaningful in a real browser, and database tests cannot verify them. I check that a search suggestion can be selected with the arrow keys and Enter, that submitting a ticket number opens that ticket, that sorting and filters change the results, that recent searches can be cleared, and that search works on a phone-sized screen. On a phone I also check that the Filters button opens the list filters, shows how many are on, and filters the current view. I also repeat a search that matches an internal note while signed in with and without note access, to confirm the results differ in the way they should.
 
 ## 4. Live demonstration
 

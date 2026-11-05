@@ -3,7 +3,7 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 4, 2026  
+**Status:** Current as of November 5, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
@@ -40,7 +40,7 @@ For any non-Closed ticket, `setTicketStatus` permits changing to any of the othe
 
 Resolved and Closed mean different things. A requester can reopen their own Resolved ticket if the problem turns out not to be fixed. Closed is read-only, with no new replies or edits, until someone with the `reopenClosedTickets` capability reopens it to Open; by default, only administrators have that capability. This keeps ordinary users from silently undoing a decision the support team has made. The [ticket lifecycle diagram](diagrams/ticket-lifecycle.mmd) shows the allowed transitions.
 
-`editTicketContent` lets staff rewrite a ticket's subject or description in place, except on Closed tickets. A subject edit records the old and new subject in the timeline, while a description edit only records that the text changed. Every ticket change and its matching history entry belong to one database transaction, so the history always reflects what actually changed.
+`editTicketContent` lets staff rewrite a ticket's subject or description in place, except on Closed tickets. A subject edit records the old and new subject in the timeline, while a description edit only records that the text changed. Showing how a description changed is planned, as described in the [architecture](architecture.md#7-other-planned-improvements). Every ticket change and its matching history entry belong to one database transaction, so the history always reflects what actually changed.
 
 ## 3. Public comments and internal notes
 
