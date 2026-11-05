@@ -42,7 +42,7 @@ The password file must contain a unique password of 12 to 128 characters; it sho
 
 ## Verification
 
-Four commands check the project, and GitHub Actions runs them again on every pull request:
+Four commands check the project, and GitHub Actions runs them again on every pull request that changes code:
 
 ```sh
 pnpm lint

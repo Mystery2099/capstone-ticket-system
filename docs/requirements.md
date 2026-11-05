@@ -11,7 +11,7 @@ This document lists what the ticket system is required to do. The [needs assessm
 
 ## 1. Purpose
 
-A fictional small support team needs a way to submit requests, assign tickets, and track progress. The application should demonstrate relational database modeling, constraints, queries, transactions, security, and recovery without turning into a full help desk product. The built-in roles and the custom capabilities administrators can grant are described in [roles and permissions](roles-and-permissions.md).md).
+A fictional small support team needs a way to submit requests, assign tickets, and track progress. The application should demonstrate relational database modeling, constraints, queries, transactions, security, and recovery without turning into a full help desk product. The built-in roles and the custom capabilities administrators can grant are described in [roles and permissions](roles-and-permissions.md).
 
 ## 2. Functional requirements
 

@@ -59,9 +59,9 @@ For a course project with a small team, I am targeting a recovery point of a few
 
 ## 8. Recovery procedures
 
-**Bad data or an accidental deletion.** I would note the time just before the mistake and use Azure's point-in-time restore to create a new server at that moment, never overwriting the live one. From there I can either dump the affected rows and repair the live database or, if the damage is widespread, point the application at the restored server. Either way I reapply `scripts/runtime-grants.sql` and run the verification checks in section 9.
+**Bad data or an accidental deletion.** I would note the time just before the mistake and use Azure's point-in-time restore to create a new server at that moment, never overwriting the live one. From there I can either dump the affected rows and repair the live database or, if the damage is widespread, point the application at the restored server. If I switch over, the restored server needs the same firewall rules as the original (see the next procedure). Either way I run the verification checks in section 9.
 
-**Losing the database server.** I would restore the latest Azure backup to a new server, or create a new server and run `pg_restore --no-owner` with the latest dump into an empty database. The new server needs `PG_TRGM` allow-listed in `azure.extensions`, a new application login, and the runtime grants. Running `pnpm db:migrate` then applies any migrations newer than the backup, and the App Service connection settings are updated before restarting the application.
+**Losing the database server.** I would restore the latest Azure backup to a new server, or create a new server and restore the latest dump into an empty database as shown in [deployment and operations](deployment-and-operations.md). A restored Azure server does not keep the original firewall rules, so I recreate the `capstone-appservice-*` rules from the App Service's current outbound addresses. The new server also needs `PG_TRGM` allow-listed in `azure.extensions` and a new application login. The order matters next: `pnpm db:migrate` applies any migrations newer than the backup, and only then do I run `scripts/runtime-grants.sql`, because the grants script can only grant access to tables that already exist. Finally, I update the App Service connection settings and restart the application.
 
 **Losing the application host.** The application keeps no data on its host, so I would recreate the App Service from the settings in [deployment and operations](deployment-and-operations.md), restore its settings from the password manager, and rerun the GitHub workflow. It has to use the same `BETTER_AUTH_SECRET` as before, or every enrolled authenticator stops working.
 
@@ -69,7 +69,7 @@ For a course project with a small team, I am targeting a recovery point of a few
 
 ## 9. Verifying a restore
 
-A restore is only finished once the application works against it. I would confirm that `/health` succeeds using the application login rather than the deployment login, that accounts can sign in with an authenticator, and that row counts for `ticket`, `ticket_comment`, `ticket_event`, and `user` match the source. A sample ticket should still show its comments and history in order, and a requester should still be unable to see internal notes or other requesters' tickets.
+A restore is only finished once the application works against it. I would confirm that `/health` succeeds using the application login rather than the deployment login, that accounts can sign in with an authenticator, and that row counts for `ticket`, `ticket_comment`, `ticket_event`, and `user` match the counts recorded when the backup was taken. Comparing against the live database would be misleading, since it may have newer rows than the backup. A sample ticket should still show its comments and history in order, and a requester should still be unable to see internal notes or other requesters' tickets.
 
 ## 10. Testing this plan
 

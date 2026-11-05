@@ -33,7 +33,7 @@ I used Drizzle ORM and Drizzle Kit for the schema because they give typed querie
 
 Every change follows the same process so the schema, the hosted database, and the code stay in agreement. I first record the request and its expected behavior in the [change log](change-log.md). If the change affects the schema, I update the Drizzle definitions, generate a migration, and read the generated SQL before using it, as described in [database design](database-design.md).
 
-The work then happens on a feature branch. Before opening a pull request I run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`, and GitHub Actions repeats those checks on the pull request. If the change needs a migration, I apply it to the hosted database before merging, and I reapply `scripts/runtime-grants.sql` when a table has been added. Merging to `main` then deploys the application and checks its `/health` endpoint.
+The work then happens on a feature branch. Before opening a pull request I run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`, and GitHub Actions repeats those checks on any pull request that changes code. If the change needs a migration, I apply it to the hosted database before merging, and I reapply `scripts/runtime-grants.sql` when a table has been added. Merging to `main` then deploys the application and checks its `/health` endpoint.
 
 ## 4. Risks
 

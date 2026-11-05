@@ -63,7 +63,7 @@ The application is then deployed with only the application credentials. Neither 
 
 ## 5. How updates work
 
-The workflow in `.github/workflows/azure.yml` runs the type checks and unit tests, builds the Node server, and packages its production dependencies. Pull requests are only validated, while passing pushes to `main` are deployed as long as `AZURE_DEPLOY_ENABLED` is `true`. Changes that only touch documentation or design files skip the workflow.
+The workflow in `.github/workflows/azure.yml` runs lint, the type checks, and the unit tests, builds the Node server, and packages its production dependencies. Pull requests are only validated, while passing pushes to `main` are deployed as long as `AZURE_DEPLOY_ENABLED` is `true`. Changes that only touch documentation or design files skip the workflow.
 
 The release ZIP contains `application.tar.gz` and `start.sh`. When the app starts, `start.sh` extracts the application to local temporary storage before starting Node. I did this to keep pnpm's symbolic links intact and to avoid running the application from App Service's shared file system. All persistent data lives in PostgreSQL, so nothing is lost when that temporary copy disappears. GitHub keeps each release artifact for seven days.
 
@@ -113,11 +113,11 @@ Local tests cover migrations, provisioning, and restricted-role behavior, but th
 - Sessions and records survive an application restart.
 - A backup restores into a separate database with users, relationships, comments, events, and schema intact.
 
-The backup and restore commands are:
+The backup and restore commands read passwords from a `~/.pgpass` file with mode 600, so no password appears in the command line or the process list. The connection details come from the usual `PGHOST`, `PGUSER`, and `PGDATABASE` settings:
 
 ```sh
-pg_dump --format=custom --file=capstone.dump "$DATABASE_URL"
-pg_restore --no-owner --dbname="$RESTORE_DATABASE_URL" capstone.dump
+pg_dump --format=custom --file=capstone.dump
+pg_restore --no-owner --no-privileges --dbname=capstone_restore capstone.dump
 ```
 
-A dump should only be restored into an empty database, dumps must be kept private, and the runtime grants have to be reapplied afterward. The result of each drill is recorded in the [security and data recovery plan](security-and-recovery-plan.md).
+`--no-privileges` skips the dump's grants, because the roles they mention do not exist yet on a fresh server. A dump should only be restored into an empty database, and dumps must be kept private. After restoring, I run `pnpm db:migrate` and then `scripts/runtime-grants.sql`, in that order, and record the row counts at backup time so the restore can be compared against them. The result of each drill is recorded in the [security and data recovery plan](security-and-recovery-plan.md).

@@ -7,7 +7,7 @@
 
 ## Introduction
 
-The ticket system is one SvelteKit application that serves both desktop and mobile browsers. Its server routes and actions validate the session, the user's permissions, and the submitted input before touching PostgreSQL, and the browser never connects to the database directly. This document describes the layers of the application, what happens during a request, and how the main features are built: navigation, search, and formatted messages.
+The ticket system is one SvelteKit application that serves both desktop and mobile browsers. Its server routes and actions validate the session, the user's permissions, and the submitted input before reading or changing any ticket data, and the browser never connects to the database directly. This document describes the layers of the application, what happens during a request, and how the main features are built: navigation, search, and formatted messages.
 
 ## 1. Layers
 

@@ -28,7 +28,7 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `two_fact
 
 ## 2. Keys and data types
 
-User IDs, and the foreign keys that point to them, are text, because that is how Better Auth generates them. The application's own records use UUIDs, and tickets also have a unique generated ticket number so people can refer to "ticket 1046" instead of a UUID. Every timestamp includes a time zone. Categories, statuses, and users are referenced by key rather than copied into tickets, so renaming a category changes it everywhere at once.
+User IDs, and the foreign keys that point to them, are text, because that is how Better Auth generates them. Roles and statuses also use readable text keys, such as `agent` or `resolved`, since migrations seed them with fixed values. Every other application record uses a UUID, and tickets also have a unique generated ticket number so people can refer to "ticket 1046" instead of a UUID. Ticket, comment, event, and notification timestamps include a time zone; the Better Auth tables use the library's own timestamp columns without one. Categories, statuses, and users are referenced by key rather than copied into tickets, so renaming a category changes it everywhere at once.
 
 ## 3. Integrity rules
 
