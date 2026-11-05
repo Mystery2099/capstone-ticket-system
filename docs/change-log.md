@@ -10,6 +10,10 @@
 
 This log records how the ticket system has changed since the original proposal, newest first. For each change I note what the expected behavior is, which parts of the schema, interface, or permissions it affects, any migration or recovery step it needs, and how it was verified. Changes that Professor Enke requested are marked as such.
 
+## November 4, 2026: Demonstration passwords and hosted checks
+
+Seven demonstration accounts on the live site still used the password written into the public browser tests, including an agent account that can read internal notes. I checked every hosted password hash against that password offline, then reset only the seven that matched with `pnpm account:recover`, which also signed those accounts out and wrote an audit event for each. The new passwords are stored outside the repository. I also ran the acceptance checks and a restore drill against the hosted system, as recorded in the [test and demonstration plan](test-and-demo-plan.md) and the [security and data recovery plan](security-and-recovery-plan.md). No schema changes were involved.
+
 ## November 4, 2026: Search suggestion fix, accessibility, and mobile navigation
 
 A review found that search suggestions ignored the requester filter for anyone who could read internal notes, so a custom role with note access but without permission to see all tickets could see subjects from other requesters' tickets. Suggestions now follow the same ticket visibility rule as the ticket list, and a workflow test fails if that regresses. CI now also runs lint.
