@@ -903,10 +903,17 @@
 		.list-top > button.icon-button {
 			display: none;
 		}
+		/* One row that scrolls sideways, so filters don't push the ticket list down. */
 		.filters {
 			padding: 4px 16px 12px;
 			border-bottom: 0;
 			gap: 8px;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			scrollbar-width: none;
+		}
+		.filters > * {
+			flex: none;
 		}
 		.list-row {
 			padding: 16px;

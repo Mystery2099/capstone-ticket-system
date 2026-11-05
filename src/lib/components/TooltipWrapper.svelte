@@ -5,6 +5,7 @@
 -->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { MediaQuery } from 'svelte/reactivity';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	type TooltipWrapperProps = {
@@ -21,9 +22,12 @@
 		trigger,
 		...triggerProps
 	}: TooltipWrapperProps = $props();
+	// Touch screens have no hover, so a tooltip would only open on a tap or focus. An open tooltip
+	// also absorbs the next outside tap, which kept the mobile navigation from closing.
+	const canHover = new MediaQuery('(hover: hover)');
 </script>
 
-<Tooltip.Root>
+<Tooltip.Root disabled={!canHover.current}>
 	<Tooltip.Trigger {...triggerProps}>
 		{#snippet child({ props })}{@render trigger(props)}{/snippet}
 	</Tooltip.Trigger>

@@ -1,11 +1,11 @@
 [] Temp Passwords
 [] Reset Passwords
-[] Filtering takes too much space on mobile
+[x] Filtering takes too much space on mobile
 [] Group Assignments
 [x] notifications on tikets that have been updates since u last looked at them
 [] read and unread tickets
 [x] right now, we have a message-like interface for tickets, but that makes it kind of difficult to tell what exactly is going on here - what we mean by this is that in something like Team dynamix the layout of a ticket is Subject, metadata, ticket description, comments. In our's it's Subject, Metadata, and then the description is just the top comment which might make it hard for a technician/agent to figure out exactly what the ticket is about at a glance
 [x] Editing tickets - Admins and/or agents should be able to edit a tickets subject (and description if we add a proper description) which would of course show as an update in the feed of the tickets
-[] taping outside the nav bar on mobile doesn't close it
+[x] taping outside the nav bar on mobile doesn't close it
 [x] When anyone comments, there should probably be a way to decide who should be notified of the update/comment.
 [x] Potential for you page: If a ticket is assigned to you, or a comment on a ticket you've interacted with occurs or anything that should grab your attention for a ticket occurs, it should appear in this page. you should be able to mark it as read or something to get it out of this page.
