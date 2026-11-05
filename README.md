@@ -2,6 +2,7 @@
 
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
+**Student:** Mathew Kennedy-Brewer  
 **Status:** Current as of November 4, 2026  
 **Live site:** [capstone-tickets-mkb.azurewebsites.net](https://capstone-tickets-mkb.azurewebsites.net)  
 **Database:** PostgreSQL

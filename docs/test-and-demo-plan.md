@@ -2,6 +2,7 @@
 
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
+**Student:** Mathew Kennedy-Brewer  
 **Status:** Current as of November 4, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
@@ -49,10 +50,12 @@ The demonstration follows one ticket through its whole lifecycle and then shows 
 5. Show a rejected reference or unauthorized operation, and a transaction that rolls back.
 6. Show evidence of a backup restored into a separate database.
 
-## 5. Outstanding before the demonstration
+## 5. Hosted evidence
 
-Three things still need evidence from the hosted environment rather than from local tests. I need to run the acceptance checks above against the Azure deployment with disposable data, confirm HTTPS, proxy handling, login throttling, and the restricted database grants there, and complete a backup and restore into a separate PostgreSQL database. The procedures are in [deployment and operations](deployment-and-operations.md), and the restore result belongs in the record at the end of the [security and data recovery plan](security-and-recovery-plan.md).
+On November 4, 2026, I checked the parts of the hosted deployment that can be verified without changing it. Plain HTTP redirects to HTTPS, and the live site sends HSTS, a Content Security Policy with script nonces, `Cache-Control: no-store`, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and a same-origin referrer policy. The application login was denied access to the migration history and could not read the ticket-number sequence directly, which confirms its grants are restricted. I also completed a restore drill into a separate PostgreSQL database; the method and results are recorded at the end of the [security and data recovery plan](security-and-recovery-plan.md).
+
+Two things still need to be done by hand on the hosted site: running the acceptance checks above with disposable data, and confirming that repeated failed sign-ins are throttled through Azure's proxy. I have not tested throttling against the live site, since that means deliberately sending failed sign-ins to it. The procedures are in [deployment and operations](deployment-and-operations.md).
 
 ## Conclusion
 
-The automated tests give me reasonable confidence in the application's rules, especially around private notes and transactions, which are the areas most likely to fail without anyone noticing. The remaining work is mostly about proving the same behavior on the hosted system and showing that the data can actually be recovered.
+The automated tests give me reasonable confidence in the application's rules, especially around private notes and transactions, which are the areas most likely to fail without anyone noticing. The hosted security headers and a restore into a separate database are now verified; what remains is running the acceptance checks against the live site.
