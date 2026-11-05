@@ -3,7 +3,7 @@
 	import { hasPermission } from '$lib/permissions';
 	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { RefreshCw, SlidersHorizontal, SquarePen } from '@lucide/svelte';
+	import { RefreshCw, SlidersHorizontal } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
@@ -394,7 +394,3 @@
 			</EmptyState>{/if}
 	</section>
 </div>
-<a
-	class="new-ticket fixed right-4 bottom-[88px] z-10 m-0 hidden h-[52px] w-auto gap-3 rounded-[16px] px-5 text-[14px] max-md:flex [.has-ticket+&]:hidden"
-	href="/app/tickets/new"><SquarePen size={23} /> New ticket</a
->

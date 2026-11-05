@@ -21,6 +21,7 @@
 	import TicketSearchBar from '$lib/components/tickets/TicketSearchBar.svelte';
 	import AccountMenu from '$lib/components/layout/AccountMenu.svelte';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
+	import QuickActionButton from '$lib/components/layout/QuickActionButton.svelte';
 	import SidebarToggle from '$lib/components/layout/SidebarToggle.svelte';
 	import KeyboardShortcutsDialog from '$lib/components/layout/KeyboardShortcutsDialog.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -232,6 +233,7 @@
 		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
 		<div class={slowRouteNavigation.current ? 'hidden' : 'contents'}>{@render children()}</div>
 	</main>
+	<QuickActionButton pathname={activeUrl.pathname} {newTicketHref} />
 	<nav
 		class="hidden h-[74px] shrink-0 items-center justify-around gap-0.5 bg-muted px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] max-md:flex"
 		aria-label="Mobile navigation"
