@@ -56,7 +56,7 @@ On November 4, 2026, I checked the parts of the hosted deployment that can be ve
 
 I then ran the core acceptance checks against the live site in a real browser, using fictional demonstration accounts and tickets clearly labeled as acceptance checks. A requester created a ticket, which was saved at Normal priority with no staff controls shown. An agent assigned it, posted a public reply, added an internal note, and resolved it. The requester saw the reply, but the note's text appeared nowhere on the page or in its HTML, and searching for the note's text returned nothing for the requester while returning the ticket for the agent. The requester received a 404 when opening another requester's ticket, reopened their own Resolved ticket, and found it read-only after the agent closed it. The server recorded seven audit events for the ticket: creation, assignment, the reply, the note, and three status changes. Repeated sign-ins from one address were refused with "Too many sign-in attempts," which confirms that throttling works through Azure's proxy.
 
-What remains is MFA enrollment and recovery-code sign-in on the hosted site, which I have tested locally but not against a live administrator account. The procedures are in [deployment and operations](deployment-and-operations.md).
+I also signed in to the live site with an administrator account using an authenticator code, which confirms that MFA sign-in works through the hosted deployment. The only check I have not repeated on the live site is signing in with a single-use recovery code, which the automated tests cover locally; using one on a real administrator account would spend a code. The procedures are in [deployment and operations](deployment-and-operations.md).
 
 ## Conclusion
 
