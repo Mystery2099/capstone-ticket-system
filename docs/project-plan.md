@@ -22,7 +22,7 @@ I started with planning and data modeling before writing application code, becau
 | Implementation | Oct 31 – Nov 2  | Drizzle schema and migrations, Better Auth with MFA, ticket workflows, search, and saved roles             | `src/`, `drizzle/`, [database design](database-design.md), [roles and permissions](roles-and-permissions.md)                |
 | Testing        | Throughout      | Database workflow tests, security tests, and browser tests                                                 | `tests/`, [test and demonstration plan](test-and-demo-plan.md)                                                              |
 | Deployment     | Nov 1 – Nov 2   | Azure App Service and PostgreSQL, a restricted runtime login, and GitHub Actions with a federated identity | [Deployment and operations](deployment-and-operations.md)                                                                   |
-| Maintenance    | Nov 3 – ongoing | Rich-text messages, ticket editing, a separate description section, and inbox notifications                | [Change log](change-log.md)                                                                                                 |
+| Maintenance    | Nov 3 – ongoing | Rich-text messages, ticket editing, a separate description section, and inbox notifications                | `drizzle/` migrations and the Git history                                                                                   |
 
 ## 2. Technology choices
 
@@ -32,7 +32,7 @@ I used Drizzle ORM and Drizzle Kit for the schema because they give typed querie
 
 ## 3. Change process
 
-Every change follows the same process so the schema, the hosted database, and the code stay in agreement. I first record the request and its expected behavior in the [change log](change-log.md). If the change affects the schema, I update the Drizzle definitions, generate a migration, and read the generated SQL before using it, as described in [database design](database-design.md).
+Every change follows the same process so the schema, the hosted database, and the code stay in agreement. I first write down the request and its expected behavior in the pull request for the change. If the change affects the schema, I update the Drizzle definitions, generate a migration, and read the generated SQL before using it, as described in [database design](database-design.md).
 
 The work then happens on a feature branch. Before opening a pull request I run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`, and GitHub Actions repeats those checks on any pull request that changes code. If the change needs a migration, I apply it to the hosted database before merging, and I reapply `scripts/runtime-grants.sql` when a table has been added. Merging to `main` then deploys the application and checks its `/health` endpoint.
 

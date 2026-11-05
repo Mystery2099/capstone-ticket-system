@@ -8,7 +8,7 @@
 
 ## Introduction
 
-This document lists what the ticket system is required to do. The [needs assessment](needs-assessment.md) explains why each need exists; here I state the requirements themselves so they can be checked against the application and the [test and demonstration plan](test-and-demo-plan.md). The scope may still change based on Professor Enke's feedback, and any change he requests is recorded in the [change log](change-log.md).
+This document lists what the ticket system is required to do. The [needs assessment](needs-assessment.md) explains why each need exists; here I state the requirements themselves so they can be checked against the application and the [test and demonstration plan](test-and-demo-plan.md). The scope may still change based on Professor Enke's feedback, and any change he requests is reflected here.
 
 ## 1. Purpose
 
@@ -16,7 +16,7 @@ A fictional small support team needs a way to submit requests, assign tickets, a
 
 ## 2. Functional requirements
 
-Each requirement has an identifier so I can refer to it from tests and the demonstration. FR-12 and FR-13 were added after the original proposal, as the change log records.
+Each requirement has an identifier so I can refer to it from tests and the demonstration. FR-12 and FR-13 were added after the original proposal.
 
 | ID    | Requirement                                                                                                                                                                                                                     |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

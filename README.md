@@ -17,13 +17,13 @@ The application uses Svelte 5, TypeScript, Tailwind CSS 4, Better Auth, Drizzle 
 
 Each course objective is addressed by one or more documents in `docs/`.
 
-| Objective                                     | Where it is addressed                                                                                                                                                      |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Needs assessment for the organization         | [Needs assessment](docs/needs-assessment.md)                                                                                                                               |
-| Plan for the database application             | [Project plan](docs/project-plan.md), [requirements](docs/requirements.md), [database design](docs/database-design.md)                                                     |
-| Build and configure the database application  | This repository, [local setup](#local-setup), [deployment and operations](docs/deployment-and-operations.md)                                                               |
-| Maintain, secure, and program the application | [Database design](docs/database-design.md), [change log](docs/change-log.md), [roles and permissions](docs/roles-and-permissions.md), [architecture](docs/architecture.md) |
-| Security and data recovery plan               | [Security and data recovery plan](docs/security-and-recovery-plan.md), [deployment and operations](docs/deployment-and-operations.md)                                      |
+| Objective                                     | Where it is addressed                                                                                                                    |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Needs assessment for the organization         | [Needs assessment](docs/needs-assessment.md)                                                                                             |
+| Plan for the database application             | [Project plan](docs/project-plan.md), [requirements](docs/requirements.md), [database design](docs/database-design.md)                   |
+| Build and configure the database application  | This repository, [local setup](#local-setup), [deployment and operations](docs/deployment-and-operations.md)                             |
+| Maintain, secure, and program the application | [Database design](docs/database-design.md), [roles and permissions](docs/roles-and-permissions.md), [architecture](docs/architecture.md) |
+| Security and data recovery plan               | [Security and data recovery plan](docs/security-and-recovery-plan.md), [deployment and operations](docs/deployment-and-operations.md)    |
 
 ## Local setup
 
@@ -59,6 +59,6 @@ Hosted checks recorded in these documents are dated evidence, not a guarantee of
 ## Documentation
 
 - **Planning:** [needs assessment](docs/needs-assessment.md), [project plan](docs/project-plan.md), [requirements](docs/requirements.md), and [test and demonstration plan](docs/test-and-demo-plan.md) with its [demonstration queries](docs/demo-queries.sql)
+- **Screens:** [screen gallery](docs/screen-gallery.md) with every page of the application and mockups of planned production features
 - **Design:** [architecture](docs/architecture.md), [database design](docs/database-design.md), [roles and permissions](docs/roles-and-permissions.md), [diagrams](docs/diagrams/), and [interface design references](design/README.md)
 - **Operations:** [security and data recovery plan](docs/security-and-recovery-plan.md) and [deployment and operations](docs/deployment-and-operations.md)
-- **History:** [change log](docs/change-log.md)
