@@ -244,37 +244,34 @@
 		class="hidden h-[74px] shrink-0 items-center justify-around gap-0.5 bg-muted px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] max-md:flex"
 		aria-label="Mobile navigation"
 	>
-		{#each navigationViews.slice(0, 3) as navigationView (navigationView.key)}{@const isActive =
-				activeView === navigationView.key && activeUrl.pathname.startsWith('/app/tickets')}<a
-				class={cn(MOBILE_NAV_LINK_CLASS, isActive && 'font-[650]')}
-				href={'/app/tickets?view=' + navigationView.key}
-				aria-current={isActive ? 'page' : undefined}
-				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
-					><navigationView.icon size={23} /></span
-				>{navigationView.label}</a
-			>{/each}<a
-			class={cn(MOBILE_NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox' && 'font-[650]')}
+		<a
+			class={cn(MOBILE_NAV_LINK_CLASS, isInboxActive && 'font-[650]')}
 			href="/app/inbox"
-			aria-current={activeUrl.pathname === '/app/inbox' ? 'page' : undefined}
+			aria-current={isInboxActive ? 'page' : undefined}
 			aria-label={data.unreadNotificationCount
 				? `Inbox, ${data.unreadNotificationCount} unread`
 				: 'Inbox'}
 			><span
-				class={cn(
-					MOBILE_NAV_ICON_CLASS,
-					'relative',
-					activeUrl.pathname === '/app/inbox' && 'bg-selected text-primary'
-				)}
+				class={cn(MOBILE_NAV_ICON_CLASS, 'relative', isInboxActive && 'bg-selected text-primary')}
 				><Inbox size={23} />{#if data.unreadNotificationCount}<span
 						class="absolute top-0 right-2 size-2 rounded-full bg-primary"
 						aria-hidden="true"
 					></span>{/if}</span
 			>Inbox</a
 		><a
-			class={MOBILE_NAV_LINK_CLASS}
+			class={cn(MOBILE_NAV_LINK_CLASS, isTicketsActive && 'font-[650]')}
+			href={ticketListHref}
+			aria-current={isTicketsActive ? 'page' : undefined}
+			><span class={cn(MOBILE_NAV_ICON_CLASS, isTicketsActive && 'bg-selected text-primary')}
+				><Ticket size={23} /></span
+			>Tickets</a
+		><a
+			class={cn(MOBILE_NAV_LINK_CLASS, isSettingsActive && 'font-[650]')}
 			href="/app/settings"
-			aria-current={activeUrl.pathname === '/app/settings' ? 'page' : undefined}
-			><span class={MOBILE_NAV_ICON_CLASS}><Settings size={23} /></span>Settings</a
+			aria-current={isSettingsActive ? 'page' : undefined}
+			><span class={cn(MOBILE_NAV_ICON_CLASS, isSettingsActive && 'bg-selected text-primary')}
+				><Settings size={23} /></span
+			>Settings</a
 		>
 	</nav>
 </Sidebar.Provider>
