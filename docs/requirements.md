@@ -3,7 +3,7 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 4, 2026  
+**Status:** Current as of November 5, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
@@ -42,7 +42,7 @@ The interface should be accessible and responsive enough to use from both deskto
 
 ## 4. Out of scope
 
-Email delivery and email-to-ticket integration, attachments, a command palette, open self-registration, push notifications, offline support, multi-tenant organizations, and complex reports are outside the requirements. Image attachments remain under consideration, as the needs assessment explains, but they are not a requirement yet. The design mockups in `design/` are visual references rather than additional requirements.
+Email delivery and email-to-ticket integration, attachments, a command palette, open self-registration, push notifications, offline support, multi-tenant organizations, and complex reports are outside the requirements. I decided not to implement image or file attachments in this project; the [architecture document](architecture.md#6-file-attachments-planned-not-built) describes how I would add them. The design mockups in `design/` are visual references rather than additional requirements.
 
 ## Conclusion
 
