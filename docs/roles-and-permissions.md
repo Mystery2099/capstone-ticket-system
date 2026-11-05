@@ -32,7 +32,11 @@ The built-in Administrator role includes every agent permission. Agents see all 
 
 ## 2. Ticket lifecycle
 
+Assignment eligibility is capability-based, not restricted to the built-in role names: an enabled account needs both `receiveAssignments` and `viewAllTickets`. A custom role with both grants can receive assignments too.
+
 A ticket moves through five statuses: Open, In Progress, On Hold, Resolved, and Closed. New tickets start as Open, and a user without the `setTicketStatus` capability can only create them that way. Setting Resolved or Closed also records the matching timestamp. There is no automatic closure, so a ticket only reaches Closed when someone deliberately closes it.
+
+For any non-Closed ticket, `setTicketStatus` permits changing to any of the other four statuses; there is no required progression through In Progress or Resolved. Staff with this grant can also choose the initial status during creation. Leaving Resolved or Closed clears its corresponding timestamp, so those columns describe the current state, not a permanent history of earlier resolutions or closures.
 
 Resolved and Closed mean different things. A requester can reopen their own Resolved ticket if the problem turns out not to be fixed. Closed is read-only, with no new replies or edits, until someone with the `reopenClosedTickets` capability reopens it to Open; by default, only administrators have that capability. This keeps ordinary users from silently undoing a decision the support team has made. The [ticket lifecycle diagram](diagrams/ticket-lifecycle.mmd) shows the allowed transitions.
 

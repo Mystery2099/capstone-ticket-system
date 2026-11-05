@@ -29,9 +29,11 @@ Better Auth owns the `user`, `session`, `account`, `verification`, and `two_fact
 
 ## 2. Keys and data types
 
-User IDs, and the foreign keys that point to them, are text, because that is how Better Auth generates them. Roles and statuses also use readable text keys, such as `agent` or `resolved`, since migrations seed them with fixed values. Every other application record uses a UUID, and tickets also have a unique generated ticket number so people can refer to "ticket 1046" instead of a UUID. Ticket, comment, event, and notification timestamps include a time zone; the Better Auth tables use the library's own timestamp columns without one. Categories, statuses, and users are referenced by key rather than copied into tickets, so renaming a category changes it everywhere at once.
+User IDs, and the foreign keys that point to them, are text, because that is how Better Auth generates them. Roles and statuses also use text keys, with built-in values such as `agent` or `resolved`. Categories, tickets, comments, events, and notifications use UUID primary keys. Tickets also have a unique generated ticket number so people can refer to "ticket 1046" instead of a UUID. Ticket, comment, event, and notification timestamps include a time zone; the Better Auth tables use the library's own timestamp columns without one. Categories, statuses, and users are referenced by key rather than copied into tickets, so renaming a category changes it everywhere at once.
 
 ## 3. Integrity rules
+
+The exception to UUID application primary keys is `ticket_follower`, which uses the composite key (`ticket_id`, `user_id`). Custom role IDs are also text; their display names can change independently of those IDs.
 
 Required foreign keys protect every relationship a ticket depends on, so a ticket cannot point at a missing requester, category, or status. Priority only accepts `low`, `normal`, or `high`, defaulting to `normal`, and message formats only accept `plain` or `markdown`. A ticket has at most one assignee, and the server only accepts an assignee who is enabled and eligible for assignment.
 

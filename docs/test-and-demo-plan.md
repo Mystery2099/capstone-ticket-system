@@ -18,6 +18,8 @@ Four commands check the project before every pull request: `pnpm lint`, `pnpm ch
 
 ## 2. Acceptance checks
 
+Before the first browser run, install Chromium with `pnpm exec playwright install chromium`, adding `--with-deps` on Linux if system dependencies are missing. Port 4180 must be free: Playwright refuses to reuse an existing server. The dated test counts above are historical results, not a fresh verification of the current checkout.
+
 The table below lists what has to hold in each area. Most of these are covered by the automated tests above; the recovery check and the hosted versions of the account checks still need to be done by hand.
 
 | Area           | What to verify                                                                                                           |

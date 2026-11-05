@@ -9,7 +9,7 @@
 
 ## Introduction
 
-This plan explains how the ticket system protects its data and how I would recover that data after a failure. The exact operator commands are in [deployment and operations](deployment-and-operations.md); this document describes the reasoning behind them and the order I would follow in each situation. Most of the security controls described here are implemented and covered by automated tests. The recovery procedures are written but have not yet been exercised against the hosted database, and the record at the end of this plan is where that evidence will go.
+This plan explains how the ticket system protects its data and how I would recover that data after a failure. The exact operator commands are in [deployment and operations](deployment-and-operations.md); this document describes the reasoning behind them and the order I would follow in each situation. Most of the security controls described here are implemented and covered by automated tests. Two restores from hosted data into separate local PostgreSQL servers were recorded on November 4, 2026, as detailed at the end of this plan. These drills did not test Azure point-in-time restore or rebuilding the App Service host.
 
 ## 1. What needs protecting
 
@@ -31,6 +31,8 @@ Every request reloads the account, whether it is enabled, and the capabilities s
 
 ## 3. Access to the database
 
+The application write limiter covers authenticated POST requests outside `/api/auth/`, at 30 per minute per account per server process. Better Auth handles authentication endpoints separately. The limiter resets on restart and is not shared across replicas; multi-instance hosting needs shared rate limiting.
+
 The browser never connects to PostgreSQL; only the server does. I use two separate logins. The deployment login owns the schema and runs migrations, while the application login, `capstone_web`, inherits a `capstone_runtime` role that `scripts/runtime-grants.sql` limits to the statements the application actually needs on each table. The application cannot create or drop tables, and `ticket_event`, `security_event`, and `ticket_comment` are insert-only for it, so it cannot rewrite history.
 
 All queries go through Drizzle, which sends parameterized SQL. The Azure PostgreSQL firewall only admits the App Service's outbound addresses and trusted deployment paths, and connections verify the server's TLS certificate. The schema also enforces integrity on its own through foreign keys, allowed values for priority and format, a fixed status table, and unique ticket numbers, so a mistake in application code still cannot store an invalid relationship.
@@ -47,7 +49,7 @@ Every ticket change writes a `ticket_event` row in the same transaction as the c
 
 ## 6. Backups
 
-I rely on two kinds of backup. Azure Database for PostgreSQL flexible server takes automatic backups and supports point-in-time restore, with seven days of retention by default and up to 35 days if configured. Separately, I take a logical dump with `pg_dump --format=custom` using the deployment credentials before every migration and once a week, keeping the four most recent.
+The backup policy uses two kinds of backup. Azure Database for PostgreSQL flexible server provides automated backups and point-in-time restore; the configured retention must be checked in Azure. The intended retention is seven days, or up to 35 days if configured. Separately, the operator should take a logical dump with `pg_dump --format=custom` using the deployment credentials before every migration and once a week, keeping the four most recent. The repository does not automate that schedule; the recorded drills demonstrate individual successful dumps and restores, not ongoing compliance with the policy.
 
 | Backup                               | Method                                  | Frequency                      | Retention                    |
 | ------------------------------------ | --------------------------------------- | ------------------------------ | ---------------------------- |

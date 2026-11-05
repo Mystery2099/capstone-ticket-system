@@ -3,12 +3,16 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 4, 2026  
+**Status:** Current as of November 5, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
 
 This log records how the ticket system has changed since the original proposal, newest first. For each change I note what the expected behavior is, which parts of the schema, interface, or permissions it affects, any migration or recovery step it needs, and how it was verified. Changes that Professor Enke requested are marked as such.
+
+## November 5, 2026: Documentation accuracy review
+
+Reviewed repository documentation against configuration, scripts, schema, permissions, and ticket workflows. Corrected capability-based visibility and lifecycle diagrams, documented assignment eligibility and browser-test prerequisites, and distinguished recorded restore evidence from untested recovery procedures and the intended backup schedule. No application, schema, or hosted changes were made.
 
 ## November 4, 2026: Demonstration passwords and hosted checks
 

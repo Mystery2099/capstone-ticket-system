@@ -16,6 +16,8 @@ erDiagram
   USER ||--o{ TICKET_FOLLOWER : follows
   USER ||--o{ NOTIFICATION : receives
   TICKET ||--o{ NOTIFICATION : about
+  TICKET_COMMENT o|--o{ NOTIFICATION : references
+  USER o|--o{ NOTIFICATION : acts
   APPLICATION_ROLE {
     text id PK
     text name
@@ -86,8 +88,8 @@ erDiagram
     jsonb details
   }
   TICKET_FOLLOWER {
-    uuid ticket_id PK
-    text user_id PK
+    uuid ticket_id PK, FK
+    text user_id PK, FK
   }
   NOTIFICATION {
     uuid id PK

@@ -25,7 +25,7 @@ I wanted a single application rather than a separate API and front end, because 
 
 ## 2. Request flow
 
-On every request, the server loads the session, the account's current state, and its saved permissions. Because this happens each time, a disabled account or a stale session cannot keep access it should have lost. The action handling the request then checks that the user is allowed to perform it and validates the input.
+On application requests, the server loads the session, the account's current state, and its saved permissions. Authentication endpoints under `/api/auth/` are handled separately by Better Auth. Because application permissions are reloaded each time, a disabled account or a stale session cannot keep access it should have lost. The action handling the request then checks that the user is allowed to perform it and validates the input.
 
 When the request changes a ticket, the service writes the change and its audit event in one transaction, locking the ticket row while it does. Before returning anything, the server removes whatever the user is not allowed to see. Internal notes are filtered out at this stage, including from snippets, counts, search results, and activity, so they never reach a browser that should not have them. The [create ticket](diagrams/create-ticket-sequence.mmd), [internal note visibility](diagrams/internal-notes-visibility.mmd), and [status update transaction](diagrams/status-update-transaction.mmd) diagrams show these steps in more detail.
 
@@ -35,20 +35,20 @@ Ticket creation and replies use Superforms. A draft or reply survives a failed s
 
 I modeled the interface on an email client because I wanted the ticket system to feel familiar, especially to people who are less technically inclined. On desktop, the workspace has a sidebar, a ticket list, and an optional reading pane; phones show one main page at a time. Both layouts share the same routes and the same server-side permission checks. The workspace offers four views: My Tickets, Assigned to Me, Unassigned, and All Tickets.
 
-| URL                       | Purpose                                          |
-| ------------------------- | ------------------------------------------------ |
-| `/login`                  | Sign in                                          |
-| `/account-security`       | MFA enrollment and verification                  |
-| `/app/tickets`            | Workspace; views and search use query parameters |
-| `/app/tickets/new`        | New ticket                                       |
-| `/app/tickets/[ticketId]` | Conversation and details                         |
-| `/app/search/suggest`     | Authenticated search suggestions                 |
-| `/app/inbox`              | Notifications; `?show=all` includes read ones    |
-| `/app/settings`           | Theme, color palette, and account details        |
-| `/app/admin/users`        | Account administration                           |
-| `/app/admin/categories`   | Category administration                          |
-| `/app/admin/roles`        | Role administration                              |
-| `/health`                 | Application health check                         |
+| URL                           | Purpose                                                   |
+| ----------------------------- | --------------------------------------------------------- |
+| `/login`                      | Sign in                                                   |
+| `/account-security`           | MFA enrollment and verification                           |
+| `/app/tickets`                | Workspace; views and search use query parameters          |
+| `/app/tickets/new`            | New ticket                                                |
+| `/app/tickets/[ticketNumber]` | Conversation and details, using the numeric ticket number |
+| `/app/search/suggest`         | Authenticated search suggestions                          |
+| `/app/inbox`                  | Notifications; `?show=all` includes read ones             |
+| `/app/settings`               | Theme, color palette, and account details                 |
+| `/app/admin/users`            | Account administration                                    |
+| `/app/admin/categories`       | Category administration                                   |
+| `/app/admin/roles`            | Role administration                                       |
+| `/health`                     | Application health check                                  |
 
 The [site map diagram](diagrams/site-map.mmd) shows how these pages connect.
 

@@ -5,8 +5,11 @@ sequenceDiagram
  Staff->>Server: Change status
  Server->>Server: Verify session and permissions
  Server->>DB: BEGIN
+ Server->>DB: SELECT ticket FOR UPDATE
+ Server->>Server: Check ticket access and allowed change
  Server->>DB: UPDATE ticket
  Server->>DB: INSERT ticket_event
+ Server->>DB: INSERT notifications when required
  alt Both successful
   Server->>DB: COMMIT
  else Any failure

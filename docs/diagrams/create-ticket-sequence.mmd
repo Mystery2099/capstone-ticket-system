@@ -4,6 +4,14 @@ sequenceDiagram
  participant DB as PostgreSQL
  Requester->>Server: Submit subject, description, category
  Server->>Server: Check session, validate input
+ Server->>DB: BEGIN
  Server->>DB: INSERT ticket (Normal priority, Open status)
  DB-->>Server: New ticket ID
- Server-->>Requester: Ticket details
+ Server->>DB: INSERT ticket_event and requester follower
+ alt All writes succeed
+  Server->>DB: COMMIT
+  Server-->>Requester: Ticket details
+ else Any failure
+  Server->>DB: ROLLBACK
+  Server-->>Requester: Error, no ticket created
+ end

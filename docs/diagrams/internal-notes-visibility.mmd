@@ -1,8 +1,8 @@
 flowchart LR
-  Request[Ticket detail request] --> Role{Staff?}
-  Role -->|Yes| Full[Query public replies and internal notes]
-  Role -->|No| Own{Own ticket?}
-  Own -->|No| Deny[Access denied]
-  Own -->|Yes| Public[Query public replies only]
+  Request[Ticket detail request] --> Access{Own ticket or viewAllTickets?}
+  Access -->|No| Deny[404 - ticket not found]
+  Access -->|Yes| Notes{useInternalNotes?}
+  Notes -->|Yes| Full[Query public replies and internal notes]
+  Notes -->|No| Public[Query public replies only]
   Full --> Response[Server response]
   Public --> Response

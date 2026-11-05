@@ -3,7 +3,7 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 4, 2026  
+**Status:** Repository documentation reviewed November 5, 2026  
 **Live site:** [capstone-tickets-mkb.azurewebsites.net](https://capstone-tickets-mkb.azurewebsites.net)  
 **Database:** PostgreSQL
 
@@ -52,7 +52,9 @@ pnpm test
 pnpm build
 ```
 
-`pnpm test:e2e` starts its own isolated server and runs the browser tests. All tests use fictional fixtures in disposable databases. The [test and demonstration plan](docs/test-and-demo-plan.md) describes what they cover and what still has to be checked by hand.
+Install Chromium once with `pnpm exec playwright install chromium` (on Linux, add `--with-deps` to install system dependencies too). `pnpm test:e2e` starts its own isolated server on port 4180, which must be available. All tests use fictional fixtures in disposable databases. The [test and demonstration plan](docs/test-and-demo-plan.md) describes what they cover and what still has to be checked by hand.
+
+Hosted checks recorded in these documents are dated evidence, not a guarantee of the live site's current configuration. This documentation review did not access or modify the hosted application or database.
 
 ## Documentation
 

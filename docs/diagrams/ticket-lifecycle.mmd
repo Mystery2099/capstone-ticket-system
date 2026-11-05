@@ -1,12 +1,25 @@
 stateDiagram-v2
     [*] --> Open
     Open --> InProgress
+    Open --> OnHold
+    Open --> Closed
+    InProgress --> Open
     InProgress --> OnHold
+    InProgress --> Closed
+    OnHold --> Open
     OnHold --> InProgress
     Open --> Resolved
     InProgress --> Resolved
     OnHold --> Resolved
+    OnHold --> Closed
     Resolved --> Open: Requester reopens own ticket
     Resolved --> InProgress: Staff reopens
+    Resolved --> OnHold: Staff reopens
     Resolved --> Closed: Staff closes
-    Closed --> Open: Administrator only
+    Closed --> Open: reopenClosedTickets capability
+    note right of Open
+        Default initial status is Open.
+        setTicketStatus allows any initial status and
+        any transition from a non-Closed status.
+        Requesters may only reopen their own Resolved ticket to Open.
+    end note
