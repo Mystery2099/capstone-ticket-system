@@ -4,7 +4,16 @@
 -->
 <script lang="ts">
 	import type { Component } from 'svelte';
-	import { ChevronDown, Inbox, Settings, SquarePen, Tags, Users, X } from '@lucide/svelte';
+	import {
+		ChevronDown,
+		Inbox,
+		Settings,
+		ShieldCheck,
+		SquarePen,
+		Tags,
+		Users,
+		X
+	} from '@lucide/svelte';
 	import * as Collapsible from '$lib/components/ui/collapsible/index.js';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import { cn } from '$lib/utils';
@@ -193,7 +202,8 @@
 						aria-label="Roles"
 						aria-current={activeUrl.pathname === '/app/admin/roles' ? 'page' : undefined}
 						onclick={closeMobileSidebar}
-						><Users size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Roles</span
+						><ShieldCheck size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}
+							>Roles</span
 						></a
 					>
 
