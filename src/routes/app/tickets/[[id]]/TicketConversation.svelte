@@ -13,6 +13,7 @@
 	import TooltipWrapper from '$lib/components/TooltipWrapper.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { TICKET_STATUSES, TicketEventType } from '$lib/status';
+	import { groupConsecutiveActivity } from './ticket-activity-grouping';
 	import CommentMessage from './CommentMessage.svelte';
 	import TicketActivityEntry from './TicketActivityEntry.svelte';
 	import TicketDescription from './TicketDescription.svelte';
@@ -131,10 +132,14 @@
 				+new Date(firstEntry.createdAt) - +new Date(secondEntry.createdAt)
 		)
 	);
-	let hiddenEntryCount = $derived(
-		showAllActivity ? 0 : Math.max(conversationTimeline.length - RECENT_TIMELINE_LENGTH, 0)
+	/** Changes made one after another by the same person show as a single line. */
+	let groupedTimeline = $derived(
+		groupConsecutiveActivity<TicketCommentRecord, TicketEventRecord>(conversationTimeline)
 	);
-	let visibleTimeline = $derived(conversationTimeline.slice(hiddenEntryCount));
+	let hiddenEntryCount = $derived(
+		showAllActivity ? 0 : Math.max(groupedTimeline.length - RECENT_TIMELINE_LENGTH, 0)
+	);
+	let visibleTimeline = $derived(groupedTimeline.slice(hiddenEntryCount));
 
 	async function copyToClipboard(text: string, successMessage: string): Promise<void> {
 		try {
@@ -280,7 +285,7 @@
 					body={timelineEntry.body}
 					bodyFormat={timelineEntry.bodyFormat}
 					isInternal={timelineEntry.isInternal}
-				/>{:else}<TicketActivityEntry event={timelineEntry} {directory} />{/if}{/each}
+				/>{:else}<TicketActivityEntry events={timelineEntry.events} {directory} />{/if}{/each}
 		{#if !isTicketClosed}<TicketReplyForm
 				{replyForm}
 				bind:isInternalNote

@@ -3,7 +3,7 @@
 	import { hasPermission } from '$lib/permissions';
 	import { afterNavigate, goto, invalidate } from '$app/navigation';
 	import { navigating, page } from '$app/state';
-	import { RefreshCw, SquarePen } from '@lucide/svelte';
+	import { RefreshCw, SlidersHorizontal, SquarePen } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import Combobox from '$lib/components/Combobox.svelte';
 	import TooltipIconButton from '$lib/components/TooltipIconButton.svelte';
@@ -34,6 +34,11 @@
 		{ value: 'normal', label: 'Normal' },
 		{ value: 'low', label: 'Low' }
 	];
+	/** On phones each quick filter fills its column in the open filter panel. */
+	const LIST_FILTER_CLASS = 'max-md:w-full max-md:max-w-none';
+	const PERSON_LIST_FILTER_CLASS = 'max-w-[48%] max-md:w-full max-md:max-w-none';
+	/** URL parameters the list's quick filters control. */
+	const LIST_FILTER_NAMES = ['status', 'priority', 'category', 'requester', 'assignee'];
 	const SEARCH_SORT_OPTIONS: SelectOption[] = [
 		{ value: 'relevance', label: 'Best match' },
 		{ value: 'newest', label: 'Newest first' }
@@ -212,6 +217,11 @@
 	);
 	let viewTitle = $derived(TICKET_VIEW_TITLES[activeView] || 'All tickets');
 	let listHeading = $derived(activeCategory ? `Open · ${activeCategory.name}` : viewTitle);
+	// On phones the quick filters fold behind one button, so they don't push the list down.
+	let isFilterPanelOpen = $state(false);
+	let activeListFilterCount = $derived(
+		LIST_FILTER_NAMES.filter((filterName) => page.url.searchParams.get(filterName)).length
+	);
 	let loadedTicketCountLabel = $derived(
 		`${listLoader.rows.length}${listLoader.nextPageHref ? '+' : ''}`
 	);
@@ -232,10 +242,18 @@
 				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
 					<span>{isShowingDrafts ? drafts.dirtyDraftCount : loadedTicketCountLabel}</span>{/if}
 			</h1>
-			{#if !isShowingDrafts}<TooltipIconButton
-					label="Refresh tickets"
-					onclick={refreshTickets}
-					disabled={isRefreshing}><RefreshCw size={20} /></TooltipIconButton
+			{#if !isShowingDrafts}<button
+					type="button"
+					class="filter-toggle"
+					aria-expanded={isFilterPanelOpen}
+					aria-controls="ticket-list-filters"
+					onclick={() => (isFilterPanelOpen = !isFilterPanelOpen)}
+					><SlidersHorizontal size={15} />Filters{#if activeListFilterCount}<span
+							class="filter-count"
+							aria-label={`${activeListFilterCount} active`}>{activeListFilterCount}</span
+						>{/if}</button
+				><TooltipIconButton label="Refresh tickets" onclick={refreshTickets} disabled={isRefreshing}
+					><RefreshCw size={20} /></TooltipIconButton
 				>{/if}
 		</div>
 		{#if data.searchText}<div class="filters" aria-label="Search result controls">
@@ -249,10 +267,15 @@
 				/>
 				<button class="text-link" onclick={() => applyListFilter('q', '')}>Clear search</button>
 			</div>{/if}
-		{#if !isShowingDrafts}<div class="filters">
+		{#if !isShowingDrafts}<div
+				class="filters list-filters"
+				class:open={isFilterPanelOpen}
+				id="ticket-list-filters"
+			>
 				<Combobox
 					label="Filter by status"
 					variant="filter"
+					class={LIST_FILTER_CLASS}
 					placeholder="Status"
 					value={page.url.searchParams.get('status') || ''}
 					options={[{ value: '', label: 'Any status' }, ...STATUS_OPTIONS]}
@@ -261,6 +284,7 @@
 				<Combobox
 					label="Filter by priority"
 					variant="filter"
+					class={LIST_FILTER_CLASS}
 					placeholder="Priority"
 					value={page.url.searchParams.get('priority') || ''}
 					options={[{ value: '', label: 'Any priority' }, ...PRIORITY_OPTIONS]}
@@ -269,6 +293,7 @@
 				<Combobox
 					label="Filter by category"
 					variant="filter"
+					class={LIST_FILTER_CLASS}
 					placeholder="Category"
 					value={page.url.searchParams.get('category') || ''}
 					options={[{ value: '', label: 'Any category' }, ...categoryOptions]}
@@ -276,16 +301,16 @@
 				/>
 				{#if isStaffUser}<Combobox
 						label="Filter by requester"
-						class="max-w-[48%]"
 						variant="filter"
+						class={PERSON_LIST_FILTER_CLASS}
 						placeholder="Requester"
 						value={page.url.searchParams.get('requester') || ''}
 						options={[{ value: '', label: 'Any requester' }, ...requesters.map(toPersonOption)]}
 						onchange={(value) => applyListFilter('requester', value)}
 					/><Combobox
 						label="Filter by assignee"
-						class="max-w-[48%]"
 						variant="filter"
+						class={PERSON_LIST_FILTER_CLASS}
 						placeholder="Assignee"
 						value={page.url.searchParams.get('assignee') || ''}
 						options={[
