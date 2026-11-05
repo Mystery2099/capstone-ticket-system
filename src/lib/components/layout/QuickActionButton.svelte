@@ -30,6 +30,6 @@
 </script>
 
 <a
-	class="new-ticket fixed right-4 bottom-[88px] z-10 m-0 hidden h-[52px] w-auto gap-3 rounded-[16px] px-5 text-[14px] max-md:flex [main:has(.workspace.has-ticket)~&]:hidden"
+	class="new-ticket quick-action fixed right-4 bottom-[88px] z-10 m-0 hidden h-[52px] w-auto gap-3 rounded-[16px] px-5 text-[14px] max-md:flex [main:has(.workspace.has-ticket)~&]:hidden"
 	href={quickAction.href}><quickAction.icon size={23} /> {quickAction.label}</a
 >
