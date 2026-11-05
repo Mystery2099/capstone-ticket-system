@@ -68,7 +68,7 @@ An agent sees every ticket and works through queue views, a category breakdown, 
 
 **Queue views.** My queue, Unassigned, All open (with counts for each category), and All tickets.
 
-![My queue](screenshots/app/desktop/11-agent-assigned-to-me.png)
+![My queue](screenshots/app/desktop/11-agent-my-queue.png)
 
 ![Unassigned tickets](screenshots/app/desktop/12-agent-unassigned.png)
 

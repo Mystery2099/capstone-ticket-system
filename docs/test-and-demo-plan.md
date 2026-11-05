@@ -39,7 +39,7 @@ The table below lists what has to hold in each area. Most of these are covered b
 
 ## 3. Manual browser checks
 
-Some interactions are only meaningful in a real browser, and database tests cannot verify them. I check that a search suggestion can be selected with the arrow keys and Enter, that submitting a ticket number opens that ticket, that sorting and filters change the results, that recent searches can be cleared, and that search works on a phone-sized screen. On a phone I also check that the Filters button opens the list filters, shows how many are on, and filters the current view. I also repeat a search that matches an internal note while signed in with and without note access, to confirm the results differ in the way they should.
+Some interactions are only meaningful in a real browser, and database tests cannot verify them. I check that a search suggestion can be selected with the arrow keys and Enter, that submitting a ticket number opens that ticket, that sorting and filters change the results, that recent searches can be cleared, and that search works on a phone-sized screen. On a phone I also check that the Filters button opens the list filters, shows how many are on, and filters the current view. I check that the bottom bar shows My queue to staff but not to requesters, and that the floating button reads **New ticket** on the inbox and ticket lists, changes to **Add user**, **Add role**, or **Add category** on the administration pages, stays visible while pages change, and hides while a ticket or record is open. I also repeat a search that matches an internal note while signed in with and without note access, to confirm the results differ in the way they should.
 
 ## 4. Live demonstration
 
