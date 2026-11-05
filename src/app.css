@@ -444,6 +444,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
+		gap: 8px;
 		padding: 0 16px;
 	}
 	/* Phones only; wider screens always show the filters. */
@@ -453,8 +454,16 @@
 	.list-top:has(+ .rows) {
 		border-bottom: 1px solid var(--border);
 	}
+	/* A long search term truncates, so the buttons beside the heading stay on screen. */
 	.list-top h1 {
 		font-size: 16px;
+		min-width: 0;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.list-top > button {
+		flex-shrink: 0;
 	}
 	.list-top h1 span {
 		font-size: 13px;
@@ -928,7 +937,7 @@
 			padding: 0 5px;
 			border-radius: 999px;
 			background: var(--primary);
-			color: var(--primary-foreground);
+			color: var(--primary-fg);
 			font-size: 11px;
 			font-weight: 650;
 			line-height: 18px;
