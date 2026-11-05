@@ -62,7 +62,8 @@
 				>
 			</form>{/if}
 	</header>
-	<div class="min-h-0 flex-1 overflow-y-auto">
+	<!-- On phones the bottom stays clear of the floating quick action, like the ticket lists. -->
+	<div class="min-h-0 flex-1 overflow-y-auto max-md:pb-[86px]">
 		{#if data.notifications.length}<ul class="max-w-[860px]">
 				{#each data.notifications as inboxNotification (inboxNotification.id)}<li
 						class={cn(
