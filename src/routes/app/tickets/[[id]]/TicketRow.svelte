@@ -17,14 +17,18 @@
 	let requesterName = $derived(directory.getPersonName(row.requesterId));
 </script>
 
-<a {href} class="list-row" class:selected={isSelected}
-	><span class="avatar row-avatar">{getInitials(requesterName)}</span>
+<a
+	{href}
+	class="list-row"
+	class:selected={isSelected}
+	aria-current={isSelected ? 'page' : undefined}
+	><span class="avatar row-avatar" aria-hidden="true">{getInitials(requesterName)}</span>
 	<div class="row-content">
 		<div class="row-title">
 			{#if row.priority === 'high'}<ChevronsUp
 					class="shrink-0 text-[#b3261e] max-md:mt-[3px]"
 					size={17}
-				/>{/if}<strong
+				/><span class="sr-only">High priority: </span>{/if}<strong
 				><HighlightedText segments={row.subjectHighlight} fallbackText={row.subject} /></strong
 			><time>{formatRecentTimestamp(row.updatedAt)}</time>
 		</div>

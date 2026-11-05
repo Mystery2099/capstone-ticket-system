@@ -49,7 +49,9 @@
 	}
 </script>
 
-<div class="login-page">
+<svelte:head><title>Sign in · Ticket System</title></svelte:head>
+
+<main class="login-page">
 	<div>
 		<section class="login-card">
 			<div class="login-heading">
@@ -59,7 +61,7 @@
 					<p>Ticket System help desk</p>
 				</div>
 			</div>
-			<form onsubmit={signIn} inert={!isHydrated}>
+			<form onsubmit={signIn} inert={!isHydrated} aria-busy={isSigningIn}>
 				<Label class="flex-col items-start gap-2">
 					Email
 					<Input
@@ -113,7 +115,7 @@
 			<p class="login-help">Accounts are created by an administrator.</p>
 		</section>
 	</div>
-</div>
+</main>
 
 <style>
 	/* In the base layer like the rest of the app's CSS, so Tailwind utilities still win. */

@@ -116,7 +116,7 @@
 	<Popover.Trigger
 		bind:ref={triggerElement}
 		class={cn(triggerClass, isMissingRequiredValue && 'border-destructive')}
-		aria-label={label}
+		aria-label={selectedLabel ? `${label}: ${selectedLabel}` : label}
 		aria-invalid={isMissingRequiredValue || undefined}
 		aria-describedby={isMissingRequiredValue ? errorId : undefined}
 		{disabled}
