@@ -212,7 +212,7 @@ The application follows the device's light or dark setting unless the user picks
 
 ## 8. Phone layout
 
-On a phone the same pages show one at a time. A bottom bar with Inbox, My queue (staff only), My requests, and Settings replaces the sidebar, the ticket views open from the menu button like folders in an email app, and ticket details fold away until needed. The list filters sit behind a **Filters** button, which shows how many filters are on.
+On a phone the same pages show one at a time. A bottom bar with Inbox, My queue (staff only), My requests, and Settings replaces the sidebar, the ticket views open from the menu button like folders in an email app, and ticket details fold away until needed. The list filters sit behind a **Filters** button, which shows how many filters are on. A floating button above the bottom bar holds the page's main action: **New ticket** on most pages, and **Add user**, **Add role**, or **Add category** on the administration pages. It hides while a ticket or record is open, so it never covers that page's own buttons.
 
 | Sign in                                           | Requester list                                                        | Requester ticket                                                    | New ticket                                                        |
 | ------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------- |
