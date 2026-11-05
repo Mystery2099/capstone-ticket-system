@@ -2,6 +2,7 @@
 
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
+**Student:** Mathew Kennedy-Brewer  
 **Status:** Current as of November 4, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)  
 **Database:** Azure Database for PostgreSQL
@@ -75,10 +76,18 @@ A restore is only finished once the application works against it. I would confir
 
 I intend to restore a dump into a separate, empty database at least once per term and after any major schema change, and record the result below. The automated tests already cover migrations, provisioning, restricted-role behavior, and transaction rollback, but they run against local databases and do not replace a hosted restore drill.
 
-| Date | Source | Restored into | Result | By  |
-| ---- | ------ | ------------- | ------ | --- |
-|      |        |               |        |     |
+| Date        | Source                                        | Restored into                                                | Result | By                    |
+| ----------- | --------------------------------------------- | ------------------------------------------------------------ | ------ | --------------------- |
+| Nov 4, 2026 | Hosted Azure database, export at 01:47:38 UTC | Separate PostgreSQL 18 database built with `pnpm db:migrate` | Passed | Mathew Kennedy-Brewer |
+
+### First drill, November 4, 2026
+
+I exported every table in the `public` schema from the hosted database inside one read-only, repeatable-read transaction, so all tables came from the same moment. I then built an empty PostgreSQL 18 database on my own machine with `pnpm db:migrate` and loaded the exported rows with every foreign key and check constraint active, so any orphaned or invalid row would have stopped the load. All fourteen tables loaded without errors, and I reset the ticket-number sequence to the highest restored number.
+
+The row counts in the restored database matched the counts I recorded at export time exactly: 14 users, 1,016 tickets, 12 comments, 1,032 ticket events, 9 security events, 5 categories, 3 roles, and 2 notifications. Joins across tickets, users, categories, and statuses returned the expected groupings, and each ticket's comments and events were still attached to it. The built application started against the restored database, `/health` returned 200, and an existing requester signed in successfully, which shows that accounts and password hashes survived. I deleted the export and the restored database afterward, since they contained password hashes.
+
+The drill also showed a limit in my backup procedure. The application login could not run `pg_dump`, because it has no access to the `drizzle` schema that holds the migration history and cannot read the ticket-number sequence directly. That is the least-privilege design working as intended, but it means a complete `pg_dump` has to be taken with the deployment login, which I keep off the web server. Until then, the table export above, combined with Azure's automated point-in-time backups, is what I can show.
 
 ## Conclusion
 
-The application's security depends on layers that do not trust each other: the server checks capabilities, the database login is restricted, and the schema rejects invalid data on its own. Recovery depends on backups that exist in more than one form and on secrets that are stored outside Azure. The remaining gap is evidence, since I still need to complete a hosted restore drill to show that this plan works in practice.
+The application's security depends on layers that do not trust each other: the server checks capabilities, the database login is restricted, and the schema rejects invalid data on its own. Recovery depends on backups that exist in more than one form and on secrets that are stored outside Azure. The first restore drill showed that the hosted data can be rebuilt into a separate database with its relationships intact. The remaining gap is a complete `pg_dump` taken with the deployment login, which would also capture the migration history.

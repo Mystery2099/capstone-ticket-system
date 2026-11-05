@@ -2,6 +2,7 @@
 
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
+**Student:** Mathew Kennedy-Brewer  
 **Status:** Current as of November 4, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)  
 **Live site:** [capstone-tickets-mkb.azurewebsites.net](https://capstone-tickets-mkb.azurewebsites.net)
@@ -113,7 +114,7 @@ Local tests cover migrations, provisioning, and restricted-role behavior, but th
 - Sessions and records survive an application restart.
 - A backup restores into a separate database with users, relationships, comments, events, and schema intact.
 
-The backup and restore commands read passwords from a `~/.pgpass` file with mode 600, so no password appears in the command line or the process list. The connection details come from the usual `PGHOST`, `PGUSER`, and `PGDATABASE` settings:
+A complete dump has to be taken with the deployment login. The application login cannot run `pg_dump`, because it has no access to the migration history in the `drizzle` schema and cannot read the ticket-number sequence directly; the first restore drill confirmed this. The backup and restore commands read passwords from a `~/.pgpass` file with mode 600, so no password appears in the command line or the process list. The connection details come from the usual `PGHOST`, `PGUSER`, and `PGDATABASE` settings:
 
 ```sh
 pg_dump --format=custom --file=capstone.dump

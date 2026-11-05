@@ -1,7 +1,8 @@
 # Design References: Support Ticket Management System
 
 **Course:** CISY 8503 Applied Database Management  
-**Lab:** Open Source Database Lab
+**Lab:** Open Source Database Lab  
+**Student:** Mathew Kennedy-Brewer
 
 These are the interface concept images I worked from while designing the ticket system, grouped by platform and purpose. They are visual references rather than additional requirements, and the application has changed in places since they were made. The original image filenames are preserved.
 
