@@ -74,28 +74,30 @@
 					>{describeFieldValue(firstEvent.eventType, firstEvent.details.to)}</strong
 				>{/if}
 			<span class="muted">· {formatDateTime(firstEvent.createdAt)}</span>
-		</p>{:else}<p>
-			<strong class="font-semibold text-foreground"
-				>{directory.getPersonName(firstEvent.actorId)}</strong
-			>
-			made {events.length} changes:
-			{#each events as event, eventIndex (event.id)}{#if eventIndex > 0}<span
-						class="mx-1.5"
-						aria-hidden="true">·</span
-					>{/if}<span class={event.eventType === TicketEventType.SUBJECT ? '' : 'whitespace-nowrap'}
-					>{#if event.eventType === TicketEventType.DESCRIPTION}edited the description{:else}{FIELD_NAMES[
-							event.eventType
-						] || event.eventType}&nbsp;{describeFieldValue(
-							event.eventType,
-							event.details.from
-						)}&nbsp;<span aria-label="to">→</span
-						>&nbsp;{#if event.eventType === TicketEventType.STATUS}<StatusBadge
-								status={String(event.details.to)}
-								class="text-[11px]"
-							/>{:else}<strong class="font-semibold text-foreground"
-								>{describeFieldValue(event.eventType, event.details.to)}</strong
-							>{/if}{/if}</span
-				>{/each}
-			<span class="muted">· {formatDateTime(lastEvent.createdAt)}</span>
-		</p>{/if}
+		</p>{:else}<div class="min-w-0">
+			<p>
+				<strong class="font-semibold text-foreground"
+					>{directory.getPersonName(firstEvent.actorId)}</strong
+				>
+				made {events.length} changes
+				<span class="muted">· {formatDateTime(lastEvent.createdAt)}</span>
+			</p>
+			<ul class="flex flex-wrap gap-x-4 gap-y-0.5">
+				{#each events as event (event.id)}<li
+						class="inline-flex min-w-0 flex-wrap items-center gap-x-1"
+					>
+						{#if event.eventType === TicketEventType.DESCRIPTION}edited the description{:else}<span
+								>{FIELD_NAMES[event.eventType] || event.eventType}</span
+							>
+							<span>{describeFieldValue(event.eventType, event.details.from)}</span>
+							<span aria-label="to">→</span>
+							{#if event.eventType === TicketEventType.STATUS}<StatusBadge
+									status={String(event.details.to)}
+									class="text-[11px]"
+								/>{:else}<strong class="font-semibold wrap-anywhere text-foreground"
+									>{describeFieldValue(event.eventType, event.details.to)}</strong
+								>{/if}{/if}
+					</li>{/each}
+			</ul>
+		</div>{/if}
 </div>
