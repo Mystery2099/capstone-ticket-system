@@ -424,6 +424,7 @@ export async function loadTicketWorkspace(actor: Person, url: URL, routeTicketId
 /** Returns only ticket content the actor may open, shared by the suggestion endpoint. */
 export async function loadTicketSuggestions(actor: Person, query: TicketSearchQuery) {
 	const includeInternalNotes = hasPermission(actor, 'useInternalNotes');
+	const canViewAllTickets = hasPermission(actor, 'viewAllTickets');
 	const tickets = await db
 		.select({
 			id: ticket.id,
@@ -434,7 +435,7 @@ export async function loadTicketSuggestions(actor: Person, query: TicketSearchQu
 		.from(ticket)
 		.where(
 			and(
-				includeInternalNotes ? undefined : eq(ticket.requesterId, actor.id),
+				canViewAllTickets ? undefined : eq(ticket.requesterId, actor.id),
 				query.buildMatchCondition(includeInternalNotes)
 			)
 		)

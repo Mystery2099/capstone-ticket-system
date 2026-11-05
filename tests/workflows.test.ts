@@ -460,6 +460,19 @@ test('live suggestions protect private content and options only count visible co
 		1046
 	);
 	assert.deepEqual(await service.loadTicketSuggestions(people.marcus, privateQuery), []);
+	// Note access alone must not reveal other requesters' tickets.
+	const originalPermissionCheck = permissions.hasPermission;
+	const permissionCheck = vi
+		.spyOn(permissions, 'hasPermission')
+		.mockImplementation(
+			(role, permission) =>
+				permission !== 'viewAllTickets' && originalPermissionCheck(role, permission)
+		);
+	try {
+		assert.deepEqual(await service.loadTicketSuggestions(people.priya, privateQuery), []);
+	} finally {
+		permissionCheck.mockRestore();
+	}
 	assert.deepEqual(
 		await service.loadTicketSuggestions(people.rosa, new TicketSearchQuery('1046')),
 		[]
