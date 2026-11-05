@@ -1170,6 +1170,10 @@
 	.page-transition .app-shell main {
 		view-transition-name: app-main;
 	}
+	/* Its own layer, or the main pane's snapshot covers it until the crossfade ends. */
+	.page-transition .quick-action {
+		view-transition-name: quick-action;
+	}
 }
 @keyframes fade-in {
 	from {
@@ -1210,7 +1214,10 @@
 }
 ::view-transition-group(app-main),
 ::view-transition-old(app-main),
-::view-transition-new(app-main) {
+::view-transition-new(app-main),
+::view-transition-group(quick-action),
+::view-transition-old(quick-action),
+::view-transition-new(quick-action) {
 	animation-duration: var(--motion-base);
 }
 @media (prefers-reduced-motion: reduce) {

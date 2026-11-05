@@ -1,6 +1,6 @@
 /** The ticket list's views, as named in the sidebar and the list heading. */
 export const TICKET_VIEW_TITLES: Record<string, string> = {
-	queue: 'Assigned to me',
+	queue: 'My queue',
 	unassigned: 'Unassigned',
 	open: 'All open',
 	all: 'All tickets',

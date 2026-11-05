@@ -9,7 +9,9 @@
 	import {
 		Ticket,
 		FilePen,
-		UserRound,
+		FolderOpen,
+		Send,
+		UserRoundCheck,
 		UserRoundPlus,
 		Inbox,
 		Layers,
@@ -19,6 +21,7 @@
 	import TicketSearchBar from '$lib/components/tickets/TicketSearchBar.svelte';
 	import AccountMenu from '$lib/components/layout/AccountMenu.svelte';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
+	import QuickActionButton from '$lib/components/layout/QuickActionButton.svelte';
 	import SidebarToggle from '$lib/components/layout/SidebarToggle.svelte';
 	import KeyboardShortcutsDialog from '$lib/components/layout/KeyboardShortcutsDialog.svelte';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
@@ -88,6 +91,7 @@
 		key: 'mine',
 		label: TICKET_VIEW_TITLES.mine,
 		hint: 'Tickets you opened, in any status',
+		icon: Send,
 		count: data.ticketCounts.mine
 	});
 	let draftsView = $derived({
@@ -104,7 +108,7 @@
 						key: 'queue',
 						label: TICKET_VIEW_TITLES.queue,
 						hint: 'Unresolved tickets assigned to you',
-						icon: UserRound,
+						icon: UserRoundCheck,
 						count: data.ticketCounts.queue
 					},
 					{
@@ -118,7 +122,7 @@
 						key: 'open',
 						label: TICKET_VIEW_TITLES.open,
 						hint: 'Every ticket that isn’t resolved or closed',
-						icon: Inbox,
+						icon: FolderOpen,
 						count: data.ticketCounts.open
 					},
 					{
@@ -128,14 +132,20 @@
 						icon: Layers,
 						count: data.ticketCounts.all
 					},
-					{ ...myRequestsView, icon: UserRound }
+					myRequestsView
 				]
-			: [{ ...myRequestsView, icon: Inbox }]
+			: [myRequestsView]
 	);
 	// Stays while its view is open, so emptying it doesn't pull the page out from under you.
 	let navigationViews = $derived(
 		draftsView.count || activeView === 'drafts' ? [...ticketViews, draftsView] : ticketViews
 	);
+	// The phone bar keeps only the personal views; the rest open from the sidebar drawer.
+	let mobileTicketViews = $derived(
+		ticketViews.filter((ticketView) => ticketView.key === 'queue' || ticketView.key === 'mine')
+	);
+	let isInboxActive = $derived(activeUrl.pathname === '/app/inbox');
+	let isSettingsActive = $derived(activeUrl.pathname === '/app/settings');
 	// Crossfades the main pane once a page's data is ready. Opening a new ticket is left out
 	// because its form is already on screen and being typed in. The layer is only named
 	// while transitioning, since a view-transition-name also creates a stacking context.
@@ -223,41 +233,40 @@
 		<!-- Stays mounted so a failed navigation returns to the page with its state intact. -->
 		<div class={slowRouteNavigation.current ? 'hidden' : 'contents'}>{@render children()}</div>
 	</main>
+	<QuickActionButton pathname={activeUrl.pathname} {newTicketHref} />
 	<nav
 		class="hidden h-[74px] shrink-0 items-center justify-around gap-0.5 bg-muted px-1.5 pt-1.5 pb-[max(6px,env(safe-area-inset-bottom))] max-md:flex"
 		aria-label="Mobile navigation"
 	>
-		{#each navigationViews.slice(0, 3) as navigationView (navigationView.key)}{@const isActive =
-				activeView === navigationView.key && activeUrl.pathname.startsWith('/app/tickets')}<a
-				class={cn(MOBILE_NAV_LINK_CLASS, isActive && 'font-[650]')}
-				href={'/app/tickets?view=' + navigationView.key}
-				aria-current={isActive ? 'page' : undefined}
-				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
-					><navigationView.icon size={23} /></span
-				>{navigationView.label}</a
-			>{/each}<a
-			class={cn(MOBILE_NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox' && 'font-[650]')}
+		<a
+			class={cn(MOBILE_NAV_LINK_CLASS, isInboxActive && 'font-[650]')}
 			href="/app/inbox"
-			aria-current={activeUrl.pathname === '/app/inbox' ? 'page' : undefined}
+			aria-current={isInboxActive ? 'page' : undefined}
 			aria-label={data.unreadNotificationCount
 				? `Inbox, ${data.unreadNotificationCount} unread`
 				: 'Inbox'}
 			><span
-				class={cn(
-					MOBILE_NAV_ICON_CLASS,
-					'relative',
-					activeUrl.pathname === '/app/inbox' && 'bg-selected text-primary'
-				)}
+				class={cn(MOBILE_NAV_ICON_CLASS, 'relative', isInboxActive && 'bg-selected text-primary')}
 				><Inbox size={23} />{#if data.unreadNotificationCount}<span
 						class="absolute top-0 right-2 size-2 rounded-full bg-primary"
 						aria-hidden="true"
 					></span>{/if}</span
 			>Inbox</a
-		><a
-			class={MOBILE_NAV_LINK_CLASS}
+		>{#each mobileTicketViews as mobileTicketView (mobileTicketView.key)}{@const isActive =
+				activeView === mobileTicketView.key && activeUrl.pathname.startsWith('/app/tickets')}<a
+				class={cn(MOBILE_NAV_LINK_CLASS, isActive && 'font-[650]')}
+				href={'/app/tickets?view=' + mobileTicketView.key}
+				aria-current={isActive ? 'page' : undefined}
+				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
+					><mobileTicketView.icon size={23} /></span
+				>{mobileTicketView.label}</a
+			>{/each}<a
+			class={cn(MOBILE_NAV_LINK_CLASS, isSettingsActive && 'font-[650]')}
 			href="/app/settings"
-			aria-current={activeUrl.pathname === '/app/settings' ? 'page' : undefined}
-			><span class={MOBILE_NAV_ICON_CLASS}><Settings size={23} /></span>Settings</a
+			aria-current={isSettingsActive ? 'page' : undefined}
+			><span class={cn(MOBILE_NAV_ICON_CLASS, isSettingsActive && 'bg-selected text-primary')}
+				><Settings size={23} /></span
+			>Settings</a
 		>
 	</nav>
 </Sidebar.Provider>

@@ -35,7 +35,8 @@
 	>
 		<div class="list-top">
 			<h1>{title} <span>{recordCount}</span></h1>
-			<TooltipIconButton label={`Add ${recordNoun}`} href="?new"
+			<!-- Phones add records from the floating quick action instead. -->
+			<TooltipIconButton label={`Add ${recordNoun}`} href="?new" class="icon-button max-md:hidden"
 				><Plus size={20} /></TooltipIconButton
 			>
 		</div>

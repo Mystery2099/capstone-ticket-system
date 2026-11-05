@@ -1,4 +1,7 @@
-<!-- The settings screen's frame: a title bar over a scrolling column of setting rows. -->
+<!--
+	The settings screen's frame: a title bar over a scrolling column of setting rows. On phones
+	the column leaves room at the bottom so the floating quick action never covers the last row.
+-->
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import { cn } from '$lib/utils';
@@ -15,7 +18,7 @@
 	</header>
 	<div
 		class={cn(
-			'max-w-[760px] overflow-auto px-6 pt-1.5 pb-6 max-md:px-5 max-md:pt-0 max-md:pb-5',
+			'max-w-[760px] overflow-auto px-6 pt-1.5 pb-6 max-md:px-5 max-md:pt-0 max-md:pb-[86px]',
 			contentClass
 		)}
 	>
