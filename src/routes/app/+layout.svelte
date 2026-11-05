@@ -18,7 +18,6 @@
 		Settings
 	} from '@lucide/svelte';
 	import { TICKET_VIEW_TITLES, getDefaultTicketView } from '$lib/ticket-views';
-	import { setTicketViewLinks, type TicketViewLink } from '$lib/ticket-view-links';
 	import TicketSearchBar from '$lib/components/tickets/TicketSearchBar.svelte';
 	import AccountMenu from '$lib/components/layout/AccountMenu.svelte';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
@@ -137,21 +136,14 @@
 			: [myRequestsView]
 	);
 	// Stays while its view is open, so emptying it doesn't pull the page out from under you.
-	let navigationViews = $derived<TicketViewLink[]>(
+	let navigationViews = $derived(
 		draftsView.count || activeView === 'drafts' ? [...ticketViews, draftsView] : ticketViews
 	);
-	setTicketViewLinks(() => navigationViews);
-	// The phone Tickets tab returns to the last list view, rather than resetting to the default.
-	let lastTicketListView = $state<string | null>(null);
-	$effect(() => {
-		if (page.url.pathname === '/app/tickets')
-			lastTicketListView = page.url.searchParams.get('view');
-	});
-	let ticketListHref = $derived(
-		lastTicketListView ? '/app/tickets?view=' + lastTicketListView : '/app/tickets'
+	// The phone bar keeps only the personal views; the rest open from the sidebar drawer.
+	let mobileTicketViews = $derived(
+		ticketViews.filter((ticketView) => ticketView.key === 'queue' || ticketView.key === 'mine')
 	);
 	let isInboxActive = $derived(activeUrl.pathname === '/app/inbox');
-	let isTicketsActive = $derived(activeUrl.pathname.startsWith('/app/tickets'));
 	let isSettingsActive = $derived(activeUrl.pathname === '/app/settings');
 	// Crossfades the main pane once a page's data is ready. Opening a new ticket is left out
 	// because its form is already on screen and being typed in. The layer is only named
@@ -258,14 +250,15 @@
 						aria-hidden="true"
 					></span>{/if}</span
 			>Inbox</a
-		><a
-			class={cn(MOBILE_NAV_LINK_CLASS, isTicketsActive && 'font-[650]')}
-			href={ticketListHref}
-			aria-current={isTicketsActive ? 'page' : undefined}
-			><span class={cn(MOBILE_NAV_ICON_CLASS, isTicketsActive && 'bg-selected text-primary')}
-				><Ticket size={23} /></span
-			>Tickets</a
-		><a
+		>{#each mobileTicketViews as mobileTicketView (mobileTicketView.key)}{@const isActive =
+				activeView === mobileTicketView.key && activeUrl.pathname.startsWith('/app/tickets')}<a
+				class={cn(MOBILE_NAV_LINK_CLASS, isActive && 'font-[650]')}
+				href={'/app/tickets?view=' + mobileTicketView.key}
+				aria-current={isActive ? 'page' : undefined}
+				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
+					><mobileTicketView.icon size={23} /></span
+				>{mobileTicketView.label}</a
+			>{/each}<a
 			class={cn(MOBILE_NAV_LINK_CLASS, isSettingsActive && 'font-[650]')}
 			href="/app/settings"
 			aria-current={isSettingsActive ? 'page' : undefined}

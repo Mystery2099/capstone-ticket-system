@@ -11,13 +11,11 @@
 	import ConversationSkeleton from '$lib/components/skeleton/ConversationSkeleton.svelte';
 	import TicketRowsSkeleton from '$lib/components/skeleton/TicketRowsSkeleton.svelte';
 	import VirtualTicketRows from '$lib/components/tickets/VirtualTicketRows.svelte';
-	import TicketViewChips from '$lib/components/tickets/TicketViewChips.svelte';
 	import { createDelayedFlag } from '$lib/delayed.svelte';
 	import { DraftUrlBinding } from '$lib/draft-url.svelte';
 	import { getDrafts } from '$lib/drafts.svelte';
 	import { TICKET_STATUSES } from '$lib/status';
 	import { TICKET_VIEW_TITLES, getDefaultTicketView } from '$lib/ticket-views';
-	import { getTicketViewLinks } from '$lib/ticket-view-links';
 	import DraftList from './DraftList.svelte';
 	import TicketComposeForm from './TicketComposeForm.svelte';
 	import TicketConversation from './TicketConversation.svelte';
@@ -218,10 +216,6 @@
 			: undefined
 	);
 	let viewTitle = $derived(TICKET_VIEW_TITLES[activeView] || 'All tickets');
-	const readTicketViewLinks = getTicketViewLinks();
-	let ticketViewLinks = $derived(readTicketViewLinks());
-	// On phones the view chips stand in for the heading, except over search results.
-	let isShowingViewChips = $derived(!data.searchText && ticketViewLinks.length > 1);
 	let listHeading = $derived(activeCategory ? `Open · ${activeCategory.name}` : viewTitle);
 	// On phones the quick filters fold behind one button, so they don't push the list down.
 	let isFilterPanelOpen = $state(false);
@@ -244,12 +238,7 @@
 <div class="workspace" class:has-ticket={hasTicket}>
 	<section class="list-pane" aria-label="Ticket list">
 		<div class="list-top">
-			{#if isShowingViewChips}<TicketViewChips
-					{ticketViewLinks}
-					{activeView}
-					activeCategoryName={activeCategory?.name}
-				/>{/if}
-			<h1 class={isShowingViewChips ? 'max-md:sr-only' : undefined}>
+			<h1>
 				{data.searchText ? `Results for “${data.searchText}”` : listHeading}{#if !isListLoading}
 					<span>{isShowingDrafts ? drafts.dirtyDraftCount : loadedTicketCountLabel}</span>{/if}
 			</h1>
