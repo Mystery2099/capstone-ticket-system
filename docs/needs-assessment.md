@@ -1,0 +1,104 @@
+# Needs Assessment: Support Ticket Management System
+
+**Course:** CISY 8503 Applied Database Management  
+**Lab:** Open Source Database Lab  
+**Status:** Working needs assessment, November 4, 2026  
+**Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)  
+**Database:** PostgreSQL
+
+## Introduction
+
+For my Open Source Database Lab, I am building a web-based support ticket system for a fictional small IT support team. Someone with a problem can submit a ticket, and support staff can organize the request, respond, and track it until the issue is resolved. The database work involves the relationships and rules behind those interactions; users need access to the appropriate tickets, status changes need to follow the workflow, and the history needs to preserve what happened.
+
+The application already has a substantial implementation, so this assessment explains the needs behind the existing design and helps identify what remains to be done. The current repository is the reference for implemented functionality, while planned improvements and deployment checks still need to be distinguished from behavior verified in production. I am using the six-step needs assessment framework from my class notes, covering objectives, stakeholders, existing workflows, requirements, gaps and costs, and the action plan. Because the support environment is fictional, the needs discussed here come from the intended workflow and my familiarity with IT support; they are not findings from interviews or surveys at an actual organization.
+
+## 1. Objectives and scope
+
+The main objective is to give requesters and support staff one place to manage requests without losing track of who is responsible, what has been tried, or whether an issue is still waiting for attention. A requester should be able to submit a problem and follow its progress, while staff need an organized queue where they can assign work, communicate with users, and record internal troubleshooting. Administrators need to manage accounts, roles, and ticket categories through the application instead of making changes directly in the database.
+
+For the lab, the application also needs to demonstrate how PostgreSQL supports those workflows. Related tables hold accounts, roles, categories, tickets, comments, and activity events, with foreign keys, unique constraints, and other database rules helping preserve consistency. Transactions matter here because a ticket update and its corresponding history entry should either both succeed or both fail; otherwise, the history could disagree with the current record.
+
+A successful demonstration should show a requester creating a ticket, an agent finding and assigning it, and both people seeing the appropriate parts of the conversation. Staff should be able to leave an internal note that the requester cannot see, update the status, and resolve the issue. The requester can reopen their own Resolved ticket if necessary, while reopening a Closed ticket requires elevated permission. Relational queries, rejected unauthorized operations, transaction behavior, and evidence of a successful backup and restore also belong in the demonstration.
+
+The scope is intentionally smaller than a commercial help desk platform. Email-to-ticket integration, multi-organization support, complex reporting, push notifications, and automated workflows are outside the project's requirements. The repository currently excludes image uploads and other attachments, although screenshots could be useful for troubleshooting; adding them remains a possible follow-up decision. I want a complete, understandable system for a small support team, without trying to recreate ServiceNow or Zendesk.
+
+## 2. Stakeholders and user needs
+
+The primary stakeholders are requesters, support agents, and administrators. They use the same application but need different information and capabilities. Those differences affect both usability and security, since hiding a button does not protect information that a user should not be able to retrieve.
+
+A requester needs a simple way to describe a problem, choose an appropriate category, and find their existing requests. They should be able to follow public responses and changes to their ticket without understanding how the support team organizes its work. Feedback should make it clear that a message was saved, and a requester should be able to reopen an issue marked Resolved if the problem was not actually fixed.
+
+Support agents need a broader view of incoming work, including unassigned tickets and requests that need attention. They should be able to assign requests to eligible staff, adjust priorities or categories, and add public replies or private internal notes. Search should help them find a ticket by its number, subject, description, requester, or visible conversation content while respecting the user's permissions. That would be more useful during troubleshooting than relying on a single list ordered by creation date.
+
+Administrators need to create and manage accounts, disable access when appropriate, maintain categories, and decide which capabilities each role receives. The original design centered on Requester, Agent, and Administrator, but the current implementation also supports saved custom roles with permission grants. The Administrator role remains protected, and the backend checks capabilities rather than trusting a role's display name. I can see the value of that flexibility, but it also adds administrative work and permission combinations that need testing, so its place in the lab needs to be justified.
+
+Professor Enke is another stakeholder because the lab needs to demonstrate database design and operation. He needs to be able to inspect the structure, understand the relationships, and see the application handle realistic workflows. Mobile usability also matters when requesters or staff check a ticket from a phone; the project supports that through one responsive web application rather than separate native clients.
+
+## 3. Existing workflows and technology
+
+There is no existing company's workflow to audit because the support team is fictional. The problem being addressed is support requests arriving through scattered conversations, where information can get buried and responsibility becomes unclear. A ticket system gives each request a consistent record with an assigned person, current status, and conversation history. This describes the workflow the application is intended to improve, without claiming that a measured bottleneck was found at a particular organization.
+
+The ticket lifecycle has five states: Open, In Progress, On Hold, Resolved, and Closed. New tickets begin as Open by default, and requesters can reopen their own Resolved tickets. Closed tickets remain read-only until someone with the appropriate elevated permission reopens them. These rules define what each state allows and prevent ordinary users from silently changing administrative decisions.
+
+The conversation contains public comments and internal notes, with different access rules for each. Public comments are shared with the requester and support staff, while internal notes are limited to authorized staff. Server-side queries must therefore exclude private notes from requester-facing ticket details, search results, previews, counts, and activity. Ticket changes and audit entries are written in the same transaction so that the history reflects the actual database changes.
+
+The application uses SvelteKit, Svelte 5, TypeScript, Tailwind CSS 4, Better Auth, Drizzle ORM, and PostgreSQL. Local development uses PGlite, an embedded PostgreSQL implementation; the application and its PostgreSQL database are already hosted on Azure. A Tiptap-based rich-text composer lets users format descriptions, replies, and internal notes without typing Markdown syntax. The content is stored as Markdown text and safely rendered, with format indicators preserving support for existing plain-text records. This gives users a visual editor while keeping the content in the existing storage model, without introducing a separate rich-text document database.
+
+I chose a Gmail-like interface because I wanted the ticket system to feel simple and familiar, especially for people who are less technically inclined. The desktop layout uses a sidebar, ticket list, and optional reading pane, giving users an email-like way to find a request and follow its conversation; on phones, the interface shows one primary page at a time. The responsive workspace also includes draft handling, keyboard shortcuts, search suggestions, and administrative screens, with design references organized in the repository. Those features support the ticket workflow, while the database operations remain the main purpose of the lab.
+
+## 4. Functional and technical requirements
+
+The current repository documents the application's functional requirements. I have grouped them here by the needs they address, so related behavior can be considered together. Individual screens and implementation details support those requirements, but each does not need to become a separate business requirement.
+
+| Priority             | Requirement                                                           | Why it's needed                                                                                                          |
+| -------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Core                 | Secure, provisioned accounts                                          | Support staff and requesters need individual identities; public self-registration is not part of this lab.               |
+| Core                 | Create and track tickets                                              | Every request needs a subject, description, category, requester, status, and creation history.                           |
+| Core                 | Assignment and priority                                               | Agents need to identify responsibility and distinguish more urgent work from normal requests.                            |
+| Core                 | Public replies and private internal notes                             | Staff need to communicate with users while keeping internal troubleshooting private.                                     |
+| Core                 | Controlled ticket lifecycle                                           | Open, In Progress, On Hold, Resolved, and Closed provide understandable progress states.                                 |
+| Core                 | Role-based capabilities and server-side authorization                 | Requesters must not access others' tickets or perform staff-only operations.                                             |
+| Core                 | Search and filtering                                                  | Users need to locate relevant tickets without scanning the entire queue.                                                 |
+| Core                 | Relational integrity, transactions, and activity history              | Related records must remain consistent, including when a write fails.                                                    |
+| Core                 | User, role, and category administration                               | An administrator must be able to maintain access and usable categories.                                                  |
+| Existing enhancement | Visual rich-text editing                                              | Formatted descriptions and replies improve readability without exposing Markdown syntax.                                 |
+| Existing enhancement | Responsive interface and draft recovery                               | The application should be practical on phones and avoid losing unsent work.                                              |
+| Operational          | Deployment, security checks, and backup/restore                       | The Azure deployment needs security and recovery checks to establish that hosted data is protected and recoverable.      |
+| Under consideration  | Limited image attachments                                             | Screenshots could improve troubleshooting, but storage, cost, authorization, and safe delivery need a separate decision. |
+| Out of scope         | Email integration, push notifications, multi-tenancy, complex reports | These would expand the lab beyond its database objectives.                                                               |
+
+The relational model includes authentication tables, application roles, categories, statuses, tickets, comments, ticket events, and security events. Foreign keys should preserve the links between records, while unique identifiers and constraints prevent invalid states. Each ticket has one requester and at most one assigned eligible staff member; comments and audit events belong to a specific ticket. Tracked migrations keep the schema reproducible, without requiring manual changes to individual database tables.
+
+Requesters should only be able to retrieve their own tickets, while agents and administrators have broader visibility according to their granted capabilities. Staff-only notes must be filtered before data reaches the browser, including search results and generated excerpts. Because administrators can manage roles, testing needs to cover permissions after roles are created, edited, or reassigned. The design also includes MFA and administrator recovery procedures, which require careful setup and documentation alongside the additional security they provide.
+
+The current search supports ticket numbers, text matches, names, category information, filters, suggestions, and typo-tolerant subject matching. It depends on indexing and PostgreSQL text-search features, including the `pg_trgm` extension in the hosted environment. Search results must apply the same access rules as normal ticket views. Mobile and desktop layouts should remain accessible, with clear errors, usable keyboard navigation, and saved drafts for longer messages.
+
+Ticket mutations should use validated server actions, with the associated audit event written in the same transaction. Database credentials must stay on the server, and production should use a restricted application account instead of a schema-owner or administrator account. Repeatable tests and a restore procedure should also support checking that relationships, comments, and accounts can be recreated in a separate database.
+
+## 5. Gap analysis, risks, and budget
+
+The original workflow problem is the lack of one reliable place to track requests and their progress. The current implementation addresses that by keeping ticket records, assignment, status, public conversation, internal notes, and audit events in one application. The larger remaining gap is proving that this behavior holds under realistic permissions, database failures, and recovery conditions in the existing Azure deployment. Adding another visible feature would not resolve those questions.
+
+Security is one of the largest risks because tickets may contain information that other requesters should not receive, and internal notes are specifically intended to remain private. Incorrect joins, search projections, optimistic UI updates, or API responses could expose that information even when the main ticket page appears correct. Checks need to cover unauthorized direct requests, search results and previews, custom-role changes, disabled accounts, and attempted access to private note content.
+
+Database correctness needs similar attention. A status update that succeeds while its activity event fails would leave an incomplete history, and the same problem could affect assignment, category changes, or role reassignment. Transactions, row-level locking during ticket mutations, database constraints, and targeted tests reduce those risks. Testing should include simultaneous requests and invalid references alongside the expected successful workflow.
+
+Deployment and ongoing costs need to remain reasonable for a college project. The application and PostgreSQL database are already hosted on Azure, and the repository includes deployment guides; ongoing hosting, storage, and backups may carry charges depending on the subscription. The plan should use available student benefits where possible and avoid services the project does not need. I also need to account for the time spent configuring access, maintaining secrets, checking logs, and verifying restores, since those are part of the cost of keeping the application usable.
+
+Scope creep remains a concern because the application already includes custom permissions, MFA, sophisticated search, and formatted messages beyond the smallest possible ticketing lab. Those features can make the system more useful and demonstrate more of its capabilities, but each introduces additional behavior to test. I want to prioritize correctness and a complete demonstration over email delivery, extensive reporting, or automation. Image uploads make that decision more difficult; screenshots would be useful, and the professor has expressed a preference for them, but persistent file storage and access control need enough time to be implemented properly.
+
+The usability assumptions also need some validation. The designs were developed for a small support team but have not been formally tested with representative users. A short walkthrough with another student acting as a requester and someone else acting as an agent could reveal confusing labels, missing feedback, or unnecessary steps. That would give me a clearer reason for the next interface changes than continuing to expand the design for its appearance.
+
+## 6. Action plan and roadmap
+
+The first step is to verify the existing implementation against its documented requirements. The repository contains unit, workflow, security, and browser tests along with a test-and-demo plan, which I want to use as a baseline before manually walking through the requester, agent, and administrator experiences. That walkthrough should cover ticket creation, assignment, searching, public replies, private notes, reopening, and category and role management. The documented plan identifies the checks to perform; I still need evidence of their results on the deployed application.
+
+With the application and PostgreSQL already deployed on Azure, the next step is to verify the hosted configuration. The documented setup calls for separate database credentials for deployment and runtime use. Migrations should run before application startup, and the production application should not have schema-owner permissions. I also need to check HTTPS, sessions, MFA, database network access, and how authentication and rate limits behave behind the hosting proxy.
+
+The demonstration should include relational operations and recovery as well as the interface. Fictional tickets and accounts will let me show joins between users, tickets, categories, comments, and events, along with counts grouped by status or category. I also want to demonstrate an invalid operation being rejected, an appropriate transaction rollback, and a PostgreSQL backup restored into a separate database. These checks are particularly relevant to the lab because they show the database behavior behind the web application.
+
+The remaining work should address gaps without unnecessarily expanding the project. That may mean a few usability fixes, clearer documentation, or limited image uploads if their storage and security requirements are manageable. If uploads are not feasible within the available time or hosting budget, I can explain the decision and demonstrate how the existing text and rich-text workflow meets the core ticketing need. Changes requested by Professor Enke should be recorded and considered alongside the remaining lab requirements.
+
+## Conclusion
+
+The ticketing system fits the Open Source Database Lab because its workflows depend on relationships and consistency that can be explained and demonstrated. Controlled access, ticket ownership, public and private communication, a defined lifecycle, and a history consistent with the database give me practical reasons to use PostgreSQL, constraints, joins, indexes, and transactions. The application has already developed beyond the original prototype plan, so verification of the Azure deployment and a clear demonstration should take priority over adding more functionality. Showing that the data remains correct, permissions hold, and the database can be recovered would meet the central goal of the lab while producing a reasonably usable support application.

@@ -1,45 +1,58 @@
-# Tests and course demonstration
+# Test and Demonstration Plan: Support Ticket Management System
 
-Run `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`.
-`pnpm test:e2e` starts its own isolated browser-test server.
+**Course:** CISY 8503 Applied Database Management  
+**Lab:** Open Source Database Lab  
+**Status:** Current as of November 4, 2026  
+**Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
-## Acceptance checks
+## Introduction
 
-| Area           | Verify                                                                                                           |
-| -------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Accounts       | Sign-in/out, MFA enrollment, recovery-code single use, session revocation, disabled-account rejection            |
-| Creation       | Ticket and event saved together; invalid fields and foreign keys rejected                                        |
-| Authorization  | Requesters cannot access others' tickets, change priority, or submit internal notes                              |
-| Staff workflow | Unassigned tickets visible; assignment rejects disabled or ineligible users; metadata edits audited              |
-| Conversation   | Public replies visible; internal notes excluded from requester responses, previews, counts, activity, and search |
-| Status         | Requesters reopen own Resolved tickets; Closed is read-only until permitted reopening                            |
-| Transactions   | Failed event insertion rolls back its ticket change                                                              |
-| Administration | Account, category, and role changes persist; unauthorized access rejected; last-admin protection holds           |
-| Formatting     | Formatting survives save/reload and draft recovery; raw HTML, images, and unsafe links are not rendered          |
-| Search         | Word order/forms, typos, comments/names, highlights, filters, number redirects, and permission boundaries        |
-| Recovery       | Restore PostgreSQL into a separate database and verify relationships, records, and sign-in                       |
+This plan lists how I check that the ticket system meets its [requirements](requirements.md) and how I intend to demonstrate it for the lab. Some of these checks are automated and run on every change, while others have to be done by hand in a browser or against the hosted database. I have tried to be clear about which is which, because passing tests on my own machine does not prove the Azure deployment behaves the same way.
 
-Manual browser checks: select a suggestion with arrows/Enter, submit a ticket
-number, change sorting and filters, clear recent searches, and use mobile search.
-Repeat internal-note searches with and without permission. Database tests alone do
-not verify these interactions. Hosted PostgreSQL restore verification remains an
-operational task; see the [backup drill](azure-deployment.md#hosted-acceptance-and-backup-drill).
+## 1. Automated checks
 
-## Live demonstration
+Four commands check the project before every pull request: `pnpm lint`, `pnpm check`, `pnpm test`, and `pnpm build`. GitHub Actions runs the type checks and unit tests again before deploying. The unit tests run against disposable PGlite databases with fictional fixtures, and they cover ticket workflows, authorization, transaction rollback, provisioning, and security headers.
+
+`pnpm test:e2e` starts its own isolated server and drives a real browser through the main workflows: a requester who cannot read private notes or other tickets, an agent creating and replying to a ticket, drafts surviving a reload, administration screens, and a custom role signing in with its permissions. On November 4, 2026, all 31 unit tests and all 9 browser tests passed.
+
+## 2. Acceptance checks
+
+The table below lists what has to hold in each area. Most of these are covered by the automated tests above; the recovery check and the hosted versions of the account checks still need to be done by hand.
+
+| Area           | What to verify                                                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Accounts       | Sign-in and sign-out, MFA enrollment, single use of recovery codes, session revocation, and disabled-account rejection   |
+| Creation       | The ticket and its event are saved together; invalid fields and foreign keys are rejected                                |
+| Authorization  | Requesters cannot access others' tickets, change priority, or submit internal notes                                      |
+| Staff workflow | Unassigned tickets are visible; assignment rejects disabled or ineligible users; metadata edits are audited              |
+| Conversation   | Public replies are visible; internal notes are excluded from requester responses, previews, counts, activity, and search |
+| Status         | Requesters reopen their own Resolved tickets; Closed is read-only until someone permitted reopens it                     |
+| Transactions   | A failed event insert rolls back its ticket change                                                                       |
+| Administration | Account, category, and role changes persist; unauthorized access is rejected; the last administrator is protected        |
+| Formatting     | Formatting survives saving, reloading, and draft recovery; raw HTML, images, and unsafe links are not rendered           |
+| Notifications  | Followers and chosen people are notified, and internal notes only reach people who can read them                         |
+| Search         | Word order and forms, typos, comments and names, highlights, filters, ticket-number redirects, and permission boundaries |
+| Recovery       | PostgreSQL restores into a separate database with relationships, records, and sign-in intact                             |
+
+## 3. Manual browser checks
+
+Some interactions are only meaningful in a real browser, and database tests cannot verify them. I check that a search suggestion can be selected with the arrow keys and Enter, that submitting a ticket number opens that ticket, that sorting and filters change the results, that recent searches can be cleared, and that search works on a phone-sized screen. I also repeat a search that matches an internal note while signed in with and without note access, to confirm the results differ in the way they should.
+
+## 4. Live demonstration
+
+The demonstration follows one ticket through its whole lifecycle and then shows the database underneath it. I plan to use fictional data and individual accounts throughout.
 
 1. As a requester, create a ticket.
-2. As an agent, find it, assign it, add a public reply and internal note, then resolve it.
-3. As the requester, confirm the reply is visible and the note is hidden; reopen it.
-4. Inspect SQL joins across tickets, users, categories, and statuses; show chronological
-   comments/events and counts grouped by status or category.
-5. Demonstrate a rejected reference or unauthorized operation and transaction rollback.
-6. Show backup/restore evidence from a separate database.
+2. As an agent, find it, assign it, add a public reply and an internal note, and resolve it.
+3. As the requester, confirm the reply is visible and the note is not, then reopen the ticket.
+4. Run SQL joins across tickets, users, categories, and statuses, show comments and events in chronological order, and show counts grouped by status or category.
+5. Show a rejected reference or unauthorized operation, and a transaction that rolls back.
+6. Show evidence of a backup restored into a separate database.
 
-Use fictional data and individual accounts. Record professor-requested changes in
-the [change log](change-log.md).
+## 5. Outstanding before the demonstration
 
-## Before the demonstration
+Three things still need evidence from the hosted environment rather than from local tests. I need to run the acceptance checks above against the Azure deployment with disposable data, confirm HTTPS, proxy handling, login throttling, and the restricted database grants there, and complete a backup and restore into a separate PostgreSQL database. The procedures are in [deployment and operations](deployment-and-operations.md), and the restore result belongs in the record at the end of the [security and data recovery plan](security-and-recovery-plan.md).
 
-- Run the acceptance checks above with disposable data.
-- Verify hosted HTTPS, proxy handling, login throttling, and restricted database grants.
-- Complete a PostgreSQL backup/restore drill in a separate database.
+## Conclusion
+
+The automated tests give me reasonable confidence in the application's rules, especially around private notes and transactions, which are the areas most likely to fail without anyone noticing. The remaining work is mostly about proving the same behavior on the hosted system and showing that the data can actually be recovered.
