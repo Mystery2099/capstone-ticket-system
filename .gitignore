@@ -31,3 +31,6 @@ test-results/
 
 # Local reference sheet with demo logins
 demo-accounts.xlsx
+
+# Local git worktrees
+.worktrees/

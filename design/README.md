@@ -1,9 +1,12 @@
-# Design
+# Design References: Support Ticket Management System
 
-UI concept images grouped by platform and purpose. Original image filenames are preserved.
+**Course:** CISY 8503 Applied Database Management  
+**Lab:** Open Source Database Lab
 
-- **[desktop/](desktop/)** - desktop workspace, ticket flows, sign-in, administration, settings, and feedback states.
-- **[mobile/](mobile/)** - mobile screens, interaction states, and responsive layout examples.
-- **[handoff/](handoff/)** - design tokens, components, layout guidance, site map, and ticket workflow.
-- **[archive/earlier-export/](archive/earlier-export/)** - the earlier image set previously stored at the root. These files differ from the newer export and are retained for reference.
-- **[archive/superseded-narrow-layouts/](archive/superseded-narrow-layouts/)** - narrow desktop concepts explicitly superseded by the mobile designs.
+These are the interface concept images I worked from while designing the ticket system, grouped by platform and purpose. They are visual references rather than additional requirements, and the application has changed in places since they were made. The original image filenames are preserved.
+
+- **[desktop/](desktop/)** contains the desktop workspace, ticket flows, sign-in, administration, settings, and feedback states.
+- **[mobile/](mobile/)** contains mobile screens, interaction states, and examples of the responsive layout.
+- **[handoff/](handoff/)** contains design tokens, components, layout guidance, the site map, and the ticket workflow.
+- **[archive/earlier-export/](archive/earlier-export/)** holds the earlier image set that used to be stored at the root. These files differ from the newer export and are kept for reference.
+- **[archive/superseded-narrow-layouts/](archive/superseded-narrow-layouts/)** holds narrow desktop concepts that the mobile designs replaced.
