@@ -76,9 +76,10 @@ A restore is only finished once the application works against it. I would confir
 
 I intend to restore a dump into a separate, empty database at least once per term and after any major schema change, and record the result below. The automated tests already cover migrations, provisioning, restricted-role behavior, and transaction rollback, but they run against local databases and do not replace a hosted restore drill.
 
-| Date        | Source                                        | Restored into                                                | Result | By                    |
-| ----------- | --------------------------------------------- | ------------------------------------------------------------ | ------ | --------------------- |
-| Nov 4, 2026 | Hosted Azure database, export at 01:47:38 UTC | Separate PostgreSQL 18 database built with `pnpm db:migrate` | Passed | Mathew Kennedy-Brewer |
+| Date        | Source                                             | Restored into                                                    | Result | By                    |
+| ----------- | -------------------------------------------------- | ---------------------------------------------------------------- | ------ | --------------------- |
+| Nov 4, 2026 | Hosted Azure database, export at 01:47:38 UTC      | Separate PostgreSQL 18 database built with `pnpm db:migrate`     | Passed | Mathew Kennedy-Brewer |
+| Nov 4, 2026 | Full `pg_dump` of the hosted database at 02:22 UTC | Separate, empty PostgreSQL 18 server, restored with `pg_restore` | Passed | Mathew Kennedy-Brewer |
 
 ### First drill, November 4, 2026
 
@@ -86,8 +87,14 @@ I exported every table in the `public` schema from the hosted database inside on
 
 The row counts in the restored database matched the counts I recorded at export time exactly: 14 users, 1,016 tickets, 12 comments, 1,032 ticket events, 9 security events, 5 categories, 3 roles, and 2 notifications. Joins across tickets, users, categories, and statuses returned the expected groupings, and each ticket's comments and events were still attached to it. The built application started against the restored database, `/health` returned 200, and an existing requester signed in successfully, which shows that accounts and password hashes survived. I deleted the export and the restored database afterward, since they contained password hashes.
 
-The drill also showed a limit in my backup procedure. The application login could not run `pg_dump`, because it has no access to the `drizzle` schema that holds the migration history and cannot read the ticket-number sequence directly. That is the least-privilege design working as intended, but it means a complete `pg_dump` has to be taken with the deployment login, which I keep off the web server. Until then, the table export above, combined with Azure's automated point-in-time backups, is what I can show.
+The drill also showed a limit in my backup procedure. The application login could not run `pg_dump`, because it has no access to the `drizzle` schema that holds the migration history and cannot read the ticket-number sequence directly. That is the least-privilege design working as intended, but it means a complete `pg_dump` has to be taken with the deployment login, which I keep off the web server. I ran a second drill with the deployment login to close that gap.
+
+### Second drill, November 4, 2026
+
+This time I followed the documented procedure exactly. I recorded row counts, took a full `pg_dump --format=custom` of the hosted database with the deployment login, and recorded the counts again; they had not changed during the dump. The 190 KB dump included the migration history as well as the data. I restored it into a new, empty PostgreSQL 18 server with `pg_restore --no-owner --no-privileges`, which finished without errors.
+
+Running `pnpm db:migrate` against the restored database found nothing to apply, which confirms the migration history came back with the data. I then ran `scripts/runtime-grants.sql` and created a separate login that only inherits `capstone_runtime`, the same arrangement the live site uses. Row counts matched the counts recorded at backup time exactly (14 users, 1,021 tickets, 16 comments, 1,051 ticket events, 16 security events, 11 notifications, and all 8 migrations), and the ticket-number sequence continued from the same value, 2059. The built application started using only the restricted login, `/health` returned 200, and a requester signed in with their current password. I deleted the dump and the restored server afterward.
 
 ## Conclusion
 
-The application's security depends on layers that do not trust each other: the server checks capabilities, the database login is restricted, and the schema rejects invalid data on its own. Recovery depends on backups that exist in more than one form and on secrets that are stored outside Azure. The first restore drill showed that the hosted data can be rebuilt into a separate database with its relationships intact. The remaining gap is a complete `pg_dump` taken with the deployment login, which would also capture the migration history.
+The application's security depends on layers that do not trust each other: the server checks capabilities, the database login is restricted, and the schema rejects invalid data on its own. Recovery depends on backups that exist in more than one form and on secrets that are stored outside Azure. Two restore drills showed that the hosted database, including its migration history, can be rebuilt on a separate server and run by the application under its restricted login. The plan's next test is due after the next major schema change or at the start of next term.

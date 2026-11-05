@@ -56,7 +56,7 @@ pnpm build
 
 ## Documentation
 
-- **Planning:** [needs assessment](docs/needs-assessment.md), [project plan](docs/project-plan.md), [requirements](docs/requirements.md), and [test and demonstration plan](docs/test-and-demo-plan.md)
+- **Planning:** [needs assessment](docs/needs-assessment.md), [project plan](docs/project-plan.md), [requirements](docs/requirements.md), and [test and demonstration plan](docs/test-and-demo-plan.md) with its [demonstration queries](docs/demo-queries.sql)
 - **Design:** [architecture](docs/architecture.md), [database design](docs/database-design.md), [roles and permissions](docs/roles-and-permissions.md), [diagrams](docs/diagrams/), and [interface design references](design/README.md)
 - **Operations:** [security and data recovery plan](docs/security-and-recovery-plan.md) and [deployment and operations](docs/deployment-and-operations.md)
 - **History:** [change log](docs/change-log.md)
