@@ -3,7 +3,7 @@
 -- Student: Mathew Kennedy-Brewer
 --
 -- Run with psql against the hosted database, for example:
---   psql "sslmode=require" -f docs/demo-queries.sql
+--   psql "sslmode=verify-full sslrootcert=system" -f docs/demo-queries.sql
 -- Sections 1-4 only read data. Section 5 runs inside a transaction that is always
 -- rolled back, so it never changes anything.
 
@@ -75,9 +75,9 @@ ORDER BY t.ticket_number;
 BEGIN;
 
 SAVEPOINT missing_category;
--- Fails: the category does not exist (foreign key).
-INSERT INTO ticket (subject, description, requester_id, category_id, status_code)
-SELECT 'Demo', 'Demo', id, gen_random_uuid(), 'open' FROM "user" LIMIT 1;
+-- Fails: the category does not exist (foreign key). This is an update rather than an
+-- insert, because a failed insert would still use up a ticket number from the sequence.
+UPDATE ticket SET category_id = gen_random_uuid() WHERE ticket_number = 1046;
 ROLLBACK TO SAVEPOINT missing_category;
 
 SAVEPOINT bad_priority;
