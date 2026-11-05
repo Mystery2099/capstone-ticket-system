@@ -75,8 +75,13 @@ async function openNewTicket(page: Page) {
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 }
 
+// A combobox button is named after its field, followed by the selected value when there is one.
+function getComboboxButton(page: Page, field: string) {
+	return page.getByRole('button', { name: new RegExp(`^${field}(: .*)?$`) });
+}
+
 async function choose(page: Page, field: string, option: string) {
-	await page.getByRole('button', { name: field, exact: true }).click();
+	await getComboboxButton(page, field).click();
 	await page.getByRole('option', { name: option, exact: true }).click();
 }
 
@@ -113,13 +118,9 @@ test('agent opens an assigned ticket for a requester and posts a public comment'
 	await page.getByRole('button', { name: 'Create ticket', exact: true }).click();
 	await expect(page.getByRole('heading', { name: 'Playwright classroom display' })).toBeVisible();
 	await expect(page.getByText('Opened by Marcus Lee', { exact: false })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Assignee', exact: true })).toHaveText(
-		'Priya Raman'
-	);
-	await expect(page.getByRole('button', { name: 'Priority', exact: true })).toContainText('High');
-	await expect(page.getByRole('button', { name: 'Status', exact: true })).toContainText(
-		'In progress'
-	);
+	await expect(getComboboxButton(page, 'Assignee')).toHaveText('Priya Raman');
+	await expect(getComboboxButton(page, 'Priority')).toContainText('High');
+	await expect(getComboboxButton(page, 'Status')).toContainText('In progress');
 	// The "Ticket created." toast sits over the composer's Send button until it's dismissed.
 	await page.getByRole('button', { name: 'Close toast', exact: true }).click();
 	await page
@@ -181,12 +182,12 @@ test('administrator adds and edits records in the pane beside the list', async (
 	await expect(page).toHaveURL(/\?id=/);
 	await expect(page.locator('a.list-row', { hasText: 'Facilities' })).toHaveClass(/selected/);
 	await choose(page, 'State', 'Inactive');
-	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
+	await expect(getComboboxButton(page, 'State')).toHaveText('Inactive');
 	await expect(page.locator('input[name=active]')).toHaveValue('false');
 	await page.getByRole('button', { name: 'Save', exact: true }).click();
 	await expect(page.locator('a.list-row', { hasText: 'Facilities' })).toContainText('Inactive');
 	await page.getByRole('button', { name: 'Revert', exact: true }).click();
-	await expect(page.getByRole('button', { name: 'State', exact: true })).toHaveText('Inactive');
+	await expect(getComboboxButton(page, 'State')).toHaveText('Inactive');
 	await page.goto('/app/settings');
 	await expect(page.locator('.app-shell')).toHaveAttribute('data-hydrated', 'true');
 	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
@@ -205,7 +206,7 @@ test('user and category drafts survive a reload without storing the password', a
 	await expect(page).toHaveURL(/draft=/);
 	await page.reload();
 	await expect(page.getByLabel('Display name')).toHaveValue('Nina Patel');
-	await expect(page.getByRole('button', { name: 'Role', exact: true })).toHaveText('Agent');
+	await expect(getComboboxButton(page, 'Role')).toHaveText('Agent');
 	await expect(page.getByLabel('Initial password')).toHaveValue('');
 	const stored = await page.evaluate(() => JSON.stringify({ ...localStorage }));
 	expect(stored).toContain('Nina Patel');
@@ -324,9 +325,9 @@ test('administrator creates a custom role and account that can sign in with its 
 	await expect(page).toHaveURL(/\/login$/);
 	await signIn(page, 'technician@example.test');
 	await openNewTicket(page);
-	await expect(page.getByRole('button', { name: 'Requester', exact: true })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Priority', exact: true })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Status', exact: true })).toBeVisible();
+	await expect(getComboboxButton(page, 'Requester')).toBeVisible();
+	await expect(getComboboxButton(page, 'Priority')).toBeVisible();
+	await expect(getComboboxButton(page, 'Status')).toBeVisible();
 	await page.goto('/app/admin/roles');
 	await expect(page.getByText('Administrator access required.', { exact: false })).toBeVisible();
 	await page.goto('/app/settings');
@@ -345,7 +346,7 @@ test('administrator creates a custom role and account that can sign in with its 
 	// Deleting without a replacement points at the visible picker instead of a hidden input.
 	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
 	await expect(page.getByRole('alert').filter({ hasText: 'Choose an option.' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Reassign users to', exact: true })).toBeFocused();
+	await expect(getComboboxButton(page, 'Reassign users to')).toBeFocused();
 	await choose(page, 'Reassign users to', 'Requester');
 	await page.getByRole('button', { name: 'Delete role', exact: true }).click();
 	await expect(page).toHaveURL(/\/app\/admin\/roles$/);

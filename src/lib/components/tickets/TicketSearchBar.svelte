@@ -176,8 +176,10 @@
 			role="combobox"
 			aria-autocomplete="list"
 			aria-expanded={isFocused}
-			aria-controls="ticket-suggestions"
-			aria-activedescendant={activeIndex >= 0 ? `search-option-${activeIndex}` : undefined}
+			aria-controls={isFocused ? 'ticket-suggestions' : undefined}
+			aria-activedescendant={isFocused && activeIndex >= 0
+				? `search-option-${activeIndex}`
+				: undefined}
 			onfocus={() => (isFocused = true)}
 			onkeydown={handleKeydown}
 		/>
@@ -292,7 +294,8 @@
 			outline: none;
 		}
 		.search-bar input:focus {
-			outline: none;
+			outline: 2px solid var(--primary);
+			outline-offset: 3px;
 		}
 		.search-bar kbd {
 			border: 1px solid var(--input);

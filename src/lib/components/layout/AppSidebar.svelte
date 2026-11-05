@@ -79,6 +79,7 @@
 				<a
 					class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox')}
 					href="/app/inbox"
+					aria-current={activeUrl.pathname === '/app/inbox' ? 'page' : undefined}
 					aria-label={unreadNotificationCount
 						? `Inbox, ${unreadNotificationCount} unread`
 						: 'Inbox'}
@@ -118,6 +119,11 @@
 									)}
 									href={'/app/tickets?view=' + navigationView.key}
 									aria-label={navigationView.label}
+									aria-current={activeUrl.pathname.startsWith('/app/tickets') &&
+									activeView === navigationView.key &&
+									!activeCategoryId
+										? 'page'
+										: undefined}
 									><navigationView.icon size={23} /><span
 										class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>{navigationView.label}</span
 									><small class={cn('ml-auto text-[12px]', HIDDEN_WHEN_COMPACT)}
@@ -159,6 +165,10 @@
 												activeCategoryId === categorySummary.id
 										)}
 										href={`/app/tickets?view=open&category=${categorySummary.id}`}
+										aria-current={activeUrl.pathname.startsWith('/app/tickets') &&
+										activeCategoryId === categorySummary.id
+											? 'page'
+											: undefined}
 										onclick={closeMobileSidebar}
 										><span class="min-w-0 truncate text-foreground">{categorySummary.name}</span
 										><small class="ml-auto text-[12px]">{categorySummary.count}</small></a
@@ -180,6 +190,8 @@
 					<a
 						class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname.endsWith('/roles'))}
 						href="/app/admin/roles"
+						aria-label="Roles"
+						aria-current={activeUrl.pathname === '/app/admin/roles' ? 'page' : undefined}
 						onclick={closeMobileSidebar}
 						><Users size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Roles</span
 						></a
@@ -188,12 +200,16 @@
 					<a
 						class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname.endsWith('/users'))}
 						href="/app/admin/users"
+						aria-label="Users"
+						aria-current={activeUrl.pathname === '/app/admin/users' ? 'page' : undefined}
 						onclick={closeMobileSidebar}
 						><Users size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}>Users</span
 						></a
 					><a
 						class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname.endsWith('/categories'))}
 						href="/app/admin/categories"
+						aria-label="Categories"
+						aria-current={activeUrl.pathname === '/app/admin/categories' ? 'page' : undefined}
 						onclick={closeMobileSidebar}
 						><Tags size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}
 							>Categories</span
@@ -205,6 +221,8 @@
 			<a
 				class={buildLinkClass(NAV_LINK_CLASS, activeUrl.pathname === '/app/settings')}
 				href="/app/settings"
+				aria-label="Settings"
+				aria-current={activeUrl.pathname === '/app/settings' ? 'page' : undefined}
 				onclick={closeMobileSidebar}
 				><Settings size={23} /><span class={cn('text-foreground', HIDDEN_WHEN_COMPACT)}
 					>Settings</span

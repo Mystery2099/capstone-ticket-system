@@ -178,6 +178,7 @@
 </script>
 
 <KeyboardShortcutsDialog bind:open={isShortcutsDialogOpen} />
+<a class="skip-link" href="#main-content">Skip to main content</a>
 
 <Sidebar.Provider
 	bind:open={isSidebarOpen}
@@ -215,7 +216,7 @@
 		{newTicketHref}
 		unreadNotificationCount={data.unreadNotificationCount}
 	/>
-	<main>
+	<main id="main-content" tabindex="-1">
 		{#if slowRouteNavigation.current}<RouteSkeleton
 				kind={targetRouteSkeleton ?? lastTargetRouteSkeleton}
 			/>{/if}
@@ -230,12 +231,14 @@
 				activeView === navigationView.key && activeUrl.pathname.startsWith('/app/tickets')}<a
 				class={cn(MOBILE_NAV_LINK_CLASS, isActive && 'font-[650]')}
 				href={'/app/tickets?view=' + navigationView.key}
+				aria-current={isActive ? 'page' : undefined}
 				><span class={cn(MOBILE_NAV_ICON_CLASS, isActive && 'bg-selected text-primary')}
 					><navigationView.icon size={23} /></span
 				>{navigationView.label}</a
 			>{/each}<a
 			class={cn(MOBILE_NAV_LINK_CLASS, activeUrl.pathname === '/app/inbox' && 'font-[650]')}
 			href="/app/inbox"
+			aria-current={activeUrl.pathname === '/app/inbox' ? 'page' : undefined}
 			aria-label={data.unreadNotificationCount
 				? `Inbox, ${data.unreadNotificationCount} unread`
 				: 'Inbox'}
@@ -250,8 +253,27 @@
 						aria-hidden="true"
 					></span>{/if}</span
 			>Inbox</a
-		><a class={MOBILE_NAV_LINK_CLASS} href="/app/settings"
+		><a
+			class={MOBILE_NAV_LINK_CLASS}
+			href="/app/settings"
+			aria-current={activeUrl.pathname === '/app/settings' ? 'page' : undefined}
 			><span class={MOBILE_NAV_ICON_CLASS}><Settings size={23} /></span>Settings</a
 		>
 	</nav>
 </Sidebar.Provider>
+
+<style>
+	.skip-link {
+		position: fixed;
+		top: 8px;
+		left: 8px;
+		z-index: 100;
+		padding: 12px 16px;
+		background: var(--background);
+		color: var(--foreground);
+		transform: translateY(calc(-100% - 16px));
+	}
+	.skip-link:focus {
+		transform: translateY(0);
+	}
+</style>
