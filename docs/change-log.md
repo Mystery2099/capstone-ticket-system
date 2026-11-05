@@ -9,6 +9,12 @@
 
 This log records how the ticket system has changed since the original proposal, newest first. For each change I note what the expected behavior is, which parts of the schema, interface, or permissions it affects, any migration or recovery step it needs, and how it was verified. Changes that Professor Enke requested are marked as such.
 
+## November 4, 2026: Search suggestion fix, accessibility, and mobile navigation
+
+A review found that search suggestions ignored the requester filter for anyone who could read internal notes, so a custom role with note access but without permission to see all tickets could see subjects from other requesters' tickets. Suggestions now follow the same ticket visibility rule as the ticket list, and a workflow test fails if that regresses. CI now also runs lint.
+
+I also improved screen reader support by marking the current page in the navigation and ticket list, adding a skip link to the main content, and naming each dropdown after its field and current value. On phones, tapping outside the navigation now closes it on the first tap; a tooltip that opened with the navigation had been absorbing that tap, so tooltips are now turned off on touch screens. The filter dropdowns on phones sit in one row that scrolls sideways instead of taking up three rows. None of these changes need a migration.
+
 ## November 4, 2026: Interface polish and classic palette
 
 Settings now has a Colors option that offers a plain, classic palette alongside the default one, and the choice is applied before the page first paints so there is no flash of the wrong colors. I also added hover and open-state feedback across the sidebar, search, menus, and composer, gave every checkbox the same style, and made the account menu and search options close when someone clicks outside them. These changes only affect the interface; no migration is needed.
