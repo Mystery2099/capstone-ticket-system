@@ -43,6 +43,22 @@ The site is HTTPS only, with HSTS, and session cookies are HttpOnly and Secure o
 
 No secrets are stored in Git. The `.env` file and local data are ignored, and `.env.example` only contains placeholders. GitHub deploys through a federated identity, so it stores no Azure password at all. When I provision or recover an account from the command line, the password is read from a private file rather than passed as an argument, where it could end up in shell history.
 
+### Encryption of stored data
+
+Data is encrypted in transit everywhere it travels: HTTPS between the browser and the application, and TLS with certificate verification between the application and PostgreSQL. At rest, Azure Database for PostgreSQL encrypts the database storage and its automated backups with service-managed keys by default. That protection comes from the platform rather than from anything I configured. Inside the application, passwords are hashed rather than encrypted, and authenticator secrets are encrypted with `BETTER_AUTH_SECRET`. Ticket subjects, descriptions, comments, and internal notes are not encrypted by the application itself, and that was a deliberate scope decision.
+
+The system is designed as an internal help desk for IT and general support requests, not as a system for health records, payment card data, or other regulated records. Data protection regulations are not satisfied by encrypting a few columns. They typically require agreements with the hosting provider, a documented risk assessment, workforce training, access and audit controls, retention and disposal policies, and breach notification procedures. Adding column encryption on its own would give the appearance of compliance without the substance, so I chose to rely on access control instead: the restricted database login, server-side capability checks, the internal-note filtering, and the audit trail described above.
+
+Application-level encryption would also cost real functionality. Ticket search depends on PostgreSQL reading the text through `pg_trgm`, and encrypted columns cannot be searched, sorted, or indexed that way without a much more complex design. The key would also have to live on the same App Service that reads the data, so encryption would mainly protect against someone who obtained only a database dump or the database credentials, a case already narrowed by the firewall, the restricted login, and keeping dumps private.
+
+If the system were used for regulated data, such as a clinic's patient-facing help desk, I would treat that as a different project with these additions:
+
+- The required agreements with Microsoft, and only Azure services that are approved for that kind of data.
+- Customer-managed keys stored in Azure Key Vault for the database and backups, so keys can be rotated or revoked independently of Azure's defaults.
+- Application-level encryption for the most sensitive fields, starting with internal notes, with keys held in Key Vault rather than in App Service settings, and search limited to fields that remain unencrypted.
+- Encrypted logical dumps, MFA required for every account, audit logging of record views as well as changes, and a defined retention period after which closed tickets are purged.
+- A written policy and an in-app notice telling requesters not to include health, financial, or other regulated details in tickets that are not meant to hold them.
+
 ## 5. Audit trail
 
 Every ticket change writes a `ticket_event` row in the same transaction as the change, so the history cannot disagree with the ticket. Account and category changes, role deletion, the initial administrator bootstrap, and operator account recovery write a `security_event` row. Those two tables are what I would review after a suspected compromise.
