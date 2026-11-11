@@ -1,5 +1,5 @@
 erDiagram
-  APPLICATION_ROLE ||--o{ USER : grants
+  APPLICATION_ROLE o|--o{ USER : grants
   USER ||--o{ SESSION : has
   USER ||--o{ ACCOUNT : has
   USER ||--o| TWO_FACTOR : enrolls
@@ -95,6 +95,7 @@ erDiagram
     uuid id PK
     text recipient_id FK
     uuid ticket_id FK
+    text actor_id FK
     uuid comment_id FK
     text kind
     timestamp read_at

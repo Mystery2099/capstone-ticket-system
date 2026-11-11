@@ -3,14 +3,18 @@ sequenceDiagram
  participant Server as SvelteKit server
  participant DB as PostgreSQL
  Requester->>Server: Submit subject, description, category
- Server->>Server: Check session, validate input
+ Server->>Server: Check session and permissions, validate input
+ Server->>DB: SELECT active category
  Server->>DB: BEGIN
  Server->>DB: INSERT ticket (Normal priority, Open status)
- DB-->>Server: New ticket ID
+ DB-->>Server: New ticket
  Server->>DB: INSERT ticket_event and requester follower
+ opt Staff assigned it while creating
+  Server->>DB: INSERT assignment event, assignee follower, notification
+ end
  alt All writes succeed
   Server->>DB: COMMIT
-  Server-->>Requester: Ticket details
+  Server-->>Requester: Redirect to the new ticket
  else Any failure
   Server->>DB: ROLLBACK
   Server-->>Requester: Error, no ticket created

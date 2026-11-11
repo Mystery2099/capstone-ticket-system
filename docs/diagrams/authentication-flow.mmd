@@ -3,14 +3,23 @@ sequenceDiagram
     participant SvelteKit
     participant BetterAuth as Better Auth
     participant DB as PostgreSQL
-    Browser->>SvelteKit: Sign in
+    Browser->>SvelteKit: Sign in with email and password
     SvelteKit->>BetterAuth: Authenticate credentials
-    BetterAuth->>DB: Read account, create session
+    BetterAuth->>DB: Read account and password hash
+    alt Authenticator enrolled
+        BetterAuth-->>Browser: Ask for second factor
+        Browser->>BetterAuth: Authenticator or recovery code
+        BetterAuth->>DB: Verify code, create session
+    else Not enrolled
+        BetterAuth->>DB: Create session
+    end
     BetterAuth-->>Browser: Session cookie
+    Note over Browser,SvelteKit: Administrators without MFA are sent to enrollment first
     Browser->>SvelteKit: Request ticket
     SvelteKit->>BetterAuth: Validate session
     BetterAuth-->>SvelteKit: User and session
-    SvelteKit->>SvelteKit: Check enabled, role, ownership
+    SvelteKit->>DB: Reload account and role grants
+    SvelteKit->>SvelteKit: Check enabled, capabilities, ownership
     SvelteKit->>DB: Authorized ticket query
     DB-->>SvelteKit: Ticket rows
     SvelteKit-->>Browser: Only allowed fields

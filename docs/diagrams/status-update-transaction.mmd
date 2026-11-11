@@ -9,8 +9,8 @@ sequenceDiagram
  Server->>Server: Check ticket access and allowed change
  Server->>DB: UPDATE ticket
  Server->>DB: INSERT ticket_event
- Server->>DB: INSERT notifications when required
- alt Both successful
+ Server->>DB: INSERT requester notification if resolved, closed, or reopened
+ alt All writes succeed
   Server->>DB: COMMIT
  else Any failure
   Server->>DB: ROLLBACK
