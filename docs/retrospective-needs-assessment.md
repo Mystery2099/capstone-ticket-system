@@ -1,4 +1,4 @@
-# Needs Assessment: Support Ticket Management System
+# Retrospective Needs Assessment: Support Ticket Management System
 
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
@@ -11,7 +11,7 @@
 
 For my Open Source Database Lab, I built a web-based support ticket system for a fictional small IT support team. Someone with a problem can submit a ticket, and support staff can organize the request, respond, and track it until the issue is resolved. The database work involves the relationships and rules behind those interactions; users need access to the appropriate tickets, status changes need to follow the workflow, and the history needs to preserve what happened.
 
-The application is implemented and deployed, so this assessment explains the needs behind the existing design. The current repository is the reference for implemented functionality, and the [test and demonstration plan](test-and-demo-plan.md) records which behavior has been verified on the hosted deployment. I am using the six-step needs assessment framework from my class notes, covering objectives, stakeholders, existing workflows, requirements, gaps and costs, and the action plan. Because the support environment is fictional, the needs discussed here come from the intended workflow and my familiarity with IT support; they are not findings from interviews or surveys at an actual organization.
+I wrote this assessment after the application was implemented and deployed, so it explains the needs behind the existing design rather than serving as a pre-project plan. The current repository is the reference for implemented functionality, and the [test and demonstration plan](test-and-demo-plan.md) records which behavior has been verified on the hosted deployment. I am using the six-step needs assessment framework from my class notes, covering objectives, stakeholders, existing workflows, requirements, gaps and costs, and the action plan. Because the support environment is fictional, the needs discussed here come from the intended workflow and my familiarity with IT support; they are not findings from interviews or surveys at an actual organization.
 
 ## 1. Objectives and scope
 
