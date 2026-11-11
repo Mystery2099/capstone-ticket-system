@@ -3,15 +3,15 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 5, 2026  
+**Status:** Current as of November 11, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)  
 **Database:** PostgreSQL
 
 ## Introduction
 
-For my Open Source Database Lab, I am building a web-based support ticket system for a fictional small IT support team. Someone with a problem can submit a ticket, and support staff can organize the request, respond, and track it until the issue is resolved. The database work involves the relationships and rules behind those interactions; users need access to the appropriate tickets, status changes need to follow the workflow, and the history needs to preserve what happened.
+For my Open Source Database Lab, I built a web-based support ticket system for a fictional small IT support team. Someone with a problem can submit a ticket, and support staff can organize the request, respond, and track it until the issue is resolved. The database work involves the relationships and rules behind those interactions; users need access to the appropriate tickets, status changes need to follow the workflow, and the history needs to preserve what happened.
 
-The application already has a substantial implementation, so this assessment explains the needs behind the existing design and helps identify what remains to be done. The current repository is the reference for implemented functionality, while planned improvements and deployment checks still need to be distinguished from behavior verified in production. I am using the six-step needs assessment framework from my class notes, covering objectives, stakeholders, existing workflows, requirements, gaps and costs, and the action plan. Because the support environment is fictional, the needs discussed here come from the intended workflow and my familiarity with IT support; they are not findings from interviews or surveys at an actual organization.
+The application is implemented and deployed, so this assessment explains the needs behind the existing design. The current repository is the reference for implemented functionality, and the [test and demonstration plan](test-and-demo-plan.md) records which behavior has been verified on the hosted deployment. I am using the six-step needs assessment framework from my class notes, covering objectives, stakeholders, existing workflows, requirements, gaps and costs, and the action plan. Because the support environment is fictional, the needs discussed here come from the intended workflow and my familiarity with IT support; they are not findings from interviews or surveys at an actual organization.
 
 ## 1. Objectives and scope
 
@@ -21,7 +21,7 @@ For the lab, the application also needs to demonstrate how PostgreSQL supports t
 
 A successful demonstration should show a requester creating a ticket, an agent finding and assigning it, and both people seeing the appropriate parts of the conversation. Staff should be able to leave an internal note that the requester cannot see, update the status, and resolve the issue. The requester can reopen their own Resolved ticket if necessary, while reopening a Closed ticket requires elevated permission. Relational queries, rejected unauthorized operations, transaction behavior, and evidence of a successful backup and restore also belong in the demonstration.
 
-The scope is intentionally smaller than a commercial help desk platform. Email-to-ticket integration, multi-organization support, complex reporting, push notifications, and automated workflows are outside the project's requirements. The repository currently excludes image uploads and other attachments, although screenshots could be useful for troubleshooting; adding them remains a possible follow-up decision. I want a complete, understandable system for a small support team, without trying to recreate ServiceNow or Zendesk.
+The scope is intentionally smaller than a commercial help desk platform. Email-to-ticket integration, multi-organization support, complex reporting, push notifications, and automated workflows are outside the project's requirements. Image uploads and other attachments are also excluded, although screenshots could be useful for troubleshooting; the architecture document records how I would add them. I want a complete, understandable system for a small support team, without trying to recreate ServiceNow or Zendesk.
 
 ## 2. Stakeholders and user needs
 

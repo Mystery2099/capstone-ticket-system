@@ -3,12 +3,12 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 5, 2026  
+**Status:** Current as of November 11, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
 
-This document lists what the ticket system is required to do. The [needs assessment](needs-assessment.md) explains why each need exists; here I state the requirements themselves so they can be checked against the application and the [test and demonstration plan](test-and-demo-plan.md). The scope may still change based on Professor Enke's feedback, and any change he requests is reflected here.
+This document lists what the ticket system is required to do. The [needs assessment](needs-assessment.md) explains why each need exists; here I state the requirements themselves so they can be checked against the application and the [test and demonstration plan](test-and-demo-plan.md). The scope changed during the project in response to Professor Enke's feedback, and those changes are reflected here.
 
 ## 1. Purpose
 

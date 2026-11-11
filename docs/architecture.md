@@ -3,7 +3,7 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 5, 2026  
+**Status:** Current as of November 11, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
@@ -66,7 +66,7 @@ Every match, suggestion, and excerpt follows the user's ticket and internal-note
 
 Professor Enke asked for descriptions and replies to support formatting, so ticket descriptions, public replies, and internal notes use a restricted rich-text composer built on Tiptap. Users format text directly, the way they would in an email client, and never see Markdown syntax. Behind the scenes, the editor stores Markdown in the same text columns the application already used. The composer supports bold, italic, strikethrough, links, lists, quotes, inline code, code blocks, and one heading level; images, tables, attachments, and raw HTML are excluded, and pasted content is reduced to that set.
 
-The code lives in `src/lib/ticket-content/`, with `TicketContentEditor.svelte` connecting the editor to drafts and form fields and `TicketContent.svelte` rendering saved, optimistic, and draft messages through the same renderer. Because messages are written by one user and read by another, rendering assumes the content could be hostile: it escapes HTML, never loads images, and only links to `http`, `https`, and `mailto` targets, opening them with `rel="noopener noreferrer nofollow"`. The renderer does not decide who can see a message; internal-note visibility is still enforced by the server's queries.
+The editor setup, content rules, and renderer live in `src/lib/ticket-content/`. In `src/lib/components/tickets/`, `TicketContentEditor.svelte` connects the editor to drafts and form fields and `TicketContent.svelte` renders saved, optimistic, and draft messages through the same renderer. Because messages are written by one user and read by another, rendering assumes the content could be hostile: it escapes HTML, never loads images, and only links to `http`, `https`, and `mailto` targets, opening them with `rel="noopener noreferrer nofollow"`. The renderer does not decide who can see a message; internal-note visibility is still enforced by the server's queries.
 
 Migration `0005_right_marvex` adds a format column to tickets and comments. Rows that existed before it are marked `plain` and still display exactly as they were typed, while new rows default to `markdown`. The length limits of 4,000 characters for descriptions and 10,000 for replies apply to the stored Markdown.
 

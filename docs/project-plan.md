@@ -3,12 +3,12 @@
 **Course:** CISY 8503 Applied Database Management  
 **Lab:** Open Source Database Lab  
 **Student:** Mathew Kennedy-Brewer  
-**Status:** Current as of November 4, 2026  
+**Status:** Current as of November 11, 2026  
 **Project:** [Capstone Ticket System](https://github.com/Mystery2099/capstone-ticket-system)
 
 ## Introduction
 
-This plan describes how I have built the ticket system and how I intend to finish it. It follows the phases of the system development life cycle, from planning through maintenance. The dates come from the repository's history, where each piece of work was merged through a pull request on GitHub. The [needs assessment](needs-assessment.md) explains why the project exists; this document explains how the work was organized and what process I follow when something changes.
+This plan describes how I built the ticket system and how I keep it maintained. It follows the phases of the system development life cycle, from planning through maintenance. The dates come from the repository's history, where each piece of work was merged through a pull request on GitHub. The [needs assessment](needs-assessment.md) explains why the project exists; this document explains how the work was organized and what process I follow when something changes.
 
 ## 1. Phases and timeline
 
@@ -46,4 +46,4 @@ The free hosting tier sleeps when idle and has daily resource limits, so the fir
 
 ## Conclusion
 
-The project has moved quickly from planning to a deployed application, and most of the remaining work is verification rather than new features. Keeping a consistent change process has let me add requested features without losing track of the schema or the hosted database, and it gives me a record of how the system reached its current state.
+The project has moved quickly from planning to a deployed application, and the work since deployment has been verification and maintenance rather than new features. Keeping a consistent change process has let me add requested features without losing track of the schema or the hosted database, and it gives me a record of how the system reached its current state.
