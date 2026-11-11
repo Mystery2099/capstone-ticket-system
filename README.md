@@ -19,7 +19,7 @@ Each course objective is addressed by one or more documents in `docs/`.
 
 | Objective                                     | Where it is addressed                                                                                                                    |
 | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Needs assessment for the organization         | [Retrospective needs assessment](docs/retrospective-needs-assessment.md)                                                                 |
+| Needs assessment for the organization         | [Needs assessment](docs/needs-assessment.md)                                                                                             |
 | Plan for the database application             | [Project plan](docs/project-plan.md), [requirements](docs/requirements.md), [database design](docs/database-design.md)                   |
 | Build and configure the database application  | This repository, [local setup](#local-setup), [deployment and operations](docs/deployment-and-operations.md)                             |
 | Maintain, secure, and program the application | [Database design](docs/database-design.md), [roles and permissions](docs/roles-and-permissions.md), [architecture](docs/architecture.md) |
@@ -58,7 +58,7 @@ Hosted checks recorded in these documents are dated evidence, not a guarantee of
 
 ## Documentation
 
-- **Planning:** [retrospective needs assessment](docs/retrospective-needs-assessment.md), [project plan](docs/project-plan.md), [requirements](docs/requirements.md), and [test and demonstration plan](docs/test-and-demo-plan.md) with its [demonstration queries](docs/demo-queries.sql)
+- **Planning:** [needs assessment](docs/needs-assessment.md) (with a [retrospective](docs/retrospective-needs-assessment.md) written after the build), [project plan](docs/project-plan.md), [requirements](docs/requirements.md), and [test and demonstration plan](docs/test-and-demo-plan.md) with its [demonstration queries](docs/demo-queries.sql)
 - **Reflection:** [development reflections and lessons learned](docs/development-reflections.md)
 - **Screens:** [screen gallery](docs/screen-gallery.md) with every page of the application and mockups of planned production features
 - **Design:** [architecture](docs/architecture.md), [database design](docs/database-design.md), [roles and permissions](docs/roles-and-permissions.md), [diagrams](docs/diagrams/), and [interface design references](design/README.md)

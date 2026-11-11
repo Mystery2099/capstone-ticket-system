@@ -8,21 +8,21 @@
 
 ## Introduction
 
-This plan describes how I built the ticket system and how I keep it maintained. It follows the phases of the system development life cycle, from planning through maintenance. The dates come from the repository's history, where each piece of work was merged through a pull request on GitHub. The [retrospective needs assessment](retrospective-needs-assessment.md) explains why the project exists; this document explains how the work was organized and what process I follow when something changes.
+This plan describes how I built the ticket system and how I keep it maintained. It follows the phases of the system development life cycle, from planning through maintenance. The dates come from the repository's history, where each piece of work was merged through a pull request on GitHub. The [needs assessment](needs-assessment.md) explains why the project exists; this document explains how the work was organized and what process I follow when something changes.
 
 ## 1. Phases and timeline
 
 I started with planning and data modeling before writing application code, because the database design determines most of what the application can safely do. Implementation and deployment overlapped once the core schema was stable, and the most recent work has been maintenance driven by feedback.
 
-| Phase          | Dates           | Work                                                                                                       | Output                                                                                                       |
-| -------------- | --------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Planning       | Oct 30          | Scope, roles, and choice of technology                                                                     | [Requirements](requirements.md), [roles and permissions](roles-and-permissions.md)                           |
-| Analysis       | Oct 30          | Entities, relationships, the ticket lifecycle, and note visibility                                         | [ERD](diagrams/entity-relationship.mmd), [lifecycle](diagrams/ticket-lifecycle.mmd)                          |
-| Design         | Oct 30 – Oct 31 | Desktop and mobile mockups, site map, and architecture                                                     | [Design references](../design/README.md), [architecture](architecture.md)                                    |
-| Implementation | Oct 31 – Nov 2  | Drizzle schema and migrations, Better Auth with MFA, ticket workflows, search, and saved roles             | `src/`, `drizzle/`, [database design](database-design.md), [roles and permissions](roles-and-permissions.md) |
-| Testing        | Throughout      | Database workflow tests, security tests, and browser tests                                                 | `tests/`, [test and demonstration plan](test-and-demo-plan.md)                                               |
-| Deployment     | Nov 1 – Nov 2   | Azure App Service and PostgreSQL, a restricted runtime login, and GitHub Actions with a federated identity | [Deployment and operations](deployment-and-operations.md)                                                    |
-| Maintenance    | Nov 3 – ongoing | Rich-text messages, ticket editing, a separate description section, and inbox notifications                | `drizzle/` migrations and the Git history                                                                    |
+| Phase          | Dates           | Work                                                                                                       | Output                                                                                                                      |
+| -------------- | --------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Planning       | Oct 30          | Scope, roles, and choice of technology                                                                     | [Needs assessment](needs-assessment.md), [requirements](requirements.md), [roles and permissions](roles-and-permissions.md) |
+| Analysis       | Oct 30          | Entities, relationships, the ticket lifecycle, and note visibility                                         | [ERD](diagrams/entity-relationship.mmd), [lifecycle](diagrams/ticket-lifecycle.mmd)                                         |
+| Design         | Oct 30 – Oct 31 | Desktop and mobile mockups, site map, and architecture                                                     | [Design references](../design/README.md), [architecture](architecture.md)                                                   |
+| Implementation | Oct 31 – Nov 2  | Drizzle schema and migrations, Better Auth with MFA, ticket workflows, search, and saved roles             | `src/`, `drizzle/`, [database design](database-design.md), [roles and permissions](roles-and-permissions.md)                |
+| Testing        | Throughout      | Database workflow tests, security tests, and browser tests                                                 | `tests/`, [test and demonstration plan](test-and-demo-plan.md)                                                              |
+| Deployment     | Nov 1 – Nov 2   | Azure App Service and PostgreSQL, a restricted runtime login, and GitHub Actions with a federated identity | [Deployment and operations](deployment-and-operations.md)                                                                   |
+| Maintenance    | Nov 3 – ongoing | Rich-text messages, ticket editing, a separate description section, and inbox notifications                | `drizzle/` migrations and the Git history                                                                                   |
 
 ## 2. Technology choices
 

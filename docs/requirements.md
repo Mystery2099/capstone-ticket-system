@@ -8,7 +8,7 @@
 
 ## Introduction
 
-This document lists what the ticket system is required to do. The [retrospective needs assessment](retrospective-needs-assessment.md) explains why each need exists; here I state the requirements themselves so they can be checked against the application and the [test and demonstration plan](test-and-demo-plan.md). The scope changed during the project in response to Professor Enke's feedback, and those changes are reflected here.
+This document lists what the ticket system is required to do. The [needs assessment](needs-assessment.md) explains why each need exists; here I state the requirements themselves so they can be checked against the application and the [test and demonstration plan](test-and-demo-plan.md). The scope changed during the project in response to Professor Enke's feedback, and those changes are reflected here.
 
 ## 1. Purpose
 
